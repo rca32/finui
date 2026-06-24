@@ -316,6 +316,7 @@ pub fn radix_icon_from_visual(visual: &str) -> Option<RadixIcon> {
 }
 
 pub fn paint_radix_icon(ui: &egui::Ui, icon: RadixIcon, rect: Rect, color: Color32) {
+    egui_extras::install_image_loaders(ui.ctx());
     let asset = radix_icon_asset(icon);
     let svg = asset.svg.replace("currentColor", "#FFFFFF");
     let image = egui::Image::from_bytes(

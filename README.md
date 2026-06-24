@@ -44,6 +44,10 @@ cargo run -p grid_lab
 cargo run -p primitives_lab
 ```
 
+## Sample Screenshot
+
+![Finui grid lab sample](docs/images/grid-lab.png)
+
 ## Feature Boundaries
 
 `finui-grid` keeps generic row-source contracts in core:
