@@ -1,0 +1,19 @@
+[package]
+name = "finui-grid"
+version = "0.1.0"
+edition = "2024"
+description = "Agent-testable financial data grid for egui applications"
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation.workspace = true
+
+[features]
+default = ["fixtures"]
+fixtures = []
+
+[dependencies]
+eframe = { version = "0.34.2", default-features = false, features = ["default_fonts", "glow", "__screenshot"] }
+finui-primitives = { path = "../finui-primitives" }
+serde.workspace = true
+serde_json.workspace = true

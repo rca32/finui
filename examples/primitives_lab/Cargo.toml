@@ -1,0 +1,9 @@
+[package]
+name = "primitives_lab"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+
+[dependencies]
+eframe.workspace = true
+finui-primitives = { path = "../../crates/finui-primitives" }

@@ -1,0 +1,9 @@
+[package]
+name = "grid_lab"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+
+[dependencies]
+eframe.workspace = true
+finui-grid = { path = "../../crates/finui-grid" }

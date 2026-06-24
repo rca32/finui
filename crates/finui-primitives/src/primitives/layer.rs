@@ -1,0 +1,149 @@
+use std::hash::Hash;
+
+use eframe::egui::{self, Rect};
+
+use super::theme::PrimitiveTheme;
+use crate::{
+    AnchoredLayerOptions, DismissPolicy, LayerOutput, LayerPlacement, show_anchored_layer,
+};
+
+pub struct PrimitiveLayerOptions {
+    pub id: egui::Id,
+    pub anchor_rect: Option<Rect>,
+    pub placement: LayerPlacement,
+    pub width: f32,
+    pub min_height: Option<f32>,
+    pub max_height: Option<f32>,
+    pub inner_margin: egui::Margin,
+    pub order: egui::Order,
+    pub dismiss_policy: DismissPolicy,
+    pub theme: PrimitiveTheme,
+}
+
+impl PrimitiveLayerOptions {
+    pub fn new(id: impl Hash, width: f32) -> Self {
+        Self {
+            id: egui::Id::new(id),
+            anchor_rect: None,
+            placement: LayerPlacement::Fixed(egui::Pos2::ZERO),
+            width,
+            min_height: None,
+            max_height: None,
+            inner_margin: egui::Margin::same(8),
+            order: egui::Order::Foreground,
+            dismiss_policy: DismissPolicy::OutsideClickAndEscape,
+            theme: PrimitiveTheme::default(),
+        }
+    }
+
+    pub fn anchor_rect(mut self, rect: Rect) -> Self {
+        self.anchor_rect = Some(rect);
+        self
+    }
+
+    pub fn placement(mut self, placement: LayerPlacement) -> Self {
+        self.placement = placement;
+        self
+    }
+
+    pub fn max_height(mut self, max_height: f32) -> Self {
+        self.max_height = Some(max_height);
+        self
+    }
+
+    pub fn min_height(mut self, min_height: f32) -> Self {
+        self.min_height = Some(min_height);
+        self
+    }
+
+    pub fn inner_margin(mut self, inner_margin: egui::Margin) -> Self {
+        self.inner_margin = inner_margin;
+        self
+    }
+
+    pub fn order(mut self, order: egui::Order) -> Self {
+        self.order = order;
+        self
+    }
+
+    pub fn dismiss_policy(mut self, dismiss_policy: DismissPolicy) -> Self {
+        self.dismiss_policy = dismiss_policy;
+        self
+    }
+}
+
+pub struct PrimitiveLayerOutput<T> {
+    pub action: Option<T>,
+    pub should_close: bool,
+    pub content_rect: Rect,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PrimitivePortalOutput {
+    pub content_rect: Rect,
+}
+
+pub fn primitive_portal_output(content_rect: Rect) -> PrimitivePortalOutput {
+    PrimitivePortalOutput { content_rect }
+}
+
+pub fn primitive_dismissable_layer_options(
+    options: PrimitiveLayerOptions,
+    dismiss_policy: DismissPolicy,
+) -> PrimitiveLayerOptions {
+    options.dismiss_policy(dismiss_policy)
+}
+
+pub fn show_primitive_layer<T>(
+    ctx: &egui::Context,
+    options: PrimitiveLayerOptions,
+    add_contents: impl FnOnce(&mut egui::Ui) -> Option<T>,
+) -> PrimitiveLayerOutput<T> {
+    let mut layer = AnchoredLayerOptions::new(options.id, options.width)
+        .placement(options.placement)
+        .inner_margin(options.inner_margin)
+        .order(options.order)
+        .dismiss_policy(options.dismiss_policy);
+    if let Some(anchor) = options.anchor_rect {
+        layer = layer.anchor_rect(anchor);
+    }
+    if let Some(min_height) = options.min_height {
+        layer = layer.min_height(min_height);
+    }
+    if let Some(max_height) = options.max_height {
+        layer = layer.max_height(max_height);
+    }
+    layer.fill = options.theme.content_fill;
+    layer.stroke = options.theme.content_stroke;
+    layer.radius = options.theme.radius;
+
+    let output: LayerOutput<T> = show_anchored_layer(ctx, layer, add_contents);
+    let portal = primitive_portal_output(output.panel_rect);
+    PrimitiveLayerOutput {
+        action: output.action,
+        should_close: output.should_close,
+        content_rect: portal.content_rect,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn portal_output_preserves_content_rect() {
+        let rect = Rect::from_min_size(egui::pos2(12.0, 20.0), egui::vec2(120.0, 80.0));
+        let output = primitive_portal_output(rect);
+
+        assert_eq!(output.content_rect, rect);
+    }
+
+    #[test]
+    fn dismissable_layer_options_preserve_policy() {
+        let options = PrimitiveLayerOptions::new("layer-options-test", 180.0);
+        let options =
+            primitive_dismissable_layer_options(options, DismissPolicy::OutsideClickAndEscape);
+
+        assert_eq!(options.dismiss_policy, DismissPolicy::OutsideClickAndEscape);
+    }
+}
