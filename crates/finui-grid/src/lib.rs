@@ -35,6 +35,7 @@ pub struct FinancialDataGrid<'a> {
     agent_bridge: Option<&'a GridAgentBridge>,
     status_bar: bool,
     row_selection_only: bool,
+    height: Option<f32>,
 }
 
 impl<'a> FinancialDataGrid<'a> {
@@ -49,6 +50,7 @@ impl<'a> FinancialDataGrid<'a> {
             agent_bridge: None,
             status_bar: true,
             row_selection_only: false,
+            height: None,
         }
     }
 }
@@ -63,6 +65,7 @@ pub struct FinancialDataGridBuilder<'a> {
     agent_bridge: Option<&'a GridAgentBridge>,
     status_bar: bool,
     row_selection_only: bool,
+    height: Option<f32>,
 }
 
 impl<'a> FinancialDataGridBuilder<'a> {
@@ -106,6 +109,11 @@ impl<'a> FinancialDataGridBuilder<'a> {
         self
     }
 
+    pub fn height(mut self, height: f32) -> Self {
+        self.height = Some(height);
+        self
+    }
+
     pub fn show(self, ui: &mut egui::Ui) -> GridOutput {
         FinancialDataGrid {
             id: self.id,
@@ -119,6 +127,7 @@ impl<'a> FinancialDataGridBuilder<'a> {
             agent_bridge: self.agent_bridge,
             status_bar: self.status_bar,
             row_selection_only: self.row_selection_only,
+            height: self.height,
         }
         .show(ui)
     }
@@ -129,6 +138,45 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
+
+    #[test]
+    fn financial_data_grid_builder_accepts_explicit_height() {
+        let columns = demo_columns();
+        let source = InMemoryGridSource::new(demo_rows(2));
+        let mut state = GridState::default();
+
+        let builder = FinancialDataGrid::new("height-contract")
+            .columns(&columns)
+            .source(&source)
+            .state(&mut state)
+            .height(224.0);
+        let FinancialDataGridBuilder {
+            id,
+            columns,
+            source,
+            state,
+            density,
+            provenance_policy,
+            agent_bridge,
+            status_bar,
+            row_selection_only,
+            height,
+        } = builder;
+        let grid = FinancialDataGrid {
+            id,
+            columns: columns.expect("columns"),
+            source: source.expect("source"),
+            state: state.expect("state"),
+            density,
+            provenance_policy,
+            agent_bridge,
+            status_bar,
+            row_selection_only,
+            height,
+        };
+
+        assert_eq!(grid.height, Some(224.0));
+    }
 
     #[test]
     fn financial_data_grid_sorts_numeric_values() {

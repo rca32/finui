@@ -30,7 +30,10 @@ impl<'a> FinancialDataGrid<'a> {
         let available = ui.available_size();
         let viewport_rect = ui.input(|input| input.content_rect());
         let viewport_remaining = (viewport_rect.bottom() - ui.cursor().top()).max(0.0);
-        let height = (available.y.min(viewport_remaining) - 180.0).clamp(140.0, 300.0);
+        let height = self
+            .height
+            .unwrap_or_else(|| (available.y.min(viewport_remaining) - 180.0).clamp(140.0, 300.0))
+            .clamp(80.0, viewport_remaining.max(80.0));
         let viewport_width = (viewport_rect.right() - ui.cursor().left()).max(0.0);
         let width = available.x.min(viewport_width).max(240.0);
         let desired = Vec2::new(width, height);
