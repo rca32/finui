@@ -4,6 +4,14 @@ This document is the canonical part map for `finui-primitives`. The part names
 follow Radix vocabulary where it fits egui, and name the egui limitation when a
 web part is represented as data instead of a DOM node.
 
+The code-side catalogue is exposed through
+`primitive_part_anatomy_catalogue_output`.
+
+Acceptance tests:
+
+- `part_anatomy_catalogue_covers_major_radix_parts`
+- `part_anatomy_catalogue_entries_have_code_symbols`
+
 | Primitive | Public parts | Role of each part | Required tests |
 | --- | --- | --- | --- |
 | Dialog | Root, Trigger, Portal, Overlay, Content, Title, Description, Close | Root owns open/default/modal state. Trigger opens the layer. Portal routes content. Overlay blocks background. Content hosts title/description/action parts. Close requests dismissal. | `dialog_root_output_preserves_open_default_and_modal_contract`, `dialog_part_state_mounts_when_open_or_force_mounted` |

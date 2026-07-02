@@ -274,7 +274,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 
 다음 조건이 모두 만족되어야 Radix UI 수준에 근접했다고 볼 수 있다.
 
-- [ ] 주요 primitive가 Root/Trigger/Content/Portal/Item/Indicator 등 part anatomy를 문서와 코드에서 일관되게 제공한다.
+- [x] 주요 primitive가 Root/Trigger/Content/Portal/Item/Indicator 등 part anatomy를 문서와 코드에서 일관되게 제공한다.
 - [ ] pointer, keyboard, focus, dismiss, controlled/uncontrolled state가 실제 runtime test로 검증된다.
 - [x] 스크린리더 의미에 해당하는 Finui accessibility snapshot이 primitive별로 존재한다.
 - [x] Popover/Menu/Tooltip 계열의 포지셔닝이 충돌 후 side/align/output과 일치한다.

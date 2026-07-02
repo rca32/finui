@@ -542,6 +542,13 @@ pub struct PrimitiveUxReceiptOutput {
     pub open_layers: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PrimitivePartAnatomyOutput {
+    pub primitive: &'static str,
+    pub parts: &'static [&'static str],
+    pub code_symbols: &'static [&'static str],
+}
+
 pub fn primitive_controllable_state_output<T: Clone + PartialEq>(
     scope: PrimitiveControllableScope,
     controlled_value: Option<T>,
@@ -674,6 +681,173 @@ pub fn primitive_text_overflow_output(
         label_kind_name: options.label_kind.as_str(),
         tooltip_text,
     }
+}
+
+pub fn primitive_part_anatomy_catalogue_output() -> Vec<PrimitivePartAnatomyOutput> {
+    vec![
+        PrimitivePartAnatomyOutput {
+            primitive: "dialog",
+            parts: &[
+                "Root",
+                "Trigger",
+                "Portal",
+                "Overlay",
+                "Content",
+                "Title",
+                "Description",
+                "Close",
+            ],
+            code_symbols: &[
+                "DialogRootOutput",
+                "DialogPortalOutput",
+                "DialogPartStateOutput",
+            ],
+        },
+        PrimitivePartAnatomyOutput {
+            primitive: "dropdown_menu",
+            parts: &[
+                "Root",
+                "Trigger",
+                "Portal",
+                "Content",
+                "Group",
+                "Item",
+                "CheckboxItem",
+                "RadioItem",
+                "Label",
+                "Separator",
+                "SubTrigger",
+                "SubContent",
+                "Arrow",
+                "Shortcut",
+            ],
+            code_symbols: &[
+                "DropdownMenuRootOutput",
+                "DropdownMenuContentOutput",
+                "DropdownMenuItemOptions",
+            ],
+        },
+        PrimitivePartAnatomyOutput {
+            primitive: "select",
+            parts: &[
+                "Root",
+                "Trigger",
+                "Value",
+                "Icon",
+                "Portal",
+                "Content",
+                "Viewport",
+                "Group",
+                "Label",
+                "Item",
+                "ItemIndicator",
+                "ScrollButton",
+                "Separator",
+            ],
+            code_symbols: &[
+                "SelectRootOutput",
+                "SelectTriggerOutput",
+                "SelectItemIndicatorOutput",
+            ],
+        },
+        PrimitivePartAnatomyOutput {
+            primitive: "navigation_menu",
+            parts: &[
+                "Root",
+                "List",
+                "Item",
+                "Trigger",
+                "Content",
+                "Link",
+                "Indicator",
+                "Viewport",
+            ],
+            code_symbols: &[
+                "NavigationMenuRootOutput",
+                "NavigationMenuContentOutput",
+                "NavigationMenuIndicatorOutput",
+            ],
+        },
+        PrimitivePartAnatomyOutput {
+            primitive: "form",
+            parts: &["Field", "Label", "Control", "Message"],
+            code_symbols: &[
+                "PrimitiveFormFieldOutput",
+                "PrimitiveFormLabelOutput",
+                "PrimitiveFormMessageOutput",
+            ],
+        },
+        PrimitivePartAnatomyOutput {
+            primitive: "checkbox",
+            parts: &["Root", "Indicator"],
+            code_symbols: &["CheckboxRootOutput", "CheckboxIndicatorOutput"],
+        },
+        PrimitivePartAnatomyOutput {
+            primitive: "radio_group",
+            parts: &["Root", "Item", "Indicator"],
+            code_symbols: &[
+                "RadioGroupRootOutput",
+                "RadioGroupItemOutput",
+                "RadioGroupIndicatorOutput",
+            ],
+        },
+        PrimitivePartAnatomyOutput {
+            primitive: "slider",
+            parts: &["Root", "Track", "Range", "Thumb"],
+            code_symbols: &["SliderRootOutput", "SliderTrackOutput", "SliderThumbOutput"],
+        },
+        PrimitivePartAnatomyOutput {
+            primitive: "toast",
+            parts: &[
+                "Provider",
+                "Viewport",
+                "Root",
+                "Title",
+                "Description",
+                "Action",
+                "Close",
+            ],
+            code_symbols: &[
+                "ToastProviderOutput",
+                "ToastViewportOutput",
+                "ToastRootOutput",
+            ],
+        },
+        PrimitivePartAnatomyOutput {
+            primitive: "toolbar",
+            parts: &[
+                "Root",
+                "Button",
+                "Link",
+                "Separator",
+                "ToggleGroup",
+                "ToggleItem",
+            ],
+            code_symbols: &[
+                "ToolbarRootOutput",
+                "ToolbarButtonOutput",
+                "ToolbarToggleItemOutput",
+            ],
+        },
+        PrimitivePartAnatomyOutput {
+            primitive: "otp",
+            parts: &["Root", "Input", "HiddenInput"],
+            code_symbols: &[
+                "OtpFieldRootOutput",
+                "OtpFieldInputOutput",
+                "OtpFieldHiddenInputOutput",
+            ],
+        },
+        PrimitivePartAnatomyOutput {
+            primitive: "password_toggle",
+            parts: &["Root", "Input", "Button", "Icon"],
+            code_symbols: &[
+                "PasswordToggleRootOutput",
+                "PasswordToggleInputOutput",
+                "PasswordToggleButtonOutput",
+            ],
+        },
+    ]
 }
 
 fn primitive_truncated_text(
@@ -1386,6 +1560,49 @@ mod tests {
             primitive_ux_receipt_json_snapshot(&receipt),
             "{\"primitive\":\"dialog\",\"part\":\"content\",\"states\":[{\"key\":\"open\",\"value\":\"true\"}],\"focused_id\":\"confirm-title\",\"selected_item\":null,\"selected_value\":null,\"open_layers\":[\"dialog.portal\",\"dialog.content\"]}"
         );
+    }
+
+    #[test]
+    fn part_anatomy_catalogue_covers_major_radix_parts() {
+        let catalogue = primitive_part_anatomy_catalogue_output();
+        let find = |primitive: &str| {
+            catalogue
+                .iter()
+                .find(|entry| entry.primitive == primitive)
+                .expect("primitive anatomy entry")
+        };
+
+        for part in ["Root", "Trigger", "Portal", "Content"] {
+            assert!(find("dialog").parts.contains(&part));
+        }
+        for part in ["Item", "CheckboxItem", "RadioItem", "SubTrigger"] {
+            assert!(find("dropdown_menu").parts.contains(&part));
+        }
+        for part in ["Value", "Icon", "Viewport", "ItemIndicator"] {
+            assert!(find("select").parts.contains(&part));
+        }
+        for part in ["Trigger", "Content", "Indicator", "Viewport"] {
+            assert!(find("navigation_menu").parts.contains(&part));
+        }
+        assert!(find("checkbox").parts.contains(&"Indicator"));
+        assert!(find("radio_group").parts.contains(&"Indicator"));
+        assert!(find("slider").parts.contains(&"Thumb"));
+        assert!(find("toast").parts.contains(&"Action"));
+    }
+
+    #[test]
+    fn part_anatomy_catalogue_entries_have_code_symbols() {
+        for entry in primitive_part_anatomy_catalogue_output() {
+            assert!(!entry.primitive.is_empty());
+            assert!(!entry.parts.is_empty());
+            assert!(!entry.code_symbols.is_empty());
+            assert!(
+                entry
+                    .parts
+                    .iter()
+                    .all(|part| part.chars().next().is_some_and(char::is_uppercase))
+            );
+        }
     }
 
     #[test]
