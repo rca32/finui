@@ -1,6 +1,8 @@
 use eframe::egui::{self, Align2, Color32, FontId, Rect, Response, Sense, Stroke, Vec2, pos2};
 
-use super::{PrimitiveTheme, radix_colors};
+use super::{PrimitiveApiStability, PrimitiveTheme, radix_colors};
+
+pub const PASSWORD_TOGGLE_API_STABILITY: PrimitiveApiStability = PrimitiveApiStability::Stable;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PasswordToggleVisibility {
@@ -231,6 +233,10 @@ pub fn primitive_password_toggle_icon_output(
         },
         decorative: true,
     }
+}
+
+pub fn primitive_password_toggle_api_stability() -> PrimitiveApiStability {
+    PASSWORD_TOGGLE_API_STABILITY
 }
 
 pub fn password_toggle_display_value(value: &str, visibility: PasswordToggleVisibility) -> String {
@@ -475,6 +481,12 @@ mod tests {
         assert!(icon.visible);
         assert_eq!(icon.icon_name, "eye-off");
         assert!(icon.decorative);
+    }
+
+    #[test]
+    fn password_toggle_is_a_stable_public_api_not_preview() {
+        assert_eq!(PASSWORD_TOGGLE_API_STABILITY, PrimitiveApiStability::Stable);
+        assert_eq!(primitive_password_toggle_api_stability().as_str(), "stable");
     }
 
     #[test]

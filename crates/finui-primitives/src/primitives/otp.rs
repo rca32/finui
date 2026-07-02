@@ -1,6 +1,8 @@
 use eframe::egui::{self, Align2, FontId, Rect, Sense, Stroke, Vec2, pos2};
 
-use super::{PrimitiveDirection, PrimitiveTheme, radix_colors};
+use super::{PrimitiveApiStability, PrimitiveDirection, PrimitiveTheme, radix_colors};
+
+pub const OTP_FIELD_API_STABILITY: PrimitiveApiStability = PrimitiveApiStability::Stable;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OtpFieldOrientation {
@@ -258,6 +260,10 @@ pub fn primitive_otp_field_hidden_input_output(
     }
 }
 
+pub fn primitive_otp_field_api_stability() -> PrimitiveApiStability {
+    OTP_FIELD_API_STABILITY
+}
+
 pub fn sanitize_otp_value(
     value: &str,
     validation_type: OtpFieldValidationType,
@@ -473,6 +479,12 @@ mod tests {
         assert_eq!(hidden.name, Some("otp"));
         assert_eq!(hidden.form, Some("verify-form"));
         assert_eq!(hidden.value, "123456");
+    }
+
+    #[test]
+    fn otp_field_is_a_stable_public_api_not_preview() {
+        assert_eq!(OTP_FIELD_API_STABILITY, PrimitiveApiStability::Stable);
+        assert_eq!(primitive_otp_field_api_stability().as_str(), "stable");
     }
 
     #[test]

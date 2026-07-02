@@ -276,6 +276,21 @@ impl PrimitiveControllableMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveApiStability {
+    Stable,
+    Experimental,
+}
+
+impl PrimitiveApiStability {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Stable => "stable",
+            Self::Experimental => "experimental",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct PrimitiveControllableStateOutput<T> {
     pub scope: PrimitiveControllableScope,
@@ -856,6 +871,12 @@ mod tests {
         );
         assert!(!unchanged_radio.should_emit_change);
         assert!(!unchanged_radio.should_update_internal);
+    }
+
+    #[test]
+    fn primitive_api_stability_names_match_public_contract_terms() {
+        assert_eq!(PrimitiveApiStability::Stable.as_str(), "stable");
+        assert_eq!(PrimitiveApiStability::Experimental.as_str(), "experimental");
     }
 
     #[test]
