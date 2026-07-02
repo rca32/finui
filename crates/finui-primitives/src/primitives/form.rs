@@ -75,6 +75,62 @@ impl PrimitiveFormMessageMatch {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveFormAssociationOptions {
+    pub name: String,
+    pub invalid: bool,
+    pub server_invalid: bool,
+    pub has_description: bool,
+    pub error_match: Option<PrimitiveFormMessageMatch>,
+}
+
+impl PrimitiveFormAssociationOptions {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            invalid: false,
+            server_invalid: false,
+            has_description: false,
+            error_match: None,
+        }
+    }
+
+    pub fn invalid(mut self, invalid: bool) -> Self {
+        self.invalid = invalid;
+        self
+    }
+
+    pub fn server_invalid(mut self, server_invalid: bool) -> Self {
+        self.server_invalid = server_invalid;
+        self
+    }
+
+    pub fn description(mut self, has_description: bool) -> Self {
+        self.has_description = has_description;
+        self
+    }
+
+    pub fn error_match(mut self, match_kind: PrimitiveFormMessageMatch) -> Self {
+        self.error_match = Some(match_kind);
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveFormAssociationOutput {
+    pub name: String,
+    pub field_id: String,
+    pub control_id: String,
+    pub label_id: String,
+    pub label_for: String,
+    pub description_id: Option<String>,
+    pub error_id: Option<String>,
+    pub described_by: Vec<String>,
+    pub error_match: Option<PrimitiveFormMessageMatch>,
+    pub invalid: bool,
+    pub valid: bool,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PrimitiveFormFieldOptions {
     pub width: f32,
@@ -145,6 +201,67 @@ pub fn primitive_form_field_output(
         valid: !invalid,
         data_invalid: invalid,
         data_valid: !invalid,
+    }
+}
+
+pub fn primitive_form_association_output(
+    options: PrimitiveFormAssociationOptions,
+) -> PrimitiveFormAssociationOutput {
+    let invalid = options.invalid || options.server_invalid;
+    let id_part = primitive_form_id_part(&options.name);
+    let field_id = format!("form-field-{id_part}");
+    let control_id = format!("{field_id}-control");
+    let label_id = format!("{field_id}-label");
+    let description_id = options
+        .has_description
+        .then(|| format!("{field_id}-description"));
+    let error_id = invalid.then(|| format!("{field_id}-error"));
+    let mut described_by = Vec::new();
+    if let Some(description_id) = &description_id {
+        described_by.push(description_id.clone());
+    }
+    if let Some(error_id) = &error_id {
+        described_by.push(error_id.clone());
+    }
+
+    PrimitiveFormAssociationOutput {
+        name: options.name,
+        field_id,
+        control_id: control_id.clone(),
+        label_id,
+        label_for: control_id,
+        description_id,
+        error_id,
+        described_by,
+        error_match: invalid.then_some(
+            options
+                .error_match
+                .unwrap_or(PrimitiveFormMessageMatch::CustomError),
+        ),
+        invalid,
+        valid: !invalid,
+    }
+}
+
+fn primitive_form_id_part(name: &str) -> String {
+    let mut output = String::new();
+    let mut last_was_separator = false;
+    for ch in name.chars() {
+        if ch.is_ascii_alphanumeric() {
+            output.push(ch.to_ascii_lowercase());
+            last_was_separator = false;
+        } else if !last_was_separator && !output.is_empty() {
+            output.push('-');
+            last_was_separator = true;
+        }
+    }
+    while output.ends_with('-') {
+        output.pop();
+    }
+    if output.is_empty() {
+        "field".to_owned()
+    } else {
+        output
     }
 }
 
@@ -2889,6 +3006,61 @@ mod tests {
             forced.match_kind.map(PrimitiveFormMessageMatch::as_str),
             Some("serverInvalid")
         );
+    }
+
+    #[test]
+    fn form_association_output_links_label_control_description_and_error() {
+        let association = primitive_form_association_output(
+            PrimitiveFormAssociationOptions::new("Email Address")
+                .description(true)
+                .server_invalid(true)
+                .error_match(PrimitiveFormMessageMatch::ServerInvalid),
+        );
+
+        assert_eq!(association.name, "Email Address");
+        assert_eq!(association.field_id, "form-field-email-address");
+        assert_eq!(association.control_id, "form-field-email-address-control");
+        assert_eq!(association.label_id, "form-field-email-address-label");
+        assert_eq!(association.label_for, association.control_id);
+        assert_eq!(
+            association.description_id.as_deref(),
+            Some("form-field-email-address-description")
+        );
+        assert_eq!(
+            association.error_id.as_deref(),
+            Some("form-field-email-address-error")
+        );
+        assert_eq!(
+            association.described_by,
+            vec![
+                "form-field-email-address-description".to_owned(),
+                "form-field-email-address-error".to_owned()
+            ]
+        );
+        assert_eq!(
+            association
+                .error_match
+                .map(PrimitiveFormMessageMatch::as_str),
+            Some("serverInvalid")
+        );
+        assert!(association.invalid);
+        assert!(!association.valid);
+    }
+
+    #[test]
+    fn form_association_output_omits_error_description_when_not_applicable() {
+        let association = primitive_form_association_output(
+            PrimitiveFormAssociationOptions::new("이메일").description(false),
+        );
+
+        assert_eq!(association.field_id, "form-field-field");
+        assert_eq!(association.label_for, association.control_id);
+        assert_eq!(association.description_id, None);
+        assert_eq!(association.error_id, None);
+        assert!(association.described_by.is_empty());
+        assert_eq!(association.error_match, None);
+        assert!(!association.invalid);
+        assert!(association.valid);
     }
 
     #[test]

@@ -78,7 +78,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 title/description 렌더 함수는 있지만, Dialog Content에 accessible title/description이 필수인지 검증하지 않는다.
   - 완료 기준: title 누락, description 생략, visually hidden title을 각각 표현할 수 있다.
 
-- [ ] Form/Label/Message의 실제 연결성을 강화한다.
+- [x] Form/Label/Message의 실제 연결성을 강화한다.
   - 현재 validity/data output은 있으나 label-control-message 연결 관계가 UI runtime에서 추적되는지 약하다.
   - 완료 기준: field name, label for/id, described-by, error message mapping에 해당하는 Finui 계약이 있다.
 
