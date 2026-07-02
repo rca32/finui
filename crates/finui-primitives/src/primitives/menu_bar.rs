@@ -4,8 +4,10 @@ use eframe::egui::{self, Align2, FontId, Pos2, Rect, Response, Sense, Vec2};
 
 use super::{
     DropdownMenuAlign, DropdownMenuDataState, DropdownMenuDirection, DropdownMenuSide,
-    MenuItemOptions, PrimitiveTheme, dropdown_menu_placement_parts, primitive_menu_checkbox_item,
-    primitive_menu_item, primitive_menu_label, primitive_menu_radio_item, primitive_menu_separator,
+    MenuItemOptions, PrimitiveTheme, RovingFocusAction, RovingFocusKey, RovingFocusOptions,
+    RovingFocusOrientation, RovingFocusOutput, dropdown_menu_placement_parts,
+    primitive_menu_checkbox_item, primitive_menu_item, primitive_menu_label,
+    primitive_menu_radio_item, primitive_menu_separator, primitive_roving_focus_output,
 };
 use crate::LayerPlacement;
 
@@ -303,6 +305,24 @@ pub fn navigation_menu_panel_rect(trigger: Rect, width: f32, height: f32) -> Rec
 pub struct MenubarItem {
     pub label: &'static str,
     pub enabled: bool,
+}
+
+pub fn menubar_roving_focus_output(
+    items: &[MenubarItem],
+    current: Option<usize>,
+    key: Option<RovingFocusKey>,
+    options: &MenubarRootOptions,
+) -> RovingFocusOutput {
+    let enabled = items.iter().map(|item| item.enabled).collect::<Vec<_>>();
+    primitive_roving_focus_output(
+        &enabled,
+        current,
+        key,
+        RovingFocusOptions::default()
+            .orientation(RovingFocusOrientation::Horizontal)
+            .loop_focus(options.loop_focus)
+            .rtl(options.direction == Some(MenubarDirection::Rtl)),
+    )
 }
 
 pub struct MenubarOutput {
@@ -1176,6 +1196,72 @@ mod tests {
         assert_eq!(menubar_next_enabled_index(&items, Some(1), 1), Some(2));
         assert_eq!(menubar_next_enabled_index(&items, Some(1), -1), Some(2));
         assert_eq!(menubar_next_enabled_index(&items[..1], None, 1), None);
+    }
+
+    #[test]
+    fn menubar_roving_focus_output_uses_horizontal_menu_contract() {
+        let items = [
+            MenubarItem {
+                label: "File",
+                enabled: true,
+            },
+            MenubarItem {
+                label: "Edit",
+                enabled: false,
+            },
+            MenubarItem {
+                label: "Help",
+                enabled: true,
+            },
+        ];
+        let options = MenubarRootOptions::default().loop_focus(true);
+
+        let output = menubar_roving_focus_output(
+            &items,
+            Some(0),
+            Some(RovingFocusKey::ArrowRight),
+            &options,
+        );
+        let activation =
+            menubar_roving_focus_output(&items, Some(2), Some(RovingFocusKey::Enter), &options);
+        let close =
+            menubar_roving_focus_output(&items, Some(2), Some(RovingFocusKey::Escape), &options);
+
+        assert_eq!(output.active_index, Some(2));
+        assert_eq!(output.action, RovingFocusAction::Moved);
+        assert_eq!(output.item_tab_indices, vec![-1, -1, 0]);
+        assert_eq!(activation.action, RovingFocusAction::Activate);
+        assert_eq!(close.action, RovingFocusAction::Close);
+    }
+
+    #[test]
+    fn menubar_roving_focus_output_respects_rtl_arrow_direction() {
+        let items = [
+            MenubarItem {
+                label: "File",
+                enabled: true,
+            },
+            MenubarItem {
+                label: "Edit",
+                enabled: true,
+            },
+            MenubarItem {
+                label: "Help",
+                enabled: true,
+            },
+        ];
+        let options = MenubarRootOptions::default()
+            .direction(MenubarDirection::Rtl)
+            .loop_focus(true);
+
+        let output = menubar_roving_focus_output(
+            &items,
+            Some(1),
+            Some(RovingFocusKey::ArrowRight),
+            &options,
+        );
+
+        assert_eq!(output.active_index, Some(0));
     }
 
     #[test]

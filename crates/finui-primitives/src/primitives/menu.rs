@@ -4,8 +4,9 @@ use eframe::egui::{self, Align2, Color32, FontId, Rect, Response, Sense, Stroke,
 
 use super::{
     PrimitiveLayerAnimationOutput, PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme,
-    RadixIcon, paint_radix_icon, primitive_layer_animation_output, radix_colors,
-    show_primitive_layer,
+    RadixIcon, RovingFocusAction, RovingFocusKey, RovingFocusOptions, RovingFocusOrientation,
+    RovingFocusOutput, paint_radix_icon, primitive_layer_animation_output,
+    primitive_roving_focus_output, radix_colors, show_primitive_layer,
 };
 use crate::{DismissPolicy, LayerAlign, LayerPlacement, LayerResolvedPlacement, LayerSide};
 
@@ -601,6 +602,32 @@ pub struct MenuItem<T> {
     pub enabled: bool,
 }
 
+pub fn menu_roving_focus_output<T>(
+    items: &[MenuItem<T>],
+    current: Option<usize>,
+    key: Option<RovingFocusKey>,
+    loop_focus: bool,
+) -> RovingFocusOutput {
+    let enabled = items.iter().map(|item| item.enabled).collect::<Vec<_>>();
+    primitive_roving_focus_output(
+        &enabled,
+        current,
+        key,
+        RovingFocusOptions::default()
+            .orientation(RovingFocusOrientation::Vertical)
+            .loop_focus(loop_focus),
+    )
+}
+
+pub fn dropdown_menu_roving_focus_output<T>(
+    items: &[MenuItem<T>],
+    current: Option<usize>,
+    key: Option<RovingFocusKey>,
+    loop_focus: bool,
+) -> RovingFocusOutput {
+    menu_roving_focus_output(items, current, key, loop_focus)
+}
+
 pub fn primitive_menu_item(ui: &mut egui::Ui, label: &str, options: MenuItemOptions) -> Response {
     let sense = if options.disabled {
         Sense::hover()
@@ -990,6 +1017,72 @@ mod tests {
             Some("view")
         );
         assert_eq!(menu_typeahead_match(&items, Some("view"), "저"), None);
+    }
+
+    #[test]
+    fn dropdown_menu_roving_focus_output_skips_disabled_items_and_wraps() {
+        let items = [
+            MenuItem {
+                value: "view",
+                label: "보기",
+                enabled: true,
+            },
+            MenuItem {
+                value: "edit",
+                label: "편집",
+                enabled: false,
+            },
+            MenuItem {
+                value: "save",
+                label: "저장",
+                enabled: true,
+            },
+        ];
+
+        let output = dropdown_menu_roving_focus_output(
+            &items,
+            Some(0),
+            Some(RovingFocusKey::ArrowDown),
+            true,
+        );
+        let activation =
+            dropdown_menu_roving_focus_output(&items, Some(2), Some(RovingFocusKey::Enter), true);
+        let close =
+            dropdown_menu_roving_focus_output(&items, Some(2), Some(RovingFocusKey::Escape), true);
+
+        assert_eq!(output.active_index, Some(2));
+        assert_eq!(output.action, RovingFocusAction::Moved);
+        assert_eq!(output.item_tab_indices, vec![-1, -1, 0]);
+        assert_eq!(output.item_highlighted, vec![false, false, true]);
+        assert_eq!(activation.action, RovingFocusAction::Activate);
+        assert_eq!(close.action, RovingFocusAction::Close);
+    }
+
+    #[test]
+    fn dropdown_menu_roving_focus_output_respects_non_looping_content() {
+        let items = [
+            MenuItem {
+                value: "view",
+                label: "보기",
+                enabled: true,
+            },
+            MenuItem {
+                value: "save",
+                label: "저장",
+                enabled: true,
+            },
+        ];
+
+        let output = dropdown_menu_roving_focus_output(
+            &items,
+            Some(1),
+            Some(RovingFocusKey::ArrowDown),
+            false,
+        );
+
+        assert_eq!(output.action, RovingFocusAction::None);
+        assert_eq!(output.active_index, Some(1));
+        assert_eq!(output.item_tab_indices, vec![-1, 0]);
     }
 
     #[test]

@@ -5,7 +5,8 @@ use eframe::egui::{self, Align2, FontId, Pos2, Rect, Response, Sense, Stroke, Ve
 use super::{
     DropdownMenuAlign, DropdownMenuDataState, DropdownMenuDirection, DropdownMenuOutput,
     DropdownMenuSide, MenuItem, MenuItemOptions, PrimitiveLayerOptions, PrimitiveTheme,
-    dropdown_menu_align_from_layer_align, dropdown_menu_side_from_layer_side, menu_typeahead_match,
+    RovingFocusAction, RovingFocusKey, RovingFocusOutput, dropdown_menu_align_from_layer_align,
+    dropdown_menu_roving_focus_output, dropdown_menu_side_from_layer_side, menu_typeahead_match,
     primitive_layer_animation_output, primitive_menu_checkbox_item, primitive_menu_item,
     primitive_menu_label, primitive_menu_radio_item, primitive_menu_separator, radix_colors,
     show_primitive_layer,
@@ -390,6 +391,15 @@ pub type ContextMenuLabelOptions = f32;
 pub type ContextMenuSeparatorOptions = f32;
 pub type ContextMenuItem<T> = MenuItem<T>;
 
+pub fn context_menu_roving_focus_output<T>(
+    items: &[ContextMenuItem<T>],
+    current: Option<usize>,
+    key: Option<RovingFocusKey>,
+    loop_focus: bool,
+) -> RovingFocusOutput {
+    dropdown_menu_roving_focus_output(items, current, key, loop_focus)
+}
+
 pub fn context_menu_typeahead_match<T: Copy + PartialEq>(
     items: &[ContextMenuItem<T>],
     current: Option<T>,
@@ -674,6 +684,44 @@ mod tests {
             context_menu_typeahead_match(&items, Some("copy"), "삭"),
             None
         );
+    }
+
+    #[test]
+    fn context_menu_roving_focus_output_uses_shared_vertical_menu_contract() {
+        let items = [
+            ContextMenuItem {
+                value: "copy",
+                label: "복사",
+                enabled: true,
+            },
+            ContextMenuItem {
+                value: "paste",
+                label: "붙여넣기",
+                enabled: false,
+            },
+            ContextMenuItem {
+                value: "delete",
+                label: "삭제",
+                enabled: true,
+            },
+        ];
+
+        let output = context_menu_roving_focus_output(
+            &items,
+            Some(0),
+            Some(RovingFocusKey::ArrowDown),
+            true,
+        );
+        let activation =
+            context_menu_roving_focus_output(&items, Some(2), Some(RovingFocusKey::Space), true);
+        let close =
+            context_menu_roving_focus_output(&items, Some(2), Some(RovingFocusKey::Escape), true);
+
+        assert_eq!(output.active_index, Some(2));
+        assert_eq!(output.action, RovingFocusAction::Moved);
+        assert_eq!(output.item_tab_indices, vec![-1, -1, 0]);
+        assert_eq!(activation.action, RovingFocusAction::Activate);
+        assert_eq!(close.action, RovingFocusAction::Close);
     }
 
     #[test]

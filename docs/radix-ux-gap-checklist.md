@@ -92,7 +92,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 
 ## P1: 키보드 및 입력 상호작용
 
-- [ ] DropdownMenu/ContextMenu/MenuBar의 실제 roving focus를 구현한다.
+- [x] DropdownMenu/ContextMenu/MenuBar의 실제 roving focus를 구현한다.
   - 현재 typeahead helper와 일부 menubar navigation helper는 있으나, 메뉴 콘텐츠에서 highlighted item/focus item이 input loop에 연결된 증거가 부족하다.
   - 완료 기준: ArrowUp/Down, Home/End, Enter/Space, Escape, typeahead buffer가 실제 menu open 상태에서 동작한다.
 
