@@ -341,9 +341,11 @@ pub use utility::{
     PrimitiveAccessibilityLive, PrimitiveAccessibilityNodeOptions,
     PrimitiveAccessibilityNodeOutput, PrimitiveAccessibilityRole, PrimitiveAccessibilityState,
     PrimitiveAccessibilityTreeOutput, PrimitiveControllableMode, PrimitiveControllableScope,
-    PrimitiveControllableStateOutput, PrimitiveDirection, PrimitiveDirectionProviderOutput,
+    PrimitiveControllableStateOutput, PrimitiveDataAttributePair, PrimitiveDataAttributesOptions,
+    PrimitiveDataAttributesOutput, PrimitiveDirection, PrimitiveDirectionProviderOutput,
     accessible_icon_label, primitive_accessibility_node_output,
     primitive_accessibility_tree_json_snapshot, primitive_accessibility_tree_output,
     primitive_accessible_icon, primitive_accessible_icon_root_output,
-    primitive_controllable_state_output, primitive_direction_provider, primitive_slot, slot_id,
+    primitive_controllable_state_output, primitive_data_attributes_output,
+    primitive_direction_provider, primitive_slot, slot_id,
 };

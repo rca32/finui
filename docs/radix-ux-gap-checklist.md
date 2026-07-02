@@ -65,7 +65,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 `open`, `default_open`, `value`, `default_value` 필드는 많지만, 실제 state owner 규칙은 helper 단위에 머문다.
   - 완료 기준: 각 Root가 controlled state와 uncontrolled local state를 같은 방식으로 다루는 예제와 테스트를 가진다.
 
-- [ ] data-state/data-side/data-align/data-disabled/data-orientation에 해당하는 출력 계약을 모든 primitive에 통일한다.
+- [x] data-state/data-side/data-align/data-disabled/data-orientation에 해당하는 출력 계약을 모든 primitive에 통일한다.
   - 완료 기준: 공통 trait 또는 naming convention 문서가 있고, primitive별 누락 목록이 없다.
 
 ## P1: 접근성 및 의미 전달

@@ -289,6 +289,80 @@ pub struct PrimitiveControllableStateOutput<T> {
     pub should_update_internal: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveDataAttributePair {
+    pub name: &'static str,
+    pub value: String,
+}
+
+impl PrimitiveDataAttributePair {
+    pub fn new(name: &'static str, value: impl Into<String>) -> Self {
+        Self {
+            name,
+            value: value.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveDataAttributesOptions {
+    pub component: &'static str,
+    pub data_state: Option<&'static str>,
+    pub data_side: Option<&'static str>,
+    pub data_align: Option<&'static str>,
+    pub data_disabled: Option<bool>,
+    pub data_orientation: Option<&'static str>,
+}
+
+impl PrimitiveDataAttributesOptions {
+    pub fn new(component: &'static str) -> Self {
+        Self {
+            component,
+            data_state: None,
+            data_side: None,
+            data_align: None,
+            data_disabled: None,
+            data_orientation: None,
+        }
+    }
+
+    pub fn state(mut self, data_state: &'static str) -> Self {
+        self.data_state = Some(data_state);
+        self
+    }
+
+    pub fn side(mut self, data_side: &'static str) -> Self {
+        self.data_side = Some(data_side);
+        self
+    }
+
+    pub fn align(mut self, data_align: &'static str) -> Self {
+        self.data_align = Some(data_align);
+        self
+    }
+
+    pub fn disabled(mut self, data_disabled: bool) -> Self {
+        self.data_disabled = Some(data_disabled);
+        self
+    }
+
+    pub fn orientation(mut self, data_orientation: &'static str) -> Self {
+        self.data_orientation = Some(data_orientation);
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveDataAttributesOutput {
+    pub component: &'static str,
+    pub data_state: Option<&'static str>,
+    pub data_side: Option<&'static str>,
+    pub data_align: Option<&'static str>,
+    pub data_disabled: Option<bool>,
+    pub data_orientation: Option<&'static str>,
+    pub attributes: Vec<PrimitiveDataAttributePair>,
+}
+
 pub fn primitive_controllable_state_output<T: Clone + PartialEq>(
     scope: PrimitiveControllableScope,
     controlled_value: Option<T>,
@@ -316,6 +390,40 @@ pub fn primitive_controllable_state_output<T: Clone + PartialEq>(
         next_value,
         should_emit_change,
         should_update_internal,
+    }
+}
+
+pub fn primitive_data_attributes_output(
+    options: PrimitiveDataAttributesOptions,
+) -> PrimitiveDataAttributesOutput {
+    let mut attributes = Vec::new();
+    if let Some(value) = options.data_state {
+        attributes.push(PrimitiveDataAttributePair::new("data-state", value));
+    }
+    if let Some(value) = options.data_side {
+        attributes.push(PrimitiveDataAttributePair::new("data-side", value));
+    }
+    if let Some(value) = options.data_align {
+        attributes.push(PrimitiveDataAttributePair::new("data-align", value));
+    }
+    if let Some(value) = options.data_disabled {
+        attributes.push(PrimitiveDataAttributePair::new(
+            "data-disabled",
+            value.to_string(),
+        ));
+    }
+    if let Some(value) = options.data_orientation {
+        attributes.push(PrimitiveDataAttributePair::new("data-orientation", value));
+    }
+
+    PrimitiveDataAttributesOutput {
+        component: options.component,
+        data_state: options.data_state,
+        data_side: options.data_side,
+        data_align: options.data_align,
+        data_disabled: options.data_disabled,
+        data_orientation: options.data_orientation,
+        attributes,
     }
 }
 
@@ -733,6 +841,107 @@ mod tests {
         );
         assert!(!unchanged_radio.should_emit_change);
         assert!(!unchanged_radio.should_update_internal);
+    }
+
+    #[test]
+    fn data_attributes_output_keeps_canonical_radix_names_for_layered_primitives() {
+        let dialog = primitive_data_attributes_output(
+            PrimitiveDataAttributesOptions::new("dialog.content")
+                .state("open")
+                .disabled(false),
+        );
+        let dropdown = primitive_data_attributes_output(
+            PrimitiveDataAttributesOptions::new("dropdown_menu.content")
+                .state("closed")
+                .side("bottom")
+                .align("start"),
+        );
+        let select = primitive_data_attributes_output(
+            PrimitiveDataAttributesOptions::new("select.content")
+                .state("open")
+                .side("top")
+                .align("center")
+                .disabled(true),
+        );
+
+        assert_eq!(dialog.component, "dialog.content");
+        assert_eq!(dialog.data_state, Some("open"));
+        assert_eq!(
+            dialog.attributes,
+            vec![
+                PrimitiveDataAttributePair::new("data-state", "open"),
+                PrimitiveDataAttributePair::new("data-disabled", "false")
+            ]
+        );
+        assert_eq!(dropdown.data_side, Some("bottom"));
+        assert_eq!(dropdown.data_align, Some("start"));
+        assert_eq!(
+            dropdown.attributes,
+            vec![
+                PrimitiveDataAttributePair::new("data-state", "closed"),
+                PrimitiveDataAttributePair::new("data-side", "bottom"),
+                PrimitiveDataAttributePair::new("data-align", "start")
+            ]
+        );
+        assert_eq!(select.data_disabled, Some(true));
+        assert_eq!(
+            select.attributes,
+            vec![
+                PrimitiveDataAttributePair::new("data-state", "open"),
+                PrimitiveDataAttributePair::new("data-side", "top"),
+                PrimitiveDataAttributePair::new("data-align", "center"),
+                PrimitiveDataAttributePair::new("data-disabled", "true")
+            ]
+        );
+    }
+
+    #[test]
+    fn data_attributes_output_covers_orientation_and_disabled_controls() {
+        let toolbar = primitive_data_attributes_output(
+            PrimitiveDataAttributesOptions::new("toolbar.root")
+                .orientation("vertical")
+                .disabled(false),
+        );
+        let toggle = primitive_data_attributes_output(
+            PrimitiveDataAttributesOptions::new("toggle_group.item")
+                .state("on")
+                .orientation("horizontal")
+                .disabled(true),
+        );
+
+        assert_eq!(toolbar.data_orientation, Some("vertical"));
+        assert_eq!(
+            toolbar.attributes,
+            vec![
+                PrimitiveDataAttributePair::new("data-disabled", "false"),
+                PrimitiveDataAttributePair::new("data-orientation", "vertical")
+            ]
+        );
+        assert_eq!(toggle.data_state, Some("on"));
+        assert_eq!(toggle.data_orientation, Some("horizontal"));
+        assert_eq!(toggle.data_disabled, Some(true));
+        assert_eq!(
+            toggle.attributes,
+            vec![
+                PrimitiveDataAttributePair::new("data-state", "on"),
+                PrimitiveDataAttributePair::new("data-disabled", "true"),
+                PrimitiveDataAttributePair::new("data-orientation", "horizontal")
+            ]
+        );
+    }
+
+    #[test]
+    fn data_attributes_output_omits_non_applicable_attributes_without_renaming() {
+        let label =
+            primitive_data_attributes_output(PrimitiveDataAttributesOptions::new("label.root"));
+
+        assert_eq!(label.component, "label.root");
+        assert_eq!(label.data_state, None);
+        assert_eq!(label.data_side, None);
+        assert_eq!(label.data_align, None);
+        assert_eq!(label.data_disabled, None);
+        assert_eq!(label.data_orientation, None);
+        assert!(label.attributes.is_empty());
     }
 
     #[test]
