@@ -61,7 +61,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 여러 primitive에 `container`/`force_mount` output은 있으나 실제 container routing은 약하다.
   - 완료 기준: 지정 컨테이너, nested portal, forced mounted but visually hidden 상태를 테스트한다.
 
-- [ ] controlled/uncontrolled API를 컴포넌트별로 통일한다.
+- [x] controlled/uncontrolled API를 컴포넌트별로 통일한다.
   - 현재 `open`, `default_open`, `value`, `default_value` 필드는 많지만, 실제 state owner 규칙은 helper 단위에 머문다.
   - 완료 기준: 각 Root가 controlled state와 uncontrolled local state를 같은 방식으로 다루는 예제와 테스트를 가진다.
 

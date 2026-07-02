@@ -218,6 +218,107 @@ pub struct PrimitiveAccessibilityTreeOutput {
     pub nodes: Vec<PrimitiveAccessibilityNodeOutput>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveControllableScope {
+    DialogOpen,
+    AlertDialogOpen,
+    PopoverOpen,
+    HoverCardOpen,
+    TooltipOpen,
+    DropdownMenuOpen,
+    SelectOpen,
+    SelectValue,
+    MenuValue,
+    MenubarValue,
+    NavigationMenuValue,
+    RadioGroupValue,
+    SliderValue,
+    OtpValue,
+    PasswordValue,
+    ToggleGroupValue,
+}
+
+impl PrimitiveControllableScope {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::DialogOpen => "dialog.open",
+            Self::AlertDialogOpen => "alert_dialog.open",
+            Self::PopoverOpen => "popover.open",
+            Self::HoverCardOpen => "hover_card.open",
+            Self::TooltipOpen => "tooltip.open",
+            Self::DropdownMenuOpen => "dropdown_menu.open",
+            Self::SelectOpen => "select.open",
+            Self::SelectValue => "select.value",
+            Self::MenuValue => "menu.value",
+            Self::MenubarValue => "menubar.value",
+            Self::NavigationMenuValue => "navigation_menu.value",
+            Self::RadioGroupValue => "radio_group.value",
+            Self::SliderValue => "slider.value",
+            Self::OtpValue => "otp.value",
+            Self::PasswordValue => "password.value",
+            Self::ToggleGroupValue => "toggle_group.value",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveControllableMode {
+    Controlled,
+    Uncontrolled,
+}
+
+impl PrimitiveControllableMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Controlled => "controlled",
+            Self::Uncontrolled => "uncontrolled",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PrimitiveControllableStateOutput<T> {
+    pub scope: PrimitiveControllableScope,
+    pub scope_name: &'static str,
+    pub mode: PrimitiveControllableMode,
+    pub mode_name: &'static str,
+    pub value: T,
+    pub default_value: Option<T>,
+    pub next_value: T,
+    pub should_emit_change: bool,
+    pub should_update_internal: bool,
+}
+
+pub fn primitive_controllable_state_output<T: Clone + PartialEq>(
+    scope: PrimitiveControllableScope,
+    controlled_value: Option<T>,
+    default_value: Option<T>,
+    internal_value: T,
+    next_value: T,
+) -> PrimitiveControllableStateOutput<T> {
+    let mode = if controlled_value.is_some() {
+        PrimitiveControllableMode::Controlled
+    } else {
+        PrimitiveControllableMode::Uncontrolled
+    };
+    let value = controlled_value.unwrap_or(internal_value);
+    let should_emit_change = value != next_value;
+    let should_update_internal =
+        mode == PrimitiveControllableMode::Uncontrolled && should_emit_change;
+
+    PrimitiveControllableStateOutput {
+        scope,
+        scope_name: scope.as_str(),
+        mode,
+        mode_name: mode.as_str(),
+        value,
+        default_value,
+        next_value,
+        should_emit_change,
+        should_update_internal,
+    }
+}
+
 pub fn primitive_accessible_icon_root_output(
     options: AccessibleIconRootOptions,
 ) -> AccessibleIconRootOutput {
@@ -542,6 +643,96 @@ mod tests {
             primitive_accessibility_tree_json_snapshot(&tree),
             "{\"nodes\":[{\"id\":\"confirm-dialog\",\"role\":\"dialog\",\"name\":\"Confirm \\\"Order\\\"\",\"description\":\"Review\\nOrder\",\"value\":null,\"live\":\"off\",\"states\":[{\"key\":\"open\",\"value\":\"true\"}]},{\"id\":\"price-input\",\"role\":\"textbox\",\"name\":null,\"description\":null,\"value\":\"103.25\",\"live\":\"off\",\"states\":[{\"key\":\"invalid\",\"value\":\"false\"}]}]}"
         );
+    }
+
+    #[test]
+    fn controllable_open_output_keeps_dialog_popover_and_menu_controlled_by_owner() {
+        for scope in [
+            PrimitiveControllableScope::DialogOpen,
+            PrimitiveControllableScope::PopoverOpen,
+            PrimitiveControllableScope::DropdownMenuOpen,
+        ] {
+            let output =
+                primitive_controllable_state_output(scope, Some(false), Some(true), true, true);
+
+            assert_eq!(output.scope, scope);
+            assert_eq!(output.scope_name, scope.as_str());
+            assert_eq!(output.mode, PrimitiveControllableMode::Controlled);
+            assert_eq!(output.mode_name, "controlled");
+            assert!(!output.value);
+            assert_eq!(output.default_value, Some(true));
+            assert_eq!(output.next_value, true);
+            assert!(output.should_emit_change);
+            assert!(!output.should_update_internal);
+        }
+    }
+
+    #[test]
+    fn controllable_open_output_updates_uncontrolled_local_state() {
+        for scope in [
+            PrimitiveControllableScope::AlertDialogOpen,
+            PrimitiveControllableScope::HoverCardOpen,
+            PrimitiveControllableScope::TooltipOpen,
+            PrimitiveControllableScope::SelectOpen,
+        ] {
+            let output = primitive_controllable_state_output(scope, None, Some(false), false, true);
+
+            assert_eq!(output.mode, PrimitiveControllableMode::Uncontrolled);
+            assert_eq!(output.mode_name, "uncontrolled");
+            assert!(!output.value);
+            assert_eq!(output.default_value, Some(false));
+            assert_eq!(output.next_value, true);
+            assert!(output.should_emit_change);
+            assert!(output.should_update_internal);
+        }
+    }
+
+    #[test]
+    fn controllable_value_output_unifies_select_menu_and_form_value_ownership() {
+        let controlled_select = primitive_controllable_state_output(
+            PrimitiveControllableScope::SelectValue,
+            Some("1m"),
+            Some("3m"),
+            "6m",
+            "3m",
+        );
+        let uncontrolled_menu = primitive_controllable_state_output(
+            PrimitiveControllableScope::MenuValue,
+            None,
+            Some("view"),
+            "view",
+            "edit",
+        );
+        let unchanged_radio = primitive_controllable_state_output(
+            PrimitiveControllableScope::RadioGroupValue,
+            None,
+            Some("buy"),
+            "buy",
+            "buy",
+        );
+
+        assert_eq!(
+            controlled_select.mode,
+            PrimitiveControllableMode::Controlled
+        );
+        assert_eq!(controlled_select.value, "1m");
+        assert!(controlled_select.should_emit_change);
+        assert!(!controlled_select.should_update_internal);
+
+        assert_eq!(
+            uncontrolled_menu.mode,
+            PrimitiveControllableMode::Uncontrolled
+        );
+        assert_eq!(uncontrolled_menu.value, "view");
+        assert!(uncontrolled_menu.should_emit_change);
+        assert!(uncontrolled_menu.should_update_internal);
+
+        assert_eq!(
+            unchanged_radio.mode,
+            PrimitiveControllableMode::Uncontrolled
+        );
+        assert!(!unchanged_radio.should_emit_change);
+        assert!(!unchanged_radio.should_update_internal);
     }
 
     #[test]
