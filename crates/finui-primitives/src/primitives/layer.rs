@@ -4,7 +4,8 @@ use eframe::egui::{self, Rect};
 
 use super::theme::PrimitiveTheme;
 use crate::{
-    AnchoredLayerOptions, DismissPolicy, LayerOutput, LayerPlacement, show_anchored_layer,
+    AnchoredLayerOptions, DismissLayerEvent, DismissLayerFilter, DismissPolicy, LayerOutput,
+    LayerPlacement, show_anchored_layer,
 };
 
 pub struct PrimitiveLayerOptions {
@@ -17,6 +18,7 @@ pub struct PrimitiveLayerOptions {
     pub inner_margin: egui::Margin,
     pub order: egui::Order,
     pub dismiss_policy: DismissPolicy,
+    pub dismiss_filter: Option<DismissLayerFilter>,
     pub theme: PrimitiveTheme,
 }
 
@@ -32,6 +34,7 @@ impl PrimitiveLayerOptions {
             inner_margin: egui::Margin::same(8),
             order: egui::Order::Foreground,
             dismiss_policy: DismissPolicy::OutsideClickAndEscape,
+            dismiss_filter: None,
             theme: PrimitiveTheme::default(),
         }
     }
@@ -70,11 +73,17 @@ impl PrimitiveLayerOptions {
         self.dismiss_policy = dismiss_policy;
         self
     }
+
+    pub fn dismiss_filter(mut self, dismiss_filter: DismissLayerFilter) -> Self {
+        self.dismiss_filter = Some(dismiss_filter);
+        self
+    }
 }
 
 pub struct PrimitiveLayerOutput<T> {
     pub action: Option<T>,
     pub should_close: bool,
+    pub dismiss_event: Option<DismissLayerEvent>,
     pub content_rect: Rect,
 }
 
@@ -104,6 +113,9 @@ pub fn show_primitive_layer<T>(
         .inner_margin(options.inner_margin)
         .order(options.order)
         .dismiss_policy(options.dismiss_policy);
+    if let Some(dismiss_filter) = options.dismiss_filter {
+        layer = layer.dismiss_filter(dismiss_filter);
+    }
     if let Some(anchor) = options.anchor_rect {
         layer = layer.anchor_rect(anchor);
     }
@@ -122,6 +134,7 @@ pub fn show_primitive_layer<T>(
     PrimitiveLayerOutput {
         action: output.action,
         should_close: output.should_close,
+        dismiss_event: output.dismiss_event,
         content_rect: portal.content_rect,
     }
 }
@@ -145,5 +158,17 @@ mod tests {
             primitive_dismissable_layer_options(options, DismissPolicy::OutsideClickAndEscape);
 
         assert_eq!(options.dismiss_policy, DismissPolicy::OutsideClickAndEscape);
+    }
+
+    #[test]
+    fn layer_options_preserve_dismiss_filter_contract() {
+        fn prevent(event: DismissLayerEvent) -> DismissLayerEvent {
+            event.prevent_default()
+        }
+
+        let options =
+            PrimitiveLayerOptions::new("layer-filter-test", 180.0).dismiss_filter(prevent);
+
+        assert!(options.dismiss_filter.is_some());
     }
 }

@@ -24,6 +24,87 @@ pub enum DismissPolicy {
     EscapeOnly,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DismissLayerEventKind {
+    EscapeKeyDown,
+    PointerDownOutside,
+    PointerDownOnTrigger,
+}
+
+impl DismissLayerEventKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::EscapeKeyDown => "escapeKeyDown",
+            Self::PointerDownOutside => "pointerDownOutside",
+            Self::PointerDownOnTrigger => "pointerDownOnTrigger",
+        }
+    }
+
+    pub fn is_interact_outside(self) -> bool {
+        matches!(self, Self::PointerDownOutside | Self::PointerDownOnTrigger)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DismissLayerEvent {
+    pub kind: DismissLayerEventKind,
+    pub pointer_button: Option<egui::PointerButton>,
+    pub position: Option<Pos2>,
+    pub default_prevented: bool,
+}
+
+impl DismissLayerEvent {
+    pub fn escape_key_down() -> Self {
+        Self {
+            kind: DismissLayerEventKind::EscapeKeyDown,
+            pointer_button: None,
+            position: None,
+            default_prevented: false,
+        }
+    }
+
+    pub fn pointer_down(
+        kind: DismissLayerEventKind,
+        pointer_button: egui::PointerButton,
+        position: Pos2,
+    ) -> Self {
+        Self {
+            kind,
+            pointer_button: Some(pointer_button),
+            position: Some(position),
+            default_prevented: false,
+        }
+    }
+
+    pub fn prevent_default(mut self) -> Self {
+        self.default_prevented = true;
+        self
+    }
+
+    pub fn should_close(self) -> bool {
+        !self.default_prevented
+    }
+}
+
+pub type DismissLayerFilter = fn(DismissLayerEvent) -> DismissLayerEvent;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DismissLayerCandidate {
+    pub layer_depth: usize,
+    pub event: DismissLayerEvent,
+}
+
+pub fn nested_dismiss_close_order(
+    candidates: impl IntoIterator<Item = DismissLayerCandidate>,
+) -> Vec<DismissLayerCandidate> {
+    let mut candidates = candidates
+        .into_iter()
+        .filter(|candidate| candidate.event.should_close())
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| right.layer_depth.cmp(&left.layer_depth));
+    candidates
+}
+
 pub struct AnchoredLayerOptions {
     pub id: egui::Id,
     pub anchor_rect: Option<Rect>,
@@ -35,6 +116,7 @@ pub struct AnchoredLayerOptions {
     pub margin: f32,
     pub order: egui::Order,
     pub dismiss_policy: DismissPolicy,
+    pub dismiss_filter: Option<DismissLayerFilter>,
     pub fill: Color32,
     pub stroke: Stroke,
     pub radius: u8,
@@ -53,6 +135,7 @@ impl AnchoredLayerOptions {
             margin: 8.0,
             order: egui::Order::Foreground,
             dismiss_policy: DismissPolicy::OutsideClickAndEscape,
+            dismiss_filter: None,
             fill: TV_LIGHT.popup_background,
             stroke: Stroke::new(1.0, TV_LIGHT.toolbar_border),
             radius: 6,
@@ -89,6 +172,11 @@ impl AnchoredLayerOptions {
         self
     }
 
+    pub fn dismiss_filter(mut self, dismiss_filter: DismissLayerFilter) -> Self {
+        self.dismiss_filter = Some(dismiss_filter);
+        self
+    }
+
     pub fn order(mut self, order: egui::Order) -> Self {
         self.order = order;
         self
@@ -98,6 +186,7 @@ impl AnchoredLayerOptions {
 pub struct LayerOutput<T> {
     pub action: Option<T>,
     pub should_close: bool,
+    pub dismiss_event: Option<DismissLayerEvent>,
     pub panel_rect: Rect,
 }
 
@@ -152,10 +241,19 @@ pub fn show_anchored_layer<T>(
             (panel.response.rect, panel.inner)
         });
     let (rect, action) = shown.inner;
-    let should_close = should_dismiss(ctx, rect, options.anchor_rect, options.dismiss_policy);
+    let dismiss_event =
+        resolve_dismiss_event(ctx, rect, options.anchor_rect, options.dismiss_policy).map(
+            |event| {
+                options
+                    .dismiss_filter
+                    .map_or(event, |dismiss_filter| dismiss_filter(event))
+            },
+        );
+    let should_close = dismiss_event.is_some_and(DismissLayerEvent::should_close);
     LayerOutput {
         action,
         should_close,
+        dismiss_event,
         panel_rect: rect,
     }
 }
@@ -229,35 +327,67 @@ fn resolve_layer_pos(ctx: &egui::Context, options: &AnchoredLayerOptions, size: 
     clamp_layer_pos(ctx, desired, size, options.margin)
 }
 
-fn should_dismiss(
+fn resolve_dismiss_event(
     ctx: &egui::Context,
     panel_rect: Rect,
     trigger_rect: Option<Rect>,
     policy: DismissPolicy,
-) -> bool {
+) -> Option<DismissLayerEvent> {
     let escape = ctx.input(|input| input.key_pressed(egui::Key::Escape));
+    let pointer = ctx.input(|input| {
+        [egui::PointerButton::Primary, egui::PointerButton::Secondary]
+            .into_iter()
+            .find_map(|button| {
+                input
+                    .pointer
+                    .button_pressed(button)
+                    .then(|| {
+                        input
+                            .pointer
+                            .press_origin()
+                            .map(|position| (button, position))
+                    })
+                    .flatten()
+            })
+    });
+    dismiss_event_for_interaction(policy, panel_rect, trigger_rect, escape, pointer)
+}
+
+pub fn dismiss_event_for_interaction(
+    policy: DismissPolicy,
+    panel_rect: Rect,
+    trigger_rect: Option<Rect>,
+    escape: bool,
+    pointer: Option<(egui::PointerButton, Pos2)>,
+) -> Option<DismissLayerEvent> {
     if matches!(
         policy,
         DismissPolicy::EscapeOnly | DismissPolicy::OutsideClickAndEscape
     ) && escape
     {
-        return true;
+        return Some(DismissLayerEvent::escape_key_down());
     }
     if !matches!(
         policy,
         DismissPolicy::OutsideClick | DismissPolicy::OutsideClickAndEscape
     ) {
-        return false;
+        return None;
     }
-    ctx.input(|input| {
-        if input.pointer.button_pressed(egui::PointerButton::Primary)
-            || input.pointer.button_pressed(egui::PointerButton::Secondary)
-        {
-            input.pointer.press_origin().is_some_and(|pos| {
-                !panel_rect.contains(pos) && !trigger_rect.is_some_and(|rect| rect.contains(pos))
-            })
+    pointer.and_then(|(button, position)| {
+        if panel_rect.contains(position) {
+            None
+        } else if trigger_rect.is_some_and(|rect| rect.contains(position)) {
+            Some(DismissLayerEvent::pointer_down(
+                DismissLayerEventKind::PointerDownOnTrigger,
+                button,
+                position,
+            ))
         } else {
-            false
+            Some(DismissLayerEvent::pointer_down(
+                DismissLayerEventKind::PointerDownOutside,
+                button,
+                position,
+            ))
         }
     })
 }
@@ -354,5 +484,98 @@ mod tests {
         assert!(pos.x <= anchor.right() - 196.0);
         assert!(pos.x >= 8.0);
         assert_eq!(pos.y, anchor.bottom() + 6.0);
+    }
+
+    #[test]
+    fn dismiss_event_reports_escape_pointer_outside_and_trigger_press() {
+        let panel = Rect::from_min_size(Pos2::new(20.0, 20.0), Vec2::new(100.0, 80.0));
+        let trigger = Rect::from_min_size(Pos2::new(20.0, 0.0), Vec2::new(80.0, 18.0));
+
+        let escape = dismiss_event_for_interaction(
+            DismissPolicy::OutsideClickAndEscape,
+            panel,
+            Some(trigger),
+            true,
+            None,
+        )
+        .expect("escape should dismiss");
+        assert_eq!(escape.kind, DismissLayerEventKind::EscapeKeyDown);
+        assert_eq!(escape.kind.as_str(), "escapeKeyDown");
+        assert!(escape.should_close());
+
+        let outside = dismiss_event_for_interaction(
+            DismissPolicy::OutsideClickAndEscape,
+            panel,
+            Some(trigger),
+            false,
+            Some((egui::PointerButton::Secondary, Pos2::new(180.0, 40.0))),
+        )
+        .expect("outside pointer should dismiss");
+        assert_eq!(outside.kind, DismissLayerEventKind::PointerDownOutside);
+        assert_eq!(outside.pointer_button, Some(egui::PointerButton::Secondary));
+        assert!(outside.kind.is_interact_outside());
+
+        let trigger_press = dismiss_event_for_interaction(
+            DismissPolicy::OutsideClickAndEscape,
+            panel,
+            Some(trigger),
+            false,
+            Some((egui::PointerButton::Primary, Pos2::new(30.0, 10.0))),
+        )
+        .expect("trigger press should surface as a dismiss event");
+        assert_eq!(
+            trigger_press.kind,
+            DismissLayerEventKind::PointerDownOnTrigger
+        );
+        assert!(trigger_press.should_close());
+    }
+
+    #[test]
+    fn dismiss_event_respects_policy_and_prevent_default() {
+        let panel = Rect::from_min_size(Pos2::new(20.0, 20.0), Vec2::new(100.0, 80.0));
+        let pointer = Some((egui::PointerButton::Primary, Pos2::new(180.0, 40.0)));
+
+        assert_eq!(
+            dismiss_event_for_interaction(DismissPolicy::EscapeOnly, panel, None, false, pointer),
+            None
+        );
+        assert_eq!(
+            dismiss_event_for_interaction(DismissPolicy::OutsideClick, panel, None, true, None),
+            None
+        );
+
+        let event =
+            dismiss_event_for_interaction(DismissPolicy::OutsideClick, panel, None, false, pointer)
+                .expect("outside pointer should produce an event")
+                .prevent_default();
+        assert!(event.default_prevented);
+        assert!(!event.should_close());
+    }
+
+    #[test]
+    fn nested_dismiss_order_closes_topmost_unprevented_layer_first() {
+        let outside = DismissLayerEvent::pointer_down(
+            DismissLayerEventKind::PointerDownOutside,
+            egui::PointerButton::Primary,
+            Pos2::new(200.0, 40.0),
+        );
+        let order = nested_dismiss_close_order([
+            DismissLayerCandidate {
+                layer_depth: 0,
+                event: outside,
+            },
+            DismissLayerCandidate {
+                layer_depth: 2,
+                event: outside.prevent_default(),
+            },
+            DismissLayerCandidate {
+                layer_depth: 1,
+                event: outside,
+            },
+        ]);
+
+        assert_eq!(order.len(), 2);
+        assert_eq!(order[0].layer_depth, 1);
+        assert_eq!(order[1].layer_depth, 0);
     }
 }

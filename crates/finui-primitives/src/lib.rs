@@ -7,8 +7,9 @@ use eframe::egui::{self, FontId};
 
 pub use dialog::{CommandDialogOptions, CommandDialogOutput, show_command_dialog};
 pub use layer::{
-    AnchoredLayerOptions, DismissPolicy, LayerOutput, LayerPlacement, clamp_layer_pos,
-    show_anchored_layer,
+    AnchoredLayerOptions, DismissLayerCandidate, DismissLayerEvent, DismissLayerEventKind,
+    DismissLayerFilter, DismissPolicy, LayerOutput, LayerPlacement, clamp_layer_pos,
+    dismiss_event_for_interaction, nested_dismiss_close_order, show_anchored_layer,
 };
 pub use overlay::{OverlayKind, modal_backdrop};
 pub use primitives::*;
