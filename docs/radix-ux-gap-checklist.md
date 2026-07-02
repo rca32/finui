@@ -208,7 +208,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 
 ## P2: 테마와 스타일 시스템
 
-- [ ] "unstyled primitive"와 "Finui default theme" 경계를 분리한다.
+- [x] "unstyled primitive"와 "Finui default theme" 경계를 분리한다.
   - 현재 primitive가 Radix color와 Finui theme를 직접 칠하는 경우가 많다.
   - 완료 기준: logic-only part output과 themed renderer를 분리할 수 있다.
 

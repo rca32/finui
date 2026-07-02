@@ -62,6 +62,36 @@ pub struct PrimitiveMountedContentPolicy {
     pub text_colors: PrimitiveContentTextColors,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PrimitiveStyleBoundaryOutput {
+    pub primitive: &'static str,
+    pub part: &'static str,
+    pub logic_output: &'static str,
+    pub themed_renderer: Option<&'static str>,
+    pub unstyled_contract_available: bool,
+    pub default_theme_renderer_available: bool,
+    pub separable: bool,
+}
+
+pub fn primitive_style_boundary_output(
+    primitive: &'static str,
+    part: &'static str,
+    logic_output: &'static str,
+    themed_renderer: Option<&'static str>,
+) -> PrimitiveStyleBoundaryOutput {
+    let unstyled_contract_available = !logic_output.is_empty();
+    let default_theme_renderer_available = themed_renderer.is_some();
+    PrimitiveStyleBoundaryOutput {
+        primitive,
+        part,
+        logic_output,
+        themed_renderer,
+        unstyled_contract_available,
+        default_theme_renderer_available,
+        separable: unstyled_contract_available && default_theme_renderer_available,
+    }
+}
+
 pub fn primitive_mounted_content_policy(
     open: bool,
     force_mount: bool,
@@ -208,6 +238,48 @@ mod tests {
         assert_eq!(closed.text_colors.detail, theme.disabled_text);
         assert!(!unmounted.mounted);
         assert!(!unmounted.interactive);
+    }
+
+    #[test]
+    fn style_boundary_output_separates_unstyled_contract_from_default_theme_renderer() {
+        let select_item = primitive_style_boundary_output(
+            "select",
+            "item",
+            "SelectItemOutput",
+            Some("primitive_select_item"),
+        );
+        let slider_thumb = primitive_style_boundary_output(
+            "slider",
+            "thumb",
+            "SliderThumbOutput",
+            Some("primitive_slider_thumb"),
+        );
+        let form_message = primitive_style_boundary_output(
+            "form",
+            "message",
+            "PrimitiveFormMessageOutput",
+            Some("primitive_form_message"),
+        );
+
+        for output in [select_item, slider_thumb, form_message] {
+            assert!(output.unstyled_contract_available);
+            assert!(output.default_theme_renderer_available);
+            assert!(output.separable);
+        }
+    }
+
+    #[test]
+    fn style_boundary_output_allows_logic_only_parts_without_theme_renderer() {
+        let receipt = primitive_style_boundary_output(
+            "accessibility",
+            "snapshot",
+            "PrimitiveAccessibilityTreeOutput",
+            None,
+        );
+
+        assert!(receipt.unstyled_contract_available);
+        assert!(!receipt.default_theme_renderer_available);
+        assert!(!receipt.separable);
     }
 
     #[test]
