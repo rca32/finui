@@ -124,11 +124,12 @@ pub use form::{
 };
 pub use hover_card::{
     HoverCardAlign, HoverCardContentOptions, HoverCardContentOutput, HoverCardDataState,
-    HoverCardOptions, HoverCardOutput, HoverCardPortalOptions, HoverCardPortalOutput,
-    HoverCardRootOptions, HoverCardRootOutput, HoverCardSide, HoverCardTriggerOptions,
-    hover_card_apply_open, primitive_hover_card_arrow, primitive_hover_card_content,
-    primitive_hover_card_content_options, primitive_hover_card_content_output,
-    primitive_hover_card_content_with_options, primitive_hover_card_layer_options,
+    HoverCardDelayEvent, HoverCardDelayOutput, HoverCardOptions, HoverCardOutput,
+    HoverCardPortalOptions, HoverCardPortalOutput, HoverCardRootOptions, HoverCardRootOutput,
+    HoverCardSide, HoverCardTriggerOptions, hover_card_apply_open, primitive_hover_card_arrow,
+    primitive_hover_card_content, primitive_hover_card_content_options,
+    primitive_hover_card_content_output, primitive_hover_card_content_with_options,
+    primitive_hover_card_delay_output, primitive_hover_card_layer_options,
     primitive_hover_card_portal_output, primitive_hover_card_root_output,
     primitive_hover_card_trigger, show_hover_card,
 };
@@ -303,15 +304,15 @@ pub use toolbar::{
     primitive_toolbar_toggle_item_output, toolbar_apply_action, toolbar_item_rects,
 };
 pub use tooltip::{
-    TooltipAlign, TooltipContentOptions, TooltipContentOutput, TooltipDataState, TooltipOptions,
-    TooltipOutput, TooltipPortalOptions, TooltipPortalOutput, TooltipProviderOptions,
-    TooltipProviderOutput, TooltipRootOptions, TooltipRootOutput, TooltipSide,
-    TooltipTriggerOptions, primitive_tooltip_arrow, primitive_tooltip_content,
+    TooltipAlign, TooltipContentOptions, TooltipContentOutput, TooltipDataState, TooltipDelayEvent,
+    TooltipDelayOutput, TooltipOptions, TooltipOutput, TooltipPortalOptions, TooltipPortalOutput,
+    TooltipProviderOptions, TooltipProviderOutput, TooltipRootOptions, TooltipRootOutput,
+    TooltipSide, TooltipTriggerOptions, primitive_tooltip_arrow, primitive_tooltip_content,
     primitive_tooltip_content_options, primitive_tooltip_content_output,
-    primitive_tooltip_content_with_options, primitive_tooltip_layer_options,
-    primitive_tooltip_portal_output, primitive_tooltip_provider_output,
-    primitive_tooltip_root_output, primitive_tooltip_trigger, show_tooltip, tooltip_apply_open,
-    tooltip_content_text_color, tooltip_data_state,
+    primitive_tooltip_content_with_options, primitive_tooltip_delay_output,
+    primitive_tooltip_layer_options, primitive_tooltip_portal_output,
+    primitive_tooltip_provider_output, primitive_tooltip_root_output, primitive_tooltip_trigger,
+    show_tooltip, tooltip_apply_open, tooltip_content_text_color, tooltip_data_state,
 };
 pub use utility::{
     AccessibleIconOptions, AccessibleIconRootOptions, AccessibleIconRootOutput,

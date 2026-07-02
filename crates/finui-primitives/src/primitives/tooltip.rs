@@ -71,11 +71,91 @@ pub struct TooltipProviderOutput {
     pub disable_hoverable_content: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TooltipDelayEvent {
+    PointerEnter {
+        hovered_ms: u64,
+        since_last_close_ms: Option<u64>,
+    },
+    PointerLeave {
+        grace_ms: u64,
+    },
+    ContentPointerEnter,
+    Focus,
+    Blur,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TooltipDelayOutput {
+    pub open: bool,
+    pub instant: bool,
+    pub data_state: TooltipDataState,
+    pub next_delay_ms: Option<u64>,
+    pub close_after_ms: Option<u64>,
+    pub hoverable_content: bool,
+    pub pointer_grace_active: bool,
+}
+
 pub fn primitive_tooltip_provider_output(options: TooltipProviderOptions) -> TooltipProviderOutput {
     TooltipProviderOutput {
         delay_duration_ms: options.delay_duration_ms,
         skip_delay_duration_ms: options.skip_delay_duration_ms,
         disable_hoverable_content: options.disable_hoverable_content,
+    }
+}
+
+pub fn primitive_tooltip_delay_output(
+    currently_open: bool,
+    provider: TooltipProviderOptions,
+    event: TooltipDelayEvent,
+) -> TooltipDelayOutput {
+    let hoverable_content = !provider.disable_hoverable_content;
+    let (open, instant, next_delay_ms, close_after_ms, pointer_grace_active) = match event {
+        TooltipDelayEvent::PointerEnter {
+            hovered_ms,
+            since_last_close_ms,
+        } => {
+            let skip_delay = since_last_close_ms
+                .is_some_and(|elapsed| elapsed <= provider.skip_delay_duration_ms);
+            if skip_delay {
+                (true, true, None, None, false)
+            } else if hovered_ms >= provider.delay_duration_ms {
+                (true, false, None, None, false)
+            } else {
+                (
+                    false,
+                    false,
+                    Some(provider.delay_duration_ms - hovered_ms),
+                    None,
+                    false,
+                )
+            }
+        }
+        TooltipDelayEvent::PointerLeave { grace_ms } => {
+            if currently_open && hoverable_content && grace_ms > 0 {
+                (true, false, None, Some(grace_ms), true)
+            } else {
+                (false, false, None, None, false)
+            }
+        }
+        TooltipDelayEvent::ContentPointerEnter => (
+            currently_open && hoverable_content,
+            false,
+            None,
+            None,
+            false,
+        ),
+        TooltipDelayEvent::Focus => (true, true, None, None, false),
+        TooltipDelayEvent::Blur => (false, false, None, None, false),
+    };
+    TooltipDelayOutput {
+        open,
+        instant,
+        data_state: tooltip_data_state(open, instant),
+        next_delay_ms,
+        close_after_ms,
+        hoverable_content,
+        pointer_grace_active,
     }
 }
 
@@ -709,5 +789,95 @@ mod tests {
             tooltip_data_state(true, true),
             TooltipDataState::InstantOpen
         );
+    }
+
+    #[test]
+    fn tooltip_delay_output_waits_then_opens_after_delay() {
+        let provider = TooltipProviderOptions::default().delay_duration_ms(700);
+
+        let waiting = primitive_tooltip_delay_output(
+            false,
+            provider,
+            TooltipDelayEvent::PointerEnter {
+                hovered_ms: 250,
+                since_last_close_ms: None,
+            },
+        );
+        let open = primitive_tooltip_delay_output(
+            false,
+            provider,
+            TooltipDelayEvent::PointerEnter {
+                hovered_ms: 700,
+                since_last_close_ms: None,
+            },
+        );
+
+        assert!(!waiting.open);
+        assert_eq!(waiting.next_delay_ms, Some(450));
+        assert_eq!(waiting.data_state, TooltipDataState::Closed);
+        assert!(open.open);
+        assert!(!open.instant);
+        assert_eq!(open.data_state, TooltipDataState::DelayedOpen);
+    }
+
+    #[test]
+    fn tooltip_delay_output_uses_skip_delay_for_instant_reopen() {
+        let provider = TooltipProviderOptions::default()
+            .delay_duration_ms(700)
+            .skip_delay_duration_ms(300);
+
+        let output = primitive_tooltip_delay_output(
+            false,
+            provider,
+            TooltipDelayEvent::PointerEnter {
+                hovered_ms: 0,
+                since_last_close_ms: Some(200),
+            },
+        );
+
+        assert!(output.open);
+        assert!(output.instant);
+        assert_eq!(output.next_delay_ms, None);
+        assert_eq!(output.data_state, TooltipDataState::InstantOpen);
+    }
+
+    #[test]
+    fn tooltip_delay_output_respects_hoverable_content_grace_and_disable_flag() {
+        let hoverable = TooltipProviderOptions::default().disable_hoverable_content(false);
+        let disabled = TooltipProviderOptions::default().disable_hoverable_content(true);
+
+        let grace = primitive_tooltip_delay_output(
+            true,
+            hoverable,
+            TooltipDelayEvent::PointerLeave { grace_ms: 120 },
+        );
+        let closed = primitive_tooltip_delay_output(
+            true,
+            disabled,
+            TooltipDelayEvent::PointerLeave { grace_ms: 120 },
+        );
+        let content =
+            primitive_tooltip_delay_output(true, hoverable, TooltipDelayEvent::ContentPointerEnter);
+
+        assert!(grace.open);
+        assert!(grace.pointer_grace_active);
+        assert_eq!(grace.close_after_ms, Some(120));
+        assert!(!closed.open);
+        assert!(!closed.hoverable_content);
+        assert!(content.open);
+    }
+
+    #[test]
+    fn tooltip_delay_output_opens_on_focus_and_closes_on_blur() {
+        let provider = TooltipProviderOptions::default();
+
+        let focused = primitive_tooltip_delay_output(false, provider, TooltipDelayEvent::Focus);
+        let blurred = primitive_tooltip_delay_output(true, provider, TooltipDelayEvent::Blur);
+
+        assert!(focused.open);
+        assert!(focused.instant);
+        assert_eq!(focused.data_state, TooltipDataState::InstantOpen);
+        assert!(!blurred.open);
+        assert_eq!(blurred.data_state, TooltipDataState::Closed);
     }
 }

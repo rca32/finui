@@ -65,6 +65,22 @@ pub struct HoverCardRootOutput {
     pub data_state: HoverCardDataState,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HoverCardDelayEvent {
+    PointerEnter { hovered_ms: u64 },
+    PointerLeave { elapsed_leave_ms: u64 },
+    Focus,
+    Blur,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HoverCardDelayOutput {
+    pub open: bool,
+    pub data_state: HoverCardDataState,
+    pub next_open_delay_ms: Option<u64>,
+    pub close_after_ms: Option<u64>,
+}
+
 pub fn primitive_hover_card_root_output(options: HoverCardRootOptions) -> HoverCardRootOutput {
     HoverCardRootOutput {
         open: options.open,
@@ -76,6 +92,41 @@ pub fn primitive_hover_card_root_output(options: HoverCardRootOptions) -> HoverC
         } else {
             HoverCardDataState::Closed
         },
+    }
+}
+
+pub fn primitive_hover_card_delay_output(
+    currently_open: bool,
+    options: HoverCardRootOptions,
+    event: HoverCardDelayEvent,
+) -> HoverCardDelayOutput {
+    let (open, next_open_delay_ms, close_after_ms) = match event {
+        HoverCardDelayEvent::PointerEnter { hovered_ms } => {
+            if hovered_ms >= options.open_delay_ms {
+                (true, None, None)
+            } else {
+                (false, Some(options.open_delay_ms - hovered_ms), None)
+            }
+        }
+        HoverCardDelayEvent::PointerLeave { elapsed_leave_ms } => {
+            if !currently_open || elapsed_leave_ms >= options.close_delay_ms {
+                (false, None, None)
+            } else {
+                (true, None, Some(options.close_delay_ms - elapsed_leave_ms))
+            }
+        }
+        HoverCardDelayEvent::Focus => (true, None, None),
+        HoverCardDelayEvent::Blur => (false, None, None),
+    };
+    HoverCardDelayOutput {
+        open,
+        data_state: if open {
+            HoverCardDataState::Open
+        } else {
+            HoverCardDataState::Closed
+        },
+        next_open_delay_ms,
+        close_after_ms,
     }
 }
 
@@ -547,6 +598,69 @@ mod tests {
         assert_eq!(output.open_delay_ms, 120);
         assert_eq!(output.close_delay_ms, 240);
         assert_eq!(output.data_state, HoverCardDataState::Open);
+    }
+
+    #[test]
+    fn hover_card_delay_output_waits_then_opens_after_delay() {
+        let options = HoverCardRootOptions::default().open_delay_ms(700);
+
+        let waiting = primitive_hover_card_delay_output(
+            false,
+            options,
+            HoverCardDelayEvent::PointerEnter { hovered_ms: 250 },
+        );
+        let open = primitive_hover_card_delay_output(
+            false,
+            options,
+            HoverCardDelayEvent::PointerEnter { hovered_ms: 700 },
+        );
+
+        assert!(!waiting.open);
+        assert_eq!(waiting.next_open_delay_ms, Some(450));
+        assert_eq!(waiting.data_state, HoverCardDataState::Closed);
+        assert!(open.open);
+        assert_eq!(open.next_open_delay_ms, None);
+        assert_eq!(open.data_state, HoverCardDataState::Open);
+    }
+
+    #[test]
+    fn hover_card_delay_output_uses_close_delay_before_closing() {
+        let options = HoverCardRootOptions::default().close_delay_ms(300);
+
+        let grace = primitive_hover_card_delay_output(
+            true,
+            options,
+            HoverCardDelayEvent::PointerLeave {
+                elapsed_leave_ms: 120,
+            },
+        );
+        let closed = primitive_hover_card_delay_output(
+            true,
+            options,
+            HoverCardDelayEvent::PointerLeave {
+                elapsed_leave_ms: 300,
+            },
+        );
+
+        assert!(grace.open);
+        assert_eq!(grace.close_after_ms, Some(180));
+        assert_eq!(grace.data_state, HoverCardDataState::Open);
+        assert!(!closed.open);
+        assert_eq!(closed.close_after_ms, None);
+        assert_eq!(closed.data_state, HoverCardDataState::Closed);
+    }
+
+    #[test]
+    fn hover_card_delay_output_opens_on_focus_and_closes_on_blur() {
+        let options = HoverCardRootOptions::default();
+
+        let focused = primitive_hover_card_delay_output(false, options, HoverCardDelayEvent::Focus);
+        let blurred = primitive_hover_card_delay_output(true, options, HoverCardDelayEvent::Blur);
+
+        assert!(focused.open);
+        assert_eq!(focused.data_state, HoverCardDataState::Open);
+        assert!(!blurred.open);
+        assert_eq!(blurred.data_state, HoverCardDataState::Closed);
     }
 
     #[test]
