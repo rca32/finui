@@ -91,6 +91,15 @@ pub enum ScrollAreaScrollbarOrientation {
     Horizontal,
 }
 
+impl ScrollAreaScrollbarOrientation {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Vertical => "vertical",
+            Self::Horizontal => "horizontal",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ScrollAreaScrollbarOptions {
     pub bounds: Rect,
@@ -137,6 +146,30 @@ impl ScrollAreaScrollbarOptions {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScrollAreaNativeScrollOutput {
+    pub uses_native_scroll: bool,
+    pub vertical: bool,
+    pub horizontal: bool,
+    pub auto_shrink: [bool; 2],
+    pub max_height: f32,
+    pub vertical_scroll_offset: Option<f32>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScrollAreaScrollbarVisibilityOutput {
+    pub visible: bool,
+    pub elapsed_since_interaction_ms: Option<u64>,
+    pub hide_delay_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScrollAreaCornerOutput {
+    pub mounted: bool,
+    pub rect: Option<Rect>,
+    pub data_orientation: Option<&'static str>,
+}
+
 pub fn primitive_scroll_area<R>(
     ui: &mut egui::Ui,
     max_height: f32,
@@ -175,6 +208,19 @@ pub fn primitive_scroll_area_root<R>(
     .inner
 }
 
+pub fn primitive_scroll_area_native_scroll_output(
+    options: ScrollAreaRootOptions,
+) -> ScrollAreaNativeScrollOutput {
+    ScrollAreaNativeScrollOutput {
+        uses_native_scroll: true,
+        vertical: true,
+        horizontal: false,
+        auto_shrink: [false, false],
+        max_height: options.max_height,
+        vertical_scroll_offset: options.vertical_scroll_offset,
+    }
+}
+
 pub fn scroll_thumb_size(content_height: f32, viewport_height: f32, track_height: f32) -> f32 {
     if content_height <= 0.0 || viewport_height <= 0.0 || track_height <= 0.0 {
         return 0.0;
@@ -186,6 +232,61 @@ pub fn scroll_thumb_size(content_height: f32, viewport_height: f32, track_height
         return track_height;
     }
     (viewport_height / content_height * track_height).clamp(24.0, track_height)
+}
+
+pub fn scroll_offset_fraction(content_extent: f32, viewport_extent: f32, offset: f32) -> f32 {
+    let max_offset = (content_extent - viewport_extent).max(0.0);
+    if max_offset <= 0.0 {
+        return 0.0;
+    }
+    (offset / max_offset).clamp(0.0, 1.0)
+}
+
+pub fn scroll_offset_from_thumb_drag(
+    current_offset: f32,
+    drag_delta: f32,
+    content_extent: f32,
+    viewport_extent: f32,
+    track_extent: f32,
+) -> f32 {
+    let max_offset = (content_extent - viewport_extent).max(0.0);
+    if max_offset <= 0.0 || track_extent <= 0.0 {
+        return 0.0;
+    }
+    let thumb_extent = scroll_thumb_size(content_extent, viewport_extent, track_extent);
+    let travel = (track_extent - thumb_extent).max(0.0);
+    if travel <= 0.0 {
+        return current_offset.clamp(0.0, max_offset);
+    }
+    (current_offset + drag_delta / travel * max_offset).clamp(0.0, max_offset)
+}
+
+pub fn primitive_scrollbar_visibility_output(
+    area_type: ScrollAreaRootType,
+    hovered: bool,
+    scrolling: bool,
+    elapsed_since_interaction_ms: Option<u64>,
+    hide_delay_ms: u64,
+    force_mount: bool,
+) -> ScrollAreaScrollbarVisibilityOutput {
+    let visible = force_mount
+        || match area_type {
+            ScrollAreaRootType::Always => true,
+            ScrollAreaRootType::Scroll => {
+                scrolling
+                    || elapsed_since_interaction_ms.is_some_and(|elapsed| elapsed <= hide_delay_ms)
+            }
+            ScrollAreaRootType::Hover | ScrollAreaRootType::Auto => {
+                hovered
+                    || scrolling
+                    || elapsed_since_interaction_ms.is_some_and(|elapsed| elapsed <= hide_delay_ms)
+            }
+        };
+    ScrollAreaScrollbarVisibilityOutput {
+        visible,
+        elapsed_since_interaction_ms,
+        hide_delay_ms,
+    }
 }
 
 pub fn primitive_scroll_viewport_rect(bounds: Rect, scrollbar_width: f32) -> Rect {
@@ -217,6 +318,29 @@ pub fn primitive_scrollbar_rect_with_options(options: ScrollAreaScrollbarOptions
                 options.bounds.right_bottom(),
             )
         }
+    }
+}
+
+pub fn primitive_scroll_corner_output(
+    bounds: Rect,
+    vertical_scrollbar_size: f32,
+    horizontal_scrollbar_size: f32,
+    vertical_visible: bool,
+    horizontal_visible: bool,
+) -> ScrollAreaCornerOutput {
+    let mounted = vertical_visible && horizontal_visible;
+    let width = vertical_scrollbar_size.max(0.0).min(bounds.width());
+    let height = horizontal_scrollbar_size.max(0.0).min(bounds.height());
+    let rect = mounted.then(|| {
+        Rect::from_min_max(
+            egui::pos2(bounds.right() - width, bounds.bottom() - height),
+            bounds.right_bottom(),
+        )
+    });
+    ScrollAreaCornerOutput {
+        mounted,
+        rect,
+        data_orientation: mounted.then_some("vertical-horizontal"),
     }
 }
 
@@ -284,6 +408,22 @@ mod tests {
     }
 
     #[test]
+    fn scroll_area_native_scroll_output_preserves_egui_scroll_contract() {
+        let output = primitive_scroll_area_native_scroll_output(
+            ScrollAreaRootOptions::default()
+                .max_height(240.0)
+                .vertical_scroll_offset(32.0),
+        );
+
+        assert!(output.uses_native_scroll);
+        assert!(output.vertical);
+        assert!(!output.horizontal);
+        assert_eq!(output.auto_shrink, [false, false]);
+        assert_eq!(output.max_height, 240.0);
+        assert_eq!(output.vertical_scroll_offset, Some(32.0));
+    }
+
+    #[test]
     fn scroll_part_rects_reserve_vertical_scrollbar() {
         let bounds = Rect::from_min_size(egui::pos2(10.0, 20.0), Vec2::new(120.0, 80.0));
         let viewport = primitive_scroll_viewport_rect(bounds, 12.0);
@@ -294,6 +434,72 @@ mod tests {
         assert_eq!(scrollbar.width(), 12.0);
         assert!(thumb.top() > scrollbar.top());
         assert!(thumb.bottom() < scrollbar.bottom());
+    }
+
+    #[test]
+    fn scroll_thumb_drag_maps_track_delta_to_clamped_scroll_offset() {
+        let current = 100.0;
+        let next = scroll_offset_from_thumb_drag(current, 28.0, 1000.0, 200.0, 100.0);
+        let clamped = scroll_offset_from_thumb_drag(790.0, 80.0, 1000.0, 200.0, 100.0);
+
+        assert_eq!(scroll_offset_fraction(1000.0, 200.0, 400.0), 0.5);
+        assert!(next > current);
+        assert_eq!(clamped, 800.0);
+        assert_eq!(
+            scroll_offset_from_thumb_drag(40.0, 10.0, 100.0, 200.0, 100.0),
+            0.0
+        );
+    }
+
+    #[test]
+    fn scroll_area_visibility_output_respects_type_delay_and_force_mount() {
+        let hidden = primitive_scrollbar_visibility_output(
+            ScrollAreaRootType::Hover,
+            false,
+            false,
+            Some(601),
+            600,
+            false,
+        );
+        let visible_during_delay = primitive_scrollbar_visibility_output(
+            ScrollAreaRootType::Scroll,
+            false,
+            false,
+            Some(300),
+            600,
+            false,
+        );
+        let forced = primitive_scrollbar_visibility_output(
+            ScrollAreaRootType::Auto,
+            false,
+            false,
+            None,
+            600,
+            true,
+        );
+
+        assert!(!hidden.visible);
+        assert!(visible_during_delay.visible);
+        assert!(forced.visible);
+    }
+
+    #[test]
+    fn scroll_area_corner_output_mounts_only_when_both_axes_are_visible() {
+        let bounds = Rect::from_min_size(egui::pos2(10.0, 20.0), Vec2::new(120.0, 80.0));
+        let output = primitive_scroll_corner_output(bounds, 12.0, 10.0, true, true);
+        let hidden = primitive_scroll_corner_output(bounds, 12.0, 10.0, true, false);
+
+        assert!(output.mounted);
+        assert_eq!(
+            output.rect,
+            Some(Rect::from_min_max(
+                egui::pos2(118.0, 90.0),
+                egui::pos2(130.0, 100.0)
+            ))
+        );
+        assert_eq!(output.data_orientation, Some("vertical-horizontal"));
+        assert!(!hidden.mounted);
+        assert_eq!(hidden.rect, None);
     }
 
     #[test]

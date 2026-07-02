@@ -238,12 +238,16 @@ pub use radix_icon::{
     radix_icon_from_visual, radix_icon_tintable_svg, radix_icon_visual,
 };
 pub use scroll_area::{
-    ScrollAreaRootOptions, ScrollAreaRootType, ScrollAreaScrollbarOptions,
-    ScrollAreaScrollbarOrientation, ScrollAreaViewportOptions, primitive_scroll_area,
-    primitive_scroll_area_root, primitive_scroll_corner, primitive_scroll_thumb,
+    ScrollAreaCornerOutput, ScrollAreaNativeScrollOutput, ScrollAreaRootOptions,
+    ScrollAreaRootType, ScrollAreaScrollbarOptions, ScrollAreaScrollbarOrientation,
+    ScrollAreaScrollbarVisibilityOutput, ScrollAreaViewportOptions, primitive_scroll_area,
+    primitive_scroll_area_native_scroll_output, primitive_scroll_area_root,
+    primitive_scroll_corner, primitive_scroll_corner_output, primitive_scroll_thumb,
     primitive_scroll_thumb_rect, primitive_scroll_viewport_rect,
     primitive_scroll_viewport_rect_with_options, primitive_scrollbar, primitive_scrollbar_rect,
-    primitive_scrollbar_rect_with_options, scroll_corner_placeholder, scroll_thumb_size,
+    primitive_scrollbar_rect_with_options, primitive_scrollbar_visibility_output,
+    scroll_corner_placeholder, scroll_offset_fraction, scroll_offset_from_thumb_drag,
+    scroll_thumb_size,
 };
 pub use select::{
     SelectAlign, SelectContentOptions, SelectContentOutput, SelectDataState, SelectDirection,
