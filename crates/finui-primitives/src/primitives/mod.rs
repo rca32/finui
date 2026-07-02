@@ -269,15 +269,17 @@ pub use scroll_area::{
 };
 pub use select::{
     SelectAlign, SelectContentOptions, SelectContentOutput, SelectDataState, SelectDirection,
-    SelectItem, SelectItemOptions, SelectLabelOptions, SelectOptions, SelectPortalOptions,
-    SelectPortalOutput, SelectPosition, SelectRootOptions, SelectRootOutput,
-    SelectSeparatorOptions, SelectSide, SelectTriggerOptions, SelectTriggerOutput,
-    SelectViewportOptions, primitive_select_content_options, primitive_select_content_output,
-    primitive_select_icon, primitive_select_item, primitive_select_label,
-    primitive_select_portal_output, primitive_select_root_output, primitive_select_separator,
-    primitive_select_trigger, primitive_select_value, primitive_select_viewport, select_apply_open,
-    select_apply_value, select_horizontal_next_enabled, select_next_enabled,
-    select_typeahead_match, show_select,
+    SelectItem, SelectItemOptions, SelectKeyboardAction, SelectKeyboardOutput, SelectLabelOptions,
+    SelectOptions, SelectPortalOptions, SelectPortalOutput, SelectPosition, SelectRootOptions,
+    SelectRootOutput, SelectSeparatorOptions, SelectSide, SelectTriggerOptions,
+    SelectTriggerOutput, SelectValueTextOutput, SelectViewportOptions,
+    primitive_select_content_options, primitive_select_content_output, primitive_select_icon,
+    primitive_select_item, primitive_select_label, primitive_select_portal_output,
+    primitive_select_root_output, primitive_select_separator, primitive_select_trigger,
+    primitive_select_value, primitive_select_viewport, select_apply_open, select_apply_value,
+    select_horizontal_next_enabled, select_keyboard_action, select_keyboard_output,
+    select_keyboard_target_value, select_next_enabled, select_open_active_value,
+    select_typeahead_match, select_value_text_output, show_select,
 };
 pub use settings::{
     PrimitiveActionKind, PrimitiveColorPickerLabels, PrimitiveSelectOption,

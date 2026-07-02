@@ -167,6 +167,33 @@ pub struct SelectItem<T> {
     pub enabled: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectKeyboardAction {
+    None,
+    Open,
+    FocusNext,
+    FocusPrevious,
+    FocusFirst,
+    FocusLast,
+    Commit,
+    Cancel,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SelectKeyboardOutput<T> {
+    pub open: bool,
+    pub active_value: Option<T>,
+    pub committed_value: Option<T>,
+    pub committed: bool,
+    pub cancelled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SelectValueTextOutput {
+    pub text: String,
+    pub placeholder: bool,
+}
+
 pub struct SelectOptions {
     pub id: egui::Id,
     pub trigger_rect: Rect,
@@ -705,6 +732,184 @@ pub fn select_horizontal_next_enabled<T: Copy + PartialEq>(
         .and_then(|step| select_next_enabled(items, current, step))
 }
 
+#[allow(clippy::too_many_arguments)]
+pub fn select_keyboard_action(
+    open: bool,
+    disabled: bool,
+    enter_pressed: bool,
+    space_pressed: bool,
+    escape_pressed: bool,
+    arrow_up_pressed: bool,
+    arrow_down_pressed: bool,
+    home_pressed: bool,
+    end_pressed: bool,
+) -> SelectKeyboardAction {
+    if disabled {
+        return SelectKeyboardAction::None;
+    }
+    if open {
+        if escape_pressed {
+            SelectKeyboardAction::Cancel
+        } else if enter_pressed || space_pressed {
+            SelectKeyboardAction::Commit
+        } else if home_pressed {
+            SelectKeyboardAction::FocusFirst
+        } else if end_pressed {
+            SelectKeyboardAction::FocusLast
+        } else if arrow_down_pressed {
+            SelectKeyboardAction::FocusNext
+        } else if arrow_up_pressed {
+            SelectKeyboardAction::FocusPrevious
+        } else {
+            SelectKeyboardAction::None
+        }
+    } else if enter_pressed || space_pressed || arrow_down_pressed || arrow_up_pressed {
+        SelectKeyboardAction::Open
+    } else {
+        SelectKeyboardAction::None
+    }
+}
+
+pub fn select_open_active_value<T: Copy + PartialEq>(
+    items: &[SelectItem<T>],
+    selected: Option<T>,
+) -> Option<T> {
+    selected
+        .filter(|value| {
+            items
+                .iter()
+                .any(|item| item.enabled && item.value == *value)
+        })
+        .or_else(|| {
+            items
+                .iter()
+                .find(|item| item.enabled)
+                .map(|item| item.value)
+        })
+}
+
+pub fn select_keyboard_target_value<T: Copy + PartialEq>(
+    items: &[SelectItem<T>],
+    active: Option<T>,
+    action: SelectKeyboardAction,
+    loop_focus: bool,
+) -> Option<T> {
+    match action {
+        SelectKeyboardAction::FocusNext => {
+            select_next_enabled_with_loop(items, active, 1, loop_focus)
+        }
+        SelectKeyboardAction::FocusPrevious => {
+            select_next_enabled_with_loop(items, active, -1, loop_focus)
+        }
+        SelectKeyboardAction::FocusFirst => items
+            .iter()
+            .find(|item| item.enabled)
+            .map(|item| item.value),
+        SelectKeyboardAction::FocusLast => items
+            .iter()
+            .rev()
+            .find(|item| item.enabled)
+            .map(|item| item.value),
+        _ => active,
+    }
+}
+
+pub fn select_keyboard_output<T: Copy + PartialEq>(
+    items: &[SelectItem<T>],
+    current_value: Option<T>,
+    active_value: Option<T>,
+    open: bool,
+    action: SelectKeyboardAction,
+    loop_focus: bool,
+) -> SelectKeyboardOutput<T> {
+    match action {
+        SelectKeyboardAction::Open => SelectKeyboardOutput {
+            open: true,
+            active_value: select_open_active_value(items, current_value),
+            committed_value: current_value,
+            committed: false,
+            cancelled: false,
+        },
+        SelectKeyboardAction::FocusNext
+        | SelectKeyboardAction::FocusPrevious
+        | SelectKeyboardAction::FocusFirst
+        | SelectKeyboardAction::FocusLast => SelectKeyboardOutput {
+            open,
+            active_value: select_keyboard_target_value(items, active_value, action, loop_focus),
+            committed_value: current_value,
+            committed: false,
+            cancelled: false,
+        },
+        SelectKeyboardAction::Commit => SelectKeyboardOutput {
+            open: false,
+            active_value,
+            committed_value: active_value.or(current_value),
+            committed: active_value.is_some(),
+            cancelled: false,
+        },
+        SelectKeyboardAction::Cancel => SelectKeyboardOutput {
+            open: false,
+            active_value: current_value,
+            committed_value: current_value,
+            committed: false,
+            cancelled: true,
+        },
+        SelectKeyboardAction::None => SelectKeyboardOutput {
+            open,
+            active_value,
+            committed_value: current_value,
+            committed: false,
+            cancelled: false,
+        },
+    }
+}
+
+fn select_next_enabled_with_loop<T: Copy + PartialEq>(
+    items: &[SelectItem<T>],
+    current: Option<T>,
+    direction: isize,
+    loop_focus: bool,
+) -> Option<T> {
+    if loop_focus {
+        return select_next_enabled(items, current, direction);
+    }
+    if items.is_empty() || !items.iter().any(|item| item.enabled) {
+        return None;
+    }
+    let len = items.len() as isize;
+    let start = current
+        .and_then(|value| items.iter().position(|item| item.value == value))
+        .map(|index| index as isize)
+        .unwrap_or(if direction >= 0 { -1 } else { len });
+    for step in 1..=items.len() {
+        let raw = start + direction * step as isize;
+        if raw < 0 || raw >= len {
+            return None;
+        }
+        let index = raw as usize;
+        if items[index].enabled {
+            return Some(items[index].value);
+        }
+    }
+    None
+}
+
+pub fn select_value_text_output(
+    value: Option<impl Into<String>>,
+    placeholder: impl Into<String>,
+) -> SelectValueTextOutput {
+    match value {
+        Some(value) => SelectValueTextOutput {
+            text: value.into(),
+            placeholder: false,
+        },
+        None => SelectValueTextOutput {
+            text: placeholder.into(),
+            placeholder: true,
+        },
+    }
+}
+
 pub fn select_typeahead_match<T: Copy + PartialEq>(
     items: &[SelectItem<T>],
     current: Option<T>,
@@ -830,6 +1035,132 @@ mod tests {
             ),
             Some(3)
         );
+    }
+
+    #[test]
+    fn select_keyboard_output_focuses_selected_item_when_opening() {
+        let items = [
+            SelectItem {
+                value: "1m",
+                label: "1M",
+                enabled: true,
+            },
+            SelectItem {
+                value: "3m",
+                label: "3M",
+                enabled: true,
+            },
+            SelectItem {
+                value: "6m",
+                label: "6M",
+                enabled: true,
+            },
+        ];
+
+        let action =
+            select_keyboard_action(false, false, false, true, false, false, false, false, false);
+        let output = select_keyboard_output(&items, Some("3m"), None, false, action, true);
+
+        assert_eq!(action, SelectKeyboardAction::Open);
+        assert!(output.open);
+        assert_eq!(output.active_value, Some("3m"));
+        assert_eq!(output.committed_value, Some("3m"));
+        assert!(!output.committed);
+    }
+
+    #[test]
+    fn select_keyboard_output_skips_disabled_items_for_arrow_home_and_end() {
+        let items = [
+            SelectItem {
+                value: "1m",
+                label: "1M",
+                enabled: true,
+            },
+            SelectItem {
+                value: "3m",
+                label: "3M",
+                enabled: false,
+            },
+            SelectItem {
+                value: "6m",
+                label: "6M",
+                enabled: true,
+            },
+        ];
+
+        let next = select_keyboard_output(
+            &items,
+            Some("1m"),
+            Some("1m"),
+            true,
+            SelectKeyboardAction::FocusNext,
+            true,
+        );
+        let previous_no_loop = select_keyboard_output(
+            &items,
+            Some("1m"),
+            Some("1m"),
+            true,
+            SelectKeyboardAction::FocusPrevious,
+            false,
+        );
+        let last = select_keyboard_output(
+            &items,
+            Some("1m"),
+            Some("1m"),
+            true,
+            SelectKeyboardAction::FocusLast,
+            true,
+        );
+
+        assert_eq!(next.active_value, Some("6m"));
+        assert_eq!(previous_no_loop.active_value, None);
+        assert_eq!(last.active_value, Some("6m"));
+    }
+
+    #[test]
+    fn select_keyboard_output_commits_enter_and_cancels_escape() {
+        let items = [
+            SelectItem {
+                value: "1m",
+                label: "1M",
+                enabled: true,
+            },
+            SelectItem {
+                value: "3m",
+                label: "3M",
+                enabled: true,
+            },
+        ];
+        let commit_action =
+            select_keyboard_action(true, false, true, false, false, false, false, false, false);
+        let cancel_action =
+            select_keyboard_action(true, false, false, false, true, false, false, false, false);
+        let committed =
+            select_keyboard_output(&items, Some("1m"), Some("3m"), true, commit_action, true);
+        let cancelled =
+            select_keyboard_output(&items, Some("1m"), Some("3m"), true, cancel_action, true);
+
+        assert_eq!(commit_action, SelectKeyboardAction::Commit);
+        assert!(!committed.open);
+        assert_eq!(committed.committed_value, Some("3m"));
+        assert!(committed.committed);
+        assert_eq!(cancel_action, SelectKeyboardAction::Cancel);
+        assert!(!cancelled.open);
+        assert_eq!(cancelled.committed_value, Some("1m"));
+        assert_eq!(cancelled.active_value, Some("1m"));
+        assert!(cancelled.cancelled);
+    }
+
+    #[test]
+    fn select_value_text_output_separates_placeholder_from_value() {
+        let placeholder = select_value_text_output(None::<String>, "기간 선택");
+        let value = select_value_text_output(Some("3M"), "기간 선택");
+
+        assert_eq!(placeholder.text, "기간 선택");
+        assert!(placeholder.placeholder);
+        assert_eq!(value.text, "3M");
+        assert!(!value.placeholder);
     }
 
     #[test]
