@@ -18,6 +18,31 @@ pub type ContextMenuSide = DropdownMenuSide;
 pub type ContextMenuAlign = DropdownMenuAlign;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContextMenuOpenOrigin {
+    Pointer,
+    TouchLongPress,
+    Keyboard,
+}
+
+impl ContextMenuOpenOrigin {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pointer => "pointer",
+            Self::TouchLongPress => "touch-long-press",
+            Self::Keyboard => "keyboard",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ContextMenuOpenOutput {
+    pub open: bool,
+    pub position: Option<Pos2>,
+    pub origin: Option<ContextMenuOpenOrigin>,
+    pub data_origin: Option<&'static str>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ContextMenuRootOptions {
     pub open: bool,
     pub modal: bool,
@@ -85,6 +110,54 @@ pub fn context_menu_apply_open(
     }
     *current_position = next_position;
     true
+}
+
+pub fn context_menu_pointer_open_output(position: Pos2, disabled: bool) -> ContextMenuOpenOutput {
+    context_menu_open_output(!disabled, Some(position), ContextMenuOpenOrigin::Pointer)
+}
+
+pub fn context_menu_long_press_open_output(
+    start_position: Pos2,
+    current_position: Pos2,
+    elapsed_ms: u64,
+    threshold_ms: u64,
+    max_movement: f32,
+    disabled: bool,
+) -> ContextMenuOpenOutput {
+    let movement = start_position.distance(current_position);
+    let open = !disabled && elapsed_ms >= threshold_ms && movement <= max_movement.max(0.0);
+    context_menu_open_output(
+        open,
+        Some(start_position),
+        ContextMenuOpenOrigin::TouchLongPress,
+    )
+}
+
+pub fn context_menu_keyboard_open_output(
+    trigger_rect: Rect,
+    context_key_pressed: bool,
+    shift_f10_pressed: bool,
+    disabled: bool,
+) -> ContextMenuOpenOutput {
+    let open = !disabled && (context_key_pressed || shift_f10_pressed);
+    context_menu_open_output(
+        open,
+        Some(trigger_rect.center()),
+        ContextMenuOpenOrigin::Keyboard,
+    )
+}
+
+fn context_menu_open_output(
+    open: bool,
+    position: Option<Pos2>,
+    origin: ContextMenuOpenOrigin,
+) -> ContextMenuOpenOutput {
+    ContextMenuOpenOutput {
+        open,
+        position: open.then_some(position).flatten(),
+        origin: open.then_some(origin),
+        data_origin: open.then_some(origin.as_str()),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -640,6 +713,72 @@ mod tests {
         ));
         assert!(context_menu_apply_open(&mut position, None, &options));
         assert_eq!(position, None);
+    }
+
+    #[test]
+    fn context_menu_pointer_open_output_preserves_pointer_origin() {
+        let output = context_menu_pointer_open_output(egui::pos2(12.0, 34.0), false);
+        let disabled = context_menu_pointer_open_output(egui::pos2(12.0, 34.0), true);
+
+        assert!(output.open);
+        assert_eq!(output.position, Some(egui::pos2(12.0, 34.0)));
+        assert_eq!(output.origin, Some(ContextMenuOpenOrigin::Pointer));
+        assert_eq!(output.data_origin, Some("pointer"));
+        assert!(!disabled.open);
+        assert_eq!(disabled.position, None);
+    }
+
+    #[test]
+    fn context_menu_long_press_open_output_respects_threshold_and_movement() {
+        let start = egui::pos2(12.0, 34.0);
+
+        let waiting = context_menu_long_press_open_output(
+            start,
+            egui::pos2(13.0, 35.0),
+            399,
+            400,
+            8.0,
+            false,
+        );
+        let moved_too_far = context_menu_long_press_open_output(
+            start,
+            egui::pos2(24.0, 34.0),
+            400,
+            400,
+            8.0,
+            false,
+        );
+        let opened = context_menu_long_press_open_output(
+            start,
+            egui::pos2(13.0, 35.0),
+            400,
+            400,
+            8.0,
+            false,
+        );
+
+        assert!(!waiting.open);
+        assert!(!moved_too_far.open);
+        assert!(opened.open);
+        assert_eq!(opened.position, Some(start));
+        assert_eq!(opened.origin, Some(ContextMenuOpenOrigin::TouchLongPress));
+        assert_eq!(opened.data_origin, Some("touch-long-press"));
+    }
+
+    #[test]
+    fn context_menu_keyboard_open_output_uses_trigger_center_for_context_key_or_shift_f10() {
+        let trigger = Rect::from_min_size(egui::pos2(10.0, 20.0), egui::vec2(80.0, 24.0));
+        let context_key = context_menu_keyboard_open_output(trigger, true, false, false);
+        let shift_f10 = context_menu_keyboard_open_output(trigger, false, true, false);
+        let disabled = context_menu_keyboard_open_output(trigger, true, true, true);
+
+        assert!(context_key.open);
+        assert_eq!(context_key.position, Some(trigger.center()));
+        assert_eq!(context_key.origin, Some(ContextMenuOpenOrigin::Keyboard));
+        assert_eq!(context_key.data_origin, Some("keyboard"));
+        assert_eq!(shift_f10.position, Some(trigger.center()));
+        assert!(!disabled.open);
+        assert_eq!(disabled.position, None);
     }
 
     #[test]
