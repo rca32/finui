@@ -59,6 +59,12 @@ pub struct RadixIconAsset {
     pub svg: &'static str,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RadixIconVisual<'a> {
+    pub icon: Option<RadixIcon>,
+    pub fallback_text: Option<&'a str>,
+}
+
 pub fn radix_icon_asset(icon: RadixIcon) -> RadixIconAsset {
     match icon {
         RadixIcon::Accessibility => RadixIconAsset {
@@ -315,10 +321,27 @@ pub fn radix_icon_from_visual(visual: &str) -> Option<RadixIcon> {
     }
 }
 
+pub fn radix_icon_visual(visual: &str) -> RadixIconVisual<'_> {
+    match radix_icon_from_visual(visual) {
+        Some(icon) => RadixIconVisual {
+            icon: Some(icon),
+            fallback_text: None,
+        },
+        None => RadixIconVisual {
+            icon: None,
+            fallback_text: Some(visual),
+        },
+    }
+}
+
+pub fn radix_icon_tintable_svg(asset: RadixIconAsset) -> String {
+    asset.svg.replace("currentColor", "#FFFFFF")
+}
+
 pub fn paint_radix_icon(ui: &egui::Ui, icon: RadixIcon, rect: Rect, color: Color32) {
     egui_extras::install_image_loaders(ui.ctx());
     let asset = radix_icon_asset(icon);
-    let svg = asset.svg.replace("currentColor", "#FFFFFF");
+    let svg = radix_icon_tintable_svg(asset);
     let image = egui::Image::from_bytes(
         format!("bytes://radix-icons/tintable/{}", asset.filename),
         svg.into_bytes(),
@@ -355,5 +378,26 @@ mod tests {
             assert_eq!(icon, expected);
             assert!(radix_icon_asset(icon).svg.starts_with("<svg"));
         }
+    }
+
+    #[test]
+    fn icon_visual_uses_text_fallback_for_unknown_visuals() {
+        let known = radix_icon_visual("refresh");
+        assert_eq!(known.icon, Some(RadixIcon::Reload));
+        assert_eq!(known.fallback_text, None);
+
+        let unknown = radix_icon_visual("custom-korean-label");
+        assert_eq!(unknown.icon, None);
+        assert_eq!(unknown.fallback_text, Some("custom-korean-label"));
+    }
+
+    #[test]
+    fn icon_assets_are_tintable_before_egui_tint_is_applied() {
+        let asset = radix_icon_asset(RadixIcon::Check);
+        let svg = radix_icon_tintable_svg(asset);
+
+        assert!(asset.svg.contains("currentColor"));
+        assert!(!svg.contains("currentColor"));
+        assert!(svg.contains("#FFFFFF"));
     }
 }

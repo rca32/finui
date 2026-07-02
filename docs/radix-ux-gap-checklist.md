@@ -221,7 +221,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 
 - [ ] long text, dense financial labels, Korean labels, mixed numeric labels의 clipping/ellipsis 정책을 통일한다.
 
-- [ ] icon contract를 정리한다.
+- [x] icon contract를 정리한다.
   - Radix icon asset 사용 범위, fallback, tinting, accessible icon/decorative icon 구분을 문서화한다.
 
 ## P3: 테스트/릴리스 운영

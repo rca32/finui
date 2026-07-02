@@ -1,6 +1,6 @@
 use eframe::egui::{self, Align2, FontId, Rect, Response, Sense, Vec2};
 
-use super::{PrimitiveTheme, paint_radix_icon, radix_icon_from_visual};
+use super::{PrimitiveTheme, paint_radix_icon, radix_icon_visual};
 
 #[derive(Debug, Clone, Copy)]
 pub struct AccessibleIconOptions {
@@ -158,13 +158,14 @@ pub fn primitive_accessible_icon(
         options.theme.content_stroke,
         egui::StrokeKind::Inside,
     );
-    if let Some(icon) = radix_icon_from_visual(visual) {
+    let visual = radix_icon_visual(visual);
+    if let Some(icon) = visual.icon {
         paint_radix_icon(ui, icon, rect.shrink(root.size * 0.25), text_color);
-    } else {
+    } else if let Some(fallback_text) = visual.fallback_text {
         ui.painter().text(
             rect.center(),
             Align2::CENTER_CENTER,
-            visual,
+            fallback_text,
             crate::scaled_proportional_font(ui, root.size * 0.5),
             text_color,
         );
