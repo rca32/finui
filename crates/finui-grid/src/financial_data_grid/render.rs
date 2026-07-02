@@ -524,7 +524,7 @@ impl<'a> FinancialDataGrid<'a> {
             }
             let row_response = ui.interact(
                 row_rect,
-                ui.make_persistent_id((self.id, "row", *model_index, screen_index, &row_id.0)),
+                ui.make_persistent_id((self.id, "row-slot", screen_index)),
                 Sense::click(),
             );
             if row_response.clicked() {
@@ -625,6 +625,7 @@ impl<'a> FinancialDataGrid<'a> {
                 body_rect,
                 row_rect,
                 *model_index,
+                screen_index,
                 &row_id,
                 &column_layouts,
                 self.columns,

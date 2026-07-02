@@ -23,6 +23,7 @@ pub fn paint_row_cells(
     grid_rect: Rect,
     row_rect: Rect,
     row_index: usize,
+    visible_slot: usize,
     row_id: &GridRowId,
     column_layouts: &[GridColumnLayout],
     columns: &[GridColumnDef],
@@ -54,7 +55,7 @@ pub fn paint_row_cells(
         let response = ui
             .interact(
                 cell_rect,
-                ui.make_persistent_id((grid_id, "cell", &row_id.0, &column.id.0)),
+                ui.make_persistent_id((grid_id, "cell-slot", visible_slot, &column.id.0)),
                 Sense::click_and_drag(),
             )
             .on_hover_cursor(egui::CursorIcon::PointingHand);

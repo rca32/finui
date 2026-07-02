@@ -786,10 +786,11 @@ pub fn primitive_checkbox(
     if options.enabled && response.clicked() {
         response.request_focus();
     }
+    let has_focus = response.has_focus();
     let keyboard_activation = ui.input(|input| {
         primitive_form_keyboard_activation(
             options.enabled,
-            response.has_focus(),
+            has_focus,
             input.key_pressed(egui::Key::Enter),
             input.key_pressed(egui::Key::Space),
         )
@@ -803,7 +804,7 @@ pub fn primitive_checkbox(
     let box_rect = primitive_checkbox_root_rect(rect, options.size);
     primitive_checkbox_root(ui, box_rect, *checked, response.hovered(), options);
     primitive_checkbox_indicator(ui, box_rect, *checked, options);
-    if response.has_focus() {
+    if has_focus {
         draw_control_focus_ring(ui, box_rect.expand(3.0), options.theme);
     }
 
@@ -1173,10 +1174,11 @@ pub fn primitive_switch(
     if options.enabled && response.clicked() {
         response.request_focus();
     }
+    let has_focus = response.has_focus();
     let keyboard_activation = ui.input(|input| {
         primitive_form_keyboard_activation(
             options.enabled,
-            response.has_focus(),
+            has_focus,
             input.key_pressed(egui::Key::Enter),
             input.key_pressed(egui::Key::Space),
         )
@@ -1186,14 +1188,7 @@ pub fn primitive_switch(
     if changed {
         *checked = !*checked;
     }
-    paint_switch(
-        ui,
-        rect,
-        *checked,
-        response.hovered(),
-        response.has_focus(),
-        options,
-    );
+    paint_switch(ui, rect, *checked, response.hovered(), has_focus, options);
 
     PrimitiveControlOutput { response, changed }
 }
@@ -1222,10 +1217,11 @@ pub fn primitive_switch_at(
     if options.enabled && response.clicked() {
         response.request_focus();
     }
+    let has_focus = response.has_focus();
     let keyboard_activation = ui.input(|input| {
         primitive_form_keyboard_activation(
             options.enabled,
-            response.has_focus(),
+            has_focus,
             input.key_pressed(egui::Key::Enter),
             input.key_pressed(egui::Key::Space),
         )
@@ -1235,14 +1231,7 @@ pub fn primitive_switch_at(
     if changed {
         *checked = !*checked;
     }
-    paint_switch(
-        ui,
-        rect,
-        *checked,
-        response.hovered(),
-        response.has_focus(),
-        options,
-    );
+    paint_switch(ui, rect, *checked, response.hovered(), has_focus, options);
 
     PrimitiveControlOutput { response, changed }
 }
@@ -1719,10 +1708,11 @@ pub fn primitive_radio_item(
     if enabled && response.clicked() {
         response.request_focus();
     }
+    let has_focus = response.has_focus();
     let keyboard_activation = ui.input(|input| {
         primitive_form_keyboard_activation(
             enabled,
-            response.has_focus(),
+            has_focus,
             input.key_pressed(egui::Key::Enter),
             input.key_pressed(egui::Key::Space),
         )
@@ -1730,7 +1720,7 @@ pub fn primitive_radio_item(
     let dot = primitive_radio_item_rect(rect, 14.0);
     primitive_radio_item_part(ui, dot, checked, response.hovered(), enabled, theme);
     primitive_radio_indicator(ui, dot, checked, theme);
-    if response.has_focus() {
+    if has_focus {
         draw_control_focus_ring(ui, dot.expand(3.0), theme);
     }
     ui.painter().text(
