@@ -1,5 +1,7 @@
 use eframe::egui;
-use finui_grid::{DemoFinancialGrid, FinancialGridDemoAction};
+use finui_grid::{
+    DemoFinancialGrid, FinancialGridDemoAction, grid_primitive_integration_scenario_output,
+};
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions::default();
@@ -30,6 +32,12 @@ impl eframe::App for GridLabApp {
                 self.grid
                     .apply_agent_demo_action(FinancialGridDemoAction::ClearFilters);
             }
+            let integration = grid_primitive_integration_scenario_output();
+            ui.label(if integration.passed() {
+                "Primitive integration: ready"
+            } else {
+                "Primitive integration: check"
+            });
         });
         self.grid.show(ui);
     }

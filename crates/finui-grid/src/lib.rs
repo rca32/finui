@@ -19,6 +19,7 @@ pub use modules::export::*;
 pub use modules::ids::*;
 #[cfg(test)]
 pub use modules::persistence::*;
+pub use modules::primitive_integration::*;
 pub use modules::provenance::*;
 pub use modules::source::*;
 pub use modules::state::*;

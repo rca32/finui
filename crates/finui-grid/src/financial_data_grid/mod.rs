@@ -12,6 +12,7 @@ pub mod interaction;
 pub mod menu;
 pub mod paint;
 pub mod persistence;
+pub mod primitive_integration;
 pub mod provenance;
 pub mod render;
 pub mod row;

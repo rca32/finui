@@ -179,7 +179,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 - [x] accessibility snapshot test를 만든다.
   - 완료 기준: primitive별 role/name/state/value/description output을 JSON snapshot으로 검증한다.
 
-- [ ] `grid_lab`와 primitive layer의 통합 시나리오를 만든다.
+- [x] `grid_lab`와 primitive layer의 통합 시나리오를 만든다.
   - grid header/row/cell context menu, hover card, scroll area, selection/focus가 primitive 계약을 실제로 쓰는지 확인한다.
   - 완료 기준: grid context menu keyboard navigation과 dismiss behavior가 primitive harness와 같은 규칙을 따른다.
 
