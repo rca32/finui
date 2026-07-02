@@ -116,7 +116,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 pointer drag와 snap/clamp helper는 있으나 keyboard/touch/multiple thumbs/min steps between thumbs가 실제 조작으로 완성됐는지 부족하다.
   - 완료 기준: Arrow/Page/Home/End, vertical/RTL/inverted, multiple thumbs, min step separation, touch/pointer drag 테스트가 있다.
 
-- [ ] Checkbox/Switch/Radio의 keyboard activation을 명확히 구현한다.
+- [x] Checkbox/Switch/Radio의 keyboard activation을 명확히 구현한다.
   - 현재 click 중심 렌더/상태 변경이 강하다.
   - 완료 기준: Space/Enter, disabled/required/name/value, focus ring, radio arrow navigation, loop focus 테스트가 있다.
 

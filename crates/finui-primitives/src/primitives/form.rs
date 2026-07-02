@@ -9,6 +9,22 @@ pub struct PrimitiveControlOutput {
     pub changed: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveKeyboardActivation {
+    None,
+    Activate,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RadioGroupKeyboardAction {
+    None,
+    Activate,
+    First,
+    Last,
+    Next,
+    Previous,
+}
+
 pub struct PrimitiveFormControlOutput<T> {
     pub inner: T,
     pub response: Response,
@@ -533,7 +549,19 @@ pub fn primitive_checkbox(
     } else {
         response
     };
-    let changed = options.enabled && response.clicked();
+    if options.enabled && response.clicked() {
+        response.request_focus();
+    }
+    let keyboard_activation = ui.input(|input| {
+        primitive_form_keyboard_activation(
+            options.enabled,
+            response.has_focus(),
+            input.key_pressed(egui::Key::Enter),
+            input.key_pressed(egui::Key::Space),
+        )
+    });
+    let changed = options.enabled
+        && (response.clicked() || keyboard_activation == PrimitiveKeyboardActivation::Activate);
     if changed {
         *checked = !*checked;
     }
@@ -541,6 +569,9 @@ pub fn primitive_checkbox(
     let box_rect = primitive_checkbox_root_rect(rect, options.size);
     primitive_checkbox_root(ui, box_rect, *checked, response.hovered(), options);
     primitive_checkbox_indicator(ui, box_rect, *checked, options);
+    if response.has_focus() {
+        draw_control_focus_ring(ui, box_rect.expand(3.0), options.theme);
+    }
 
     ui.painter().text(
         egui::pos2(box_rect.right() + options.label_gap, rect.center().y),
@@ -905,11 +936,30 @@ pub fn primitive_switch(
     } else {
         response
     };
-    let changed = options.enabled && response.clicked();
+    if options.enabled && response.clicked() {
+        response.request_focus();
+    }
+    let keyboard_activation = ui.input(|input| {
+        primitive_form_keyboard_activation(
+            options.enabled,
+            response.has_focus(),
+            input.key_pressed(egui::Key::Enter),
+            input.key_pressed(egui::Key::Space),
+        )
+    });
+    let changed = options.enabled
+        && (response.clicked() || keyboard_activation == PrimitiveKeyboardActivation::Activate);
     if changed {
         *checked = !*checked;
     }
-    paint_switch(ui, rect, *checked, response.hovered(), options);
+    paint_switch(
+        ui,
+        rect,
+        *checked,
+        response.hovered(),
+        response.has_focus(),
+        options,
+    );
 
     PrimitiveControlOutput { response, changed }
 }
@@ -935,11 +985,30 @@ pub fn primitive_switch_at(
     } else {
         response
     };
-    let changed = options.enabled && response.clicked();
+    if options.enabled && response.clicked() {
+        response.request_focus();
+    }
+    let keyboard_activation = ui.input(|input| {
+        primitive_form_keyboard_activation(
+            options.enabled,
+            response.has_focus(),
+            input.key_pressed(egui::Key::Enter),
+            input.key_pressed(egui::Key::Space),
+        )
+    });
+    let changed = options.enabled
+        && (response.clicked() || keyboard_activation == PrimitiveKeyboardActivation::Activate);
     if changed {
         *checked = !*checked;
     }
-    paint_switch(ui, rect, *checked, response.hovered(), options);
+    paint_switch(
+        ui,
+        rect,
+        *checked,
+        response.hovered(),
+        response.has_focus(),
+        options,
+    );
 
     PrimitiveControlOutput { response, changed }
 }
@@ -949,11 +1018,15 @@ fn paint_switch(
     rect: Rect,
     checked: bool,
     hovered: bool,
+    focused: bool,
     options: PrimitiveSwitchOptions,
 ) {
     let root = primitive_switch_root_output(rect, checked, options);
     primitive_switch_root(ui, root.rect, root.checked, hovered, options);
     primitive_switch_thumb(ui, root, options);
+    if focused {
+        draw_control_focus_ring(ui, rect.expand(3.0), options.theme);
+    }
 }
 
 pub fn primitive_switch_root(
@@ -1300,9 +1373,23 @@ pub fn primitive_radio_group_with_options<T: Copy + PartialEq + Hash>(
 ) -> bool {
     let mut changed = false;
     let root = primitive_radio_group_root_with_options(ui, id_source, items.len(), options);
+    let keyboard_action = ui.input(|input| {
+        radio_group_keyboard_action(
+            root.options.orientation,
+            input.key_pressed(egui::Key::Enter),
+            input.key_pressed(egui::Key::Space),
+            input.key_pressed(egui::Key::ArrowUp),
+            input.key_pressed(egui::Key::ArrowDown),
+            input.key_pressed(egui::Key::ArrowLeft),
+            input.key_pressed(egui::Key::ArrowRight),
+            input.key_pressed(egui::Key::Home),
+            input.key_pressed(egui::Key::End),
+        )
+    });
     let mut render_items = |ui: &mut egui::Ui| {
         for (index, item) in items.iter().enumerate() {
             let mut checked = *selected == item.value;
+            let item_id = ui.id().with((root.id, index, item.value));
             let output = primitive_radio_item(
                 ui,
                 (root.id, index, item.value),
@@ -1315,6 +1402,28 @@ pub fn primitive_radio_group_with_options<T: Copy + PartialEq + Hash>(
             {
                 checked = true;
                 changed = true;
+            }
+            if output.response.has_focus()
+                && keyboard_action != RadioGroupKeyboardAction::None
+                && !root.options.disabled
+            {
+                let target = radio_group_keyboard_target_index(
+                    items,
+                    Some(index),
+                    keyboard_action,
+                    root.options.loop_focus,
+                );
+                if let Some(target) = target {
+                    if radio_group_apply_value(selected, items[target].value, items, &root.options)
+                    {
+                        changed = true;
+                        checked = target == index;
+                    }
+                    let target_id = ui.id().with((root.id, target, items[target].value));
+                    if target_id != item_id {
+                        ui.memory_mut(|memory| memory.request_focus(target_id));
+                    }
+                }
             }
             let _ = checked;
         }
@@ -1372,9 +1481,23 @@ pub fn primitive_radio_item(
     } else {
         response
     };
+    if enabled && response.clicked() {
+        response.request_focus();
+    }
+    let keyboard_activation = ui.input(|input| {
+        primitive_form_keyboard_activation(
+            enabled,
+            response.has_focus(),
+            input.key_pressed(egui::Key::Enter),
+            input.key_pressed(egui::Key::Space),
+        )
+    });
     let dot = primitive_radio_item_rect(rect, 14.0);
     primitive_radio_item_part(ui, dot, checked, response.hovered(), enabled, theme);
     primitive_radio_indicator(ui, dot, checked, theme);
+    if response.has_focus() {
+        draw_control_focus_ring(ui, dot.expand(3.0), theme);
+    }
     ui.painter().text(
         egui::pos2(dot.right() + 8.0, rect.center().y),
         egui::Align2::LEFT_CENTER,
@@ -1386,7 +1509,8 @@ pub fn primitive_radio_item(
             theme.disabled_text
         },
     );
-    let changed = enabled && response.clicked();
+    let changed = enabled
+        && (response.clicked() || keyboard_activation == PrimitiveKeyboardActivation::Activate);
     PrimitiveControlOutput { response, changed }
 }
 
@@ -1904,12 +2028,116 @@ pub fn checkbox_apply_checked(
     true
 }
 
+pub fn primitive_form_keyboard_activation(
+    enabled: bool,
+    focused: bool,
+    enter_pressed: bool,
+    space_pressed: bool,
+) -> PrimitiveKeyboardActivation {
+    if enabled && focused && (enter_pressed || space_pressed) {
+        PrimitiveKeyboardActivation::Activate
+    } else {
+        PrimitiveKeyboardActivation::None
+    }
+}
+
 pub fn switch_apply_checked(current: &mut bool, next: bool, options: SwitchRootOptions) -> bool {
     if options.disabled || *current == next {
         return false;
     }
     *current = next;
     true
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn radio_group_keyboard_action(
+    orientation: RadioGroupOrientation,
+    enter_pressed: bool,
+    space_pressed: bool,
+    arrow_up_pressed: bool,
+    arrow_down_pressed: bool,
+    arrow_left_pressed: bool,
+    arrow_right_pressed: bool,
+    home_pressed: bool,
+    end_pressed: bool,
+) -> RadioGroupKeyboardAction {
+    if enter_pressed || space_pressed {
+        return RadioGroupKeyboardAction::Activate;
+    }
+    if home_pressed {
+        return RadioGroupKeyboardAction::First;
+    }
+    if end_pressed {
+        return RadioGroupKeyboardAction::Last;
+    }
+    match orientation {
+        RadioGroupOrientation::Vertical => {
+            if arrow_down_pressed {
+                RadioGroupKeyboardAction::Next
+            } else if arrow_up_pressed {
+                RadioGroupKeyboardAction::Previous
+            } else {
+                RadioGroupKeyboardAction::None
+            }
+        }
+        RadioGroupOrientation::Horizontal => {
+            if arrow_right_pressed {
+                RadioGroupKeyboardAction::Next
+            } else if arrow_left_pressed {
+                RadioGroupKeyboardAction::Previous
+            } else {
+                RadioGroupKeyboardAction::None
+            }
+        }
+    }
+}
+
+pub fn radio_group_keyboard_target_index<T: Copy + PartialEq>(
+    items: &[RadioItem<T>],
+    current: Option<usize>,
+    action: RadioGroupKeyboardAction,
+    loop_focus: bool,
+) -> Option<usize> {
+    match action {
+        RadioGroupKeyboardAction::None => None,
+        RadioGroupKeyboardAction::Activate => {
+            current.filter(|index| items.get(*index).is_some_and(|item| item.enabled))
+        }
+        RadioGroupKeyboardAction::First => items.iter().position(|item| item.enabled),
+        RadioGroupKeyboardAction::Last => items.iter().rposition(|item| item.enabled),
+        RadioGroupKeyboardAction::Next => {
+            radio_group_next_keyboard_index(items, current, 1, loop_focus)
+        }
+        RadioGroupKeyboardAction::Previous => {
+            radio_group_next_keyboard_index(items, current, -1, loop_focus)
+        }
+    }
+}
+
+fn radio_group_next_keyboard_index<T: Copy + PartialEq>(
+    items: &[RadioItem<T>],
+    current: Option<usize>,
+    direction: isize,
+    loop_focus: bool,
+) -> Option<usize> {
+    if items.is_empty() || !items.iter().any(|item| item.enabled) {
+        return None;
+    }
+    let len = items.len() as isize;
+    let start = current
+        .map(|index| index as isize)
+        .unwrap_or(if direction >= 0 { -1 } else { len });
+    for step in 1..=items.len() {
+        let raw = start + direction * step as isize;
+        if !loop_focus && (raw < 0 || raw >= len) {
+            return None;
+        }
+        let index = raw.rem_euclid(len) as usize;
+        if items[index].enabled {
+            return Some(index);
+        }
+    }
+    None
 }
 
 pub fn slider_apply_value(current: &mut f32, next: f32, options: PrimitiveSliderOptions) -> bool {
@@ -2010,6 +2238,24 @@ fn draw_rect_outline(ui: &egui::Ui, rect: Rect, stroke: egui::Stroke) {
         .line_segment([rect.left_bottom(), rect.left_top()], stroke);
 }
 
+fn draw_control_focus_ring(ui: &egui::Ui, rect: Rect, theme: PrimitiveTheme) {
+    ui.painter().rect_stroke(
+        rect,
+        theme.row_radius + 2.0,
+        control_focus_ring_stroke(theme),
+        egui::StrokeKind::Inside,
+    );
+}
+
+fn control_focus_ring_stroke(theme: PrimitiveTheme) -> Stroke {
+    let color = if is_dark_primitive_theme(theme) {
+        Color32::from_rgb(0x8e, 0xc8, 0xff)
+    } else {
+        radix_colors::INDIGO_9
+    };
+    Stroke::new(1.5, color)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2065,6 +2311,164 @@ mod tests {
             SwitchRootOptions::default().disabled(true)
         ));
         assert!(!checked);
+    }
+
+    #[test]
+    fn form_controls_activate_from_focused_space_or_enter() {
+        assert_eq!(
+            primitive_form_keyboard_activation(true, true, true, false),
+            PrimitiveKeyboardActivation::Activate
+        );
+        assert_eq!(
+            primitive_form_keyboard_activation(true, true, false, true),
+            PrimitiveKeyboardActivation::Activate
+        );
+        assert_eq!(
+            primitive_form_keyboard_activation(false, true, true, false),
+            PrimitiveKeyboardActivation::None
+        );
+        assert_eq!(
+            primitive_form_keyboard_activation(true, false, true, false),
+            PrimitiveKeyboardActivation::None
+        );
+    }
+
+    #[test]
+    fn radio_group_keyboard_action_tracks_orientation_and_activation_keys() {
+        assert_eq!(
+            radio_group_keyboard_action(
+                RadioGroupOrientation::Vertical,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+            ),
+            RadioGroupKeyboardAction::Activate
+        );
+        assert_eq!(
+            radio_group_keyboard_action(
+                RadioGroupOrientation::Vertical,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+            ),
+            RadioGroupKeyboardAction::Next
+        );
+        assert_eq!(
+            radio_group_keyboard_action(
+                RadioGroupOrientation::Horizontal,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+            ),
+            RadioGroupKeyboardAction::Previous
+        );
+        assert_eq!(
+            radio_group_keyboard_action(
+                RadioGroupOrientation::Vertical,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+            ),
+            RadioGroupKeyboardAction::First
+        );
+    }
+
+    #[test]
+    fn radio_group_keyboard_target_skips_disabled_and_respects_loop_focus() {
+        let items = [
+            RadioItem {
+                value: "alpha",
+                label: "Alpha",
+                enabled: true,
+            },
+            RadioItem {
+                value: "beta",
+                label: "Beta",
+                enabled: false,
+            },
+            RadioItem {
+                value: "gamma",
+                label: "Gamma",
+                enabled: true,
+            },
+        ];
+
+        assert_eq!(
+            radio_group_keyboard_target_index(
+                &items,
+                Some(0),
+                RadioGroupKeyboardAction::Next,
+                true,
+            ),
+            Some(2)
+        );
+        assert_eq!(
+            radio_group_keyboard_target_index(
+                &items,
+                Some(2),
+                RadioGroupKeyboardAction::Next,
+                true,
+            ),
+            Some(0)
+        );
+        assert_eq!(
+            radio_group_keyboard_target_index(
+                &items,
+                Some(2),
+                RadioGroupKeyboardAction::Next,
+                false,
+            ),
+            None
+        );
+        assert_eq!(
+            radio_group_keyboard_target_index(
+                &items,
+                Some(2),
+                RadioGroupKeyboardAction::Previous,
+                false,
+            ),
+            Some(0)
+        );
+        assert_eq!(
+            radio_group_keyboard_target_index(
+                &items,
+                Some(1),
+                RadioGroupKeyboardAction::Activate,
+                true,
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn form_control_focus_ring_uses_visible_accent_stroke() {
+        let light = control_focus_ring_stroke(PrimitiveTheme::light());
+        let dark = control_focus_ring_stroke(PrimitiveTheme::dark());
+
+        assert_eq!(light.width, 1.5);
+        assert_eq!(dark.width, 1.5);
+        assert_ne!(light.color, PrimitiveTheme::light().content_fill);
+        assert_ne!(dark.color, PrimitiveTheme::dark().content_fill);
     }
 
     #[test]
