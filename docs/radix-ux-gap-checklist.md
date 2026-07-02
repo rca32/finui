@@ -156,7 +156,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 - [ ] Menubar는 top-level navigation과 opened menu content navigation을 하나의 state machine으로 통합한다.
 - [ ] NavigationMenu는 viewport/indicator/motion이 실제 hover/focus/open state와 연결되도록 한다.
 - [x] Popover는 Anchor, Trigger, Close, Arrow, modal mode, custom focus hook을 완성한다.
-- [ ] Tooltip은 Provider shared delay, accessible trigger labeling, hoverable content 정책을 완성한다.
+- [x] Tooltip은 Provider shared delay, accessible trigger labeling, hoverable content 정책을 완성한다.
 - [ ] Select는 Value/Icon/Viewport/ScrollButton/ItemIndicator/Group contract를 확장한다.
 - [x] ScrollArea는 native scrolling 보존, thumb drag, scrollbar visibility delay, horizontal/vertical corner behavior를 검증한다.
 - [ ] Form Preview 계열은 validation matching, server invalid, async validation demo를 갖춘다.

@@ -74,6 +74,22 @@ pub struct TooltipProviderOutput {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TooltipProviderSharedDelayOutput {
+    pub shared_delay_active: bool,
+    pub effective_delay_ms: u64,
+    pub skip_delay_remaining_ms: Option<u64>,
+    pub data_state_on_open: TooltipDataState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TooltipTriggerAccessibilityOutput {
+    pub content_id: Option<&'static str>,
+    pub aria_describedby: Option<&'static str>,
+    pub aria_label: Option<&'static str>,
+    pub data_state: TooltipDataState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TooltipDelayEvent {
     PointerEnter {
         hovered_ms: u64,
@@ -103,6 +119,45 @@ pub fn primitive_tooltip_provider_output(options: TooltipProviderOptions) -> Too
         delay_duration_ms: options.delay_duration_ms,
         skip_delay_duration_ms: options.skip_delay_duration_ms,
         disable_hoverable_content: options.disable_hoverable_content,
+    }
+}
+
+pub fn primitive_tooltip_provider_shared_delay_output(
+    provider: TooltipProviderOptions,
+    since_last_close_ms: Option<u64>,
+) -> TooltipProviderSharedDelayOutput {
+    let shared_delay_active =
+        since_last_close_ms.is_some_and(|elapsed| elapsed <= provider.skip_delay_duration_ms);
+    let skip_delay_remaining_ms = since_last_close_ms
+        .filter(|_| shared_delay_active)
+        .map(|elapsed| provider.skip_delay_duration_ms.saturating_sub(elapsed));
+    TooltipProviderSharedDelayOutput {
+        shared_delay_active,
+        effective_delay_ms: if shared_delay_active {
+            0
+        } else {
+            provider.delay_duration_ms
+        },
+        skip_delay_remaining_ms,
+        data_state_on_open: if shared_delay_active {
+            TooltipDataState::InstantOpen
+        } else {
+            TooltipDataState::DelayedOpen
+        },
+    }
+}
+
+pub fn primitive_tooltip_trigger_accessibility_output(
+    content_id: Option<&'static str>,
+    content_aria_label: Option<&'static str>,
+    open: bool,
+    instant: bool,
+) -> TooltipTriggerAccessibilityOutput {
+    TooltipTriggerAccessibilityOutput {
+        content_id,
+        aria_describedby: open.then_some(content_id).flatten(),
+        aria_label: content_aria_label,
+        data_state: tooltip_data_state(open, instant),
     }
 }
 
@@ -655,6 +710,47 @@ mod tests {
         assert_eq!(output.delay_duration_ms, 800);
         assert_eq!(output.skip_delay_duration_ms, 500);
         assert!(output.disable_hoverable_content);
+    }
+
+    #[test]
+    fn tooltip_provider_shared_delay_output_reuses_recent_provider_close_window() {
+        let provider = TooltipProviderOptions::default()
+            .delay_duration_ms(700)
+            .skip_delay_duration_ms(300);
+        let shared = primitive_tooltip_provider_shared_delay_output(provider, Some(120));
+        let delayed = primitive_tooltip_provider_shared_delay_output(provider, Some(450));
+
+        assert!(shared.shared_delay_active);
+        assert_eq!(shared.effective_delay_ms, 0);
+        assert_eq!(shared.skip_delay_remaining_ms, Some(180));
+        assert_eq!(shared.data_state_on_open, TooltipDataState::InstantOpen);
+        assert!(!delayed.shared_delay_active);
+        assert_eq!(delayed.effective_delay_ms, 700);
+        assert_eq!(delayed.skip_delay_remaining_ms, None);
+        assert_eq!(delayed.data_state_on_open, TooltipDataState::DelayedOpen);
+    }
+
+    #[test]
+    fn tooltip_trigger_accessibility_output_links_open_trigger_to_content_label() {
+        let open = primitive_tooltip_trigger_accessibility_output(
+            Some("tip-content"),
+            Some("Portfolio risk details"),
+            true,
+            false,
+        );
+        let closed = primitive_tooltip_trigger_accessibility_output(
+            Some("tip-content"),
+            Some("Portfolio risk details"),
+            false,
+            false,
+        );
+
+        assert_eq!(open.content_id, Some("tip-content"));
+        assert_eq!(open.aria_describedby, Some("tip-content"));
+        assert_eq!(open.aria_label, Some("Portfolio risk details"));
+        assert_eq!(open.data_state, TooltipDataState::DelayedOpen);
+        assert_eq!(closed.aria_describedby, None);
+        assert_eq!(closed.data_state, TooltipDataState::Closed);
     }
 
     #[test]
