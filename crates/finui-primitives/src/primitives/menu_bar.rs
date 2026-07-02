@@ -903,6 +903,88 @@ pub fn primitive_navigation_viewport_output(
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct NavigationMenuInteractionOutput {
+    pub active_index: Option<usize>,
+    pub hovered_index: Option<usize>,
+    pub focused_index: Option<usize>,
+    pub open_index: Option<usize>,
+    pub motion: Option<NavigationMenuMotion>,
+    pub triggers: Vec<MenubarTriggerOutput>,
+    pub content: NavigationMenuContentOutput,
+    pub indicator: NavigationMenuIndicatorOutput,
+    pub viewport: NavigationMenuViewportOutput,
+}
+
+pub fn navigation_menu_interaction_output(
+    items: &[NavigationMenuItem],
+    previous_active_index: Option<usize>,
+    hovered_index: Option<usize>,
+    focused_index: Option<usize>,
+    open_index: Option<usize>,
+    root_options: NavigationMenuRootOptions,
+    viewport_options: NavigationMenuViewportOptions,
+    indicator_options: NavigationMenuIndicatorOptions,
+) -> NavigationMenuInteractionOutput {
+    let active_index = [open_index, hovered_index, focused_index]
+        .into_iter()
+        .flatten()
+        .find(|index| items.get(*index).is_some_and(|item| item.enabled));
+    let open = active_index.is_some();
+    let motion = navigation_menu_motion(previous_active_index, active_index);
+    let triggers = items
+        .iter()
+        .enumerate()
+        .map(|(index, item)| {
+            primitive_menubar_trigger_output(MenubarTriggerState {
+                open: active_index == Some(index),
+                enabled: item.enabled,
+                hovered: hovered_index == Some(index),
+            })
+        })
+        .collect();
+    let content = primitive_navigation_content_output(
+        open,
+        viewport_options.force_mount,
+        root_options.orientation,
+        motion,
+    );
+    let indicator = primitive_navigation_indicator_output(
+        indicator_options
+            .open(open)
+            .orientation(root_options.orientation),
+    );
+    let viewport =
+        primitive_navigation_viewport_output(viewport_options.open(open), root_options.orientation);
+
+    NavigationMenuInteractionOutput {
+        active_index,
+        hovered_index,
+        focused_index,
+        open_index,
+        motion,
+        triggers,
+        content,
+        indicator,
+        viewport,
+    }
+}
+
+pub fn navigation_menu_motion(
+    previous_active_index: Option<usize>,
+    active_index: Option<usize>,
+) -> Option<NavigationMenuMotion> {
+    match (previous_active_index, active_index) {
+        (Some(previous), Some(active)) if active > previous => Some(NavigationMenuMotion::FromEnd),
+        (Some(previous), Some(active)) if active < previous => {
+            Some(NavigationMenuMotion::FromStart)
+        }
+        (Some(_), None) => Some(NavigationMenuMotion::ToStart),
+        (None, Some(_)) => Some(NavigationMenuMotion::FromEnd),
+        _ => None,
+    }
+}
+
 pub fn primitive_menubar(
     ui: &mut egui::Ui,
     id_source: impl Hash,
@@ -1696,6 +1778,97 @@ mod tests {
             &mut open, None, &items, &options
         ));
         assert_eq!(open, None);
+    }
+
+    #[test]
+    fn navigation_menu_interaction_output_connects_hover_focus_open_viewport_indicator_and_motion()
+    {
+        let items = [
+            NavigationMenuItem {
+                label: "Products",
+                enabled: true,
+            },
+            NavigationMenuItem {
+                label: "Pricing",
+                enabled: false,
+            },
+            NavigationMenuItem {
+                label: "Docs",
+                enabled: true,
+            },
+        ];
+        let root = NavigationMenuRootOptions::default()
+            .orientation(NavigationMenuOrientation::Horizontal)
+            .delay_duration_ms(120);
+        let viewport = NavigationMenuViewportOptions::default()
+            .size(320.0, 180.0)
+            .force_mount(true);
+        let indicator = NavigationMenuIndicatorOptions::default().size(12.0);
+
+        let hovered = navigation_menu_interaction_output(
+            &items,
+            None,
+            Some(0),
+            None,
+            None,
+            root,
+            viewport,
+            indicator,
+        );
+        let focused_disabled_falls_back_to_hover = navigation_menu_interaction_output(
+            &items,
+            hovered.active_index,
+            Some(0),
+            Some(1),
+            None,
+            root,
+            viewport,
+            indicator,
+        );
+        let opened = navigation_menu_interaction_output(
+            &items,
+            focused_disabled_falls_back_to_hover.active_index,
+            Some(0),
+            None,
+            Some(2),
+            root,
+            viewport,
+            indicator,
+        );
+        let closed = navigation_menu_interaction_output(
+            &items,
+            opened.active_index,
+            None,
+            None,
+            None,
+            root,
+            viewport,
+            indicator,
+        );
+
+        assert_eq!(hovered.active_index, Some(0));
+        assert_eq!(hovered.motion, Some(NavigationMenuMotion::FromEnd));
+        assert!(hovered.content.open);
+        assert!(hovered.content.mounted);
+        assert_eq!(
+            hovered.indicator.data_state,
+            NavigationMenuDataState::Visible
+        );
+        assert_eq!(hovered.viewport.width, 320.0);
+        assert_eq!(hovered.viewport.data_state, NavigationMenuDataState::Open);
+        assert_eq!(hovered.triggers[0].data_state, MenubarDataState::Open);
+        assert!(hovered.triggers[1].disabled);
+        assert_eq!(focused_disabled_falls_back_to_hover.active_index, Some(0));
+        assert_eq!(opened.active_index, Some(2));
+        assert_eq!(opened.open_index, Some(2));
+        assert_eq!(opened.motion, Some(NavigationMenuMotion::FromEnd));
+        assert_eq!(opened.triggers[2].data_state, MenubarDataState::Open);
+        assert_eq!(closed.active_index, None);
+        assert_eq!(closed.motion, Some(NavigationMenuMotion::ToStart));
+        assert!(!closed.content.open);
+        assert!(closed.content.mounted);
+        assert_eq!(closed.indicator.data_state, NavigationMenuDataState::Hidden);
+        assert_eq!(closed.viewport.data_state, NavigationMenuDataState::Closed);
     }
 
     #[test]
