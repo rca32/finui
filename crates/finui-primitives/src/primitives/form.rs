@@ -1726,6 +1726,17 @@ impl SliderOrientation {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SliderKeyboardAction {
+    None,
+    SmallIncrease,
+    SmallDecrease,
+    LargeIncrease,
+    LargeDecrease,
+    Minimum,
+    Maximum,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SliderRootOptions {
     pub value: Vec<f32>,
@@ -1868,6 +1879,125 @@ pub fn slider_value_fraction(value: f32, min: f32, max: f32) -> f32 {
         return 0.0;
     }
     ((value - min) / span).clamp(0.0, 1.0)
+}
+
+pub fn slider_keyboard_action(
+    orientation: SliderOrientation,
+    direction: Option<PrimitiveDirection>,
+    inverted: bool,
+    key: egui::Key,
+) -> SliderKeyboardAction {
+    match key {
+        egui::Key::Home => SliderKeyboardAction::Minimum,
+        egui::Key::End => SliderKeyboardAction::Maximum,
+        egui::Key::PageUp => SliderKeyboardAction::LargeIncrease,
+        egui::Key::PageDown => SliderKeyboardAction::LargeDecrease,
+        egui::Key::ArrowRight => slider_keyboard_step_action(
+            SliderKeyboardAction::SmallIncrease,
+            SliderKeyboardAction::SmallDecrease,
+            orientation,
+            direction,
+            inverted,
+        ),
+        egui::Key::ArrowLeft => slider_keyboard_step_action(
+            SliderKeyboardAction::SmallDecrease,
+            SliderKeyboardAction::SmallIncrease,
+            orientation,
+            direction,
+            inverted,
+        ),
+        egui::Key::ArrowUp => slider_keyboard_step_action(
+            SliderKeyboardAction::SmallIncrease,
+            SliderKeyboardAction::SmallDecrease,
+            orientation,
+            None,
+            inverted,
+        ),
+        egui::Key::ArrowDown => slider_keyboard_step_action(
+            SliderKeyboardAction::SmallDecrease,
+            SliderKeyboardAction::SmallIncrease,
+            orientation,
+            None,
+            inverted,
+        ),
+        _ => SliderKeyboardAction::None,
+    }
+}
+
+fn slider_keyboard_step_action(
+    normal: SliderKeyboardAction,
+    reversed: SliderKeyboardAction,
+    orientation: SliderOrientation,
+    direction: Option<PrimitiveDirection>,
+    inverted: bool,
+) -> SliderKeyboardAction {
+    let rtl_reversed =
+        orientation == SliderOrientation::Horizontal && direction == Some(PrimitiveDirection::Rtl);
+    if rtl_reversed ^ inverted {
+        reversed
+    } else {
+        normal
+    }
+}
+
+pub fn slider_keyboard_value(
+    current: f32,
+    options: &SliderRootOptions,
+    action: SliderKeyboardAction,
+) -> Option<f32> {
+    if options.disabled || action == SliderKeyboardAction::None {
+        return None;
+    }
+    let step = slider_positive_step(options.step);
+    let large_step = step * 10.0;
+    let next = match action {
+        SliderKeyboardAction::None => return None,
+        SliderKeyboardAction::SmallIncrease => current + step,
+        SliderKeyboardAction::SmallDecrease => current - step,
+        SliderKeyboardAction::LargeIncrease => current + large_step,
+        SliderKeyboardAction::LargeDecrease => current - large_step,
+        SliderKeyboardAction::Minimum => options.min,
+        SliderKeyboardAction::Maximum => options.max,
+    };
+    Some(slider_snap_value(
+        next,
+        options.min,
+        options.max,
+        options.step,
+    ))
+}
+
+pub fn slider_value_from_pointer(pos: Pos2, root: SliderRootOutput) -> f32 {
+    let mut fraction = match root.orientation {
+        SliderOrientation::Horizontal => {
+            if root.track.width().abs() <= f32::EPSILON {
+                0.0
+            } else {
+                ((pos.x - root.track.left()) / root.track.width()).clamp(0.0, 1.0)
+            }
+        }
+        SliderOrientation::Vertical => {
+            if root.track.height().abs() <= f32::EPSILON {
+                0.0
+            } else {
+                ((root.track.bottom() - pos.y) / root.track.height()).clamp(0.0, 1.0)
+            }
+        }
+    };
+    if root.orientation == SliderOrientation::Horizontal
+        && root.direction == Some(PrimitiveDirection::Rtl)
+    {
+        fraction = 1.0 - fraction;
+    }
+    if root.inverted {
+        fraction = 1.0 - fraction;
+    }
+    slider_snap_value(
+        root.min + (root.max - root.min) * fraction,
+        root.min,
+        root.max,
+        root.step,
+    )
 }
 
 pub fn primitive_slider_track_rect(bounds: Rect) -> Rect {
@@ -2266,6 +2396,41 @@ pub fn slider_apply_value(current: &mut f32, next: f32, options: PrimitiveSlider
     true
 }
 
+pub fn slider_apply_thumb_value(
+    values: &mut [f32],
+    thumb_index: usize,
+    next: f32,
+    options: &SliderRootOptions,
+) -> bool {
+    if options.disabled || thumb_index >= values.len() {
+        return false;
+    }
+    let step = slider_positive_step(options.step);
+    let minimum_gap = options.min_steps_between_thumbs as f32 * step;
+    let lower_bound = if thumb_index == 0 {
+        options.min
+    } else {
+        values[thumb_index - 1] + minimum_gap
+    };
+    let upper_bound = if thumb_index + 1 >= values.len() {
+        options.max
+    } else {
+        values[thumb_index + 1] - minimum_gap
+    };
+    let bounded = next.clamp(lower_bound.min(upper_bound), lower_bound.max(upper_bound));
+    let snapped = slider_snap_value(bounded, options.min, options.max, options.step)
+        .clamp(lower_bound.min(upper_bound), lower_bound.max(upper_bound));
+    if (values[thumb_index] - snapped).abs() < f32::EPSILON {
+        return false;
+    }
+    values[thumb_index] = snapped;
+    true
+}
+
+fn slider_positive_step(step: f32) -> f32 {
+    if step > 0.0 { step } else { 1.0 }
+}
+
 fn checkbox_box_rect(rect: Rect, size: f32) -> Rect {
     primitive_checkbox_root_rect(rect, size)
 }
@@ -2608,6 +2773,156 @@ mod tests {
             &mut value,
             10.0,
             PrimitiveSliderOptions::new(0.0, 10.0).step(0.5)
+        ));
+    }
+
+    #[test]
+    fn slider_keyboard_action_maps_page_home_end_and_directional_arrows() {
+        assert_eq!(
+            slider_keyboard_action(
+                SliderOrientation::Horizontal,
+                None,
+                false,
+                egui::Key::ArrowRight
+            ),
+            SliderKeyboardAction::SmallIncrease
+        );
+        assert_eq!(
+            slider_keyboard_action(
+                SliderOrientation::Horizontal,
+                Some(PrimitiveDirection::Rtl),
+                false,
+                egui::Key::ArrowRight
+            ),
+            SliderKeyboardAction::SmallDecrease
+        );
+        assert_eq!(
+            slider_keyboard_action(
+                SliderOrientation::Horizontal,
+                None,
+                true,
+                egui::Key::ArrowRight
+            ),
+            SliderKeyboardAction::SmallDecrease
+        );
+        assert_eq!(
+            slider_keyboard_action(SliderOrientation::Vertical, None, false, egui::Key::ArrowUp),
+            SliderKeyboardAction::SmallIncrease
+        );
+        assert_eq!(
+            slider_keyboard_action(
+                SliderOrientation::Vertical,
+                None,
+                false,
+                egui::Key::ArrowDown
+            ),
+            SliderKeyboardAction::SmallDecrease
+        );
+        assert_eq!(
+            slider_keyboard_action(
+                SliderOrientation::Horizontal,
+                None,
+                false,
+                egui::Key::PageUp
+            ),
+            SliderKeyboardAction::LargeIncrease
+        );
+        assert_eq!(
+            slider_keyboard_action(SliderOrientation::Horizontal, None, false, egui::Key::Home),
+            SliderKeyboardAction::Minimum
+        );
+        assert_eq!(
+            slider_keyboard_action(SliderOrientation::Horizontal, None, false, egui::Key::End),
+            SliderKeyboardAction::Maximum
+        );
+    }
+
+    #[test]
+    fn slider_keyboard_value_steps_pages_and_clamps() {
+        let options = SliderRootOptions::new(vec![5.0], 0.0, 10.0).step(0.5);
+
+        assert_eq!(
+            slider_keyboard_value(5.0, &options, SliderKeyboardAction::SmallIncrease),
+            Some(5.5)
+        );
+        assert_eq!(
+            slider_keyboard_value(5.0, &options, SliderKeyboardAction::LargeIncrease),
+            Some(10.0)
+        );
+        assert_eq!(
+            slider_keyboard_value(5.0, &options, SliderKeyboardAction::LargeDecrease),
+            Some(0.0)
+        );
+        assert_eq!(
+            slider_keyboard_value(5.0, &options, SliderKeyboardAction::Minimum),
+            Some(0.0)
+        );
+        assert_eq!(
+            slider_keyboard_value(5.0, &options.disabled(true), SliderKeyboardAction::Maximum),
+            None
+        );
+    }
+
+    #[test]
+    fn slider_pointer_value_tracks_vertical_rtl_and_inverted_geometry() {
+        let bounds = Rect::from_min_size(egui::pos2(0.0, 0.0), Vec2::new(100.0, 100.0));
+        let horizontal = primitive_slider_root_with_options(
+            bounds,
+            SliderRootOptions::new(vec![50.0], 0.0, 100.0),
+        );
+        let rtl = primitive_slider_root_with_options(
+            bounds,
+            SliderRootOptions::new(vec![50.0], 0.0, 100.0).direction(PrimitiveDirection::Rtl),
+        );
+        let vertical = primitive_slider_root_with_options(
+            bounds,
+            SliderRootOptions::new(vec![50.0], 0.0, 100.0).orientation(SliderOrientation::Vertical),
+        );
+        let vertical_inverted = primitive_slider_root_with_options(
+            bounds,
+            SliderRootOptions::new(vec![50.0], 0.0, 100.0)
+                .orientation(SliderOrientation::Vertical)
+                .inverted(true),
+        );
+
+        assert_eq!(
+            slider_value_from_pointer(egui::pos2(horizontal.track.right(), 50.0), horizontal),
+            100.0
+        );
+        assert_eq!(
+            slider_value_from_pointer(egui::pos2(rtl.track.right(), 50.0), rtl),
+            0.0
+        );
+        assert_eq!(
+            slider_value_from_pointer(egui::pos2(50.0, vertical.track.top()), vertical),
+            100.0
+        );
+        assert_eq!(
+            slider_value_from_pointer(
+                egui::pos2(50.0, vertical_inverted.track.top()),
+                vertical_inverted
+            ),
+            0.0
+        );
+    }
+
+    #[test]
+    fn slider_apply_thumb_value_preserves_min_step_separation() {
+        let options = SliderRootOptions::new(vec![20.0, 80.0], 0.0, 100.0)
+            .step(5.0)
+            .min_steps_between_thumbs(2);
+        let mut values = vec![20.0, 80.0];
+
+        assert!(slider_apply_thumb_value(&mut values, 0, 75.0, &options));
+        assert_eq!(values, vec![70.0, 80.0]);
+        values = vec![20.0, 80.0];
+        assert!(slider_apply_thumb_value(&mut values, 1, 25.0, &options));
+        assert_eq!(values, vec![20.0, 30.0]);
+        assert!(!slider_apply_thumb_value(
+            &mut values,
+            0,
+            60.0,
+            &options.disabled(true)
         ));
     }
 

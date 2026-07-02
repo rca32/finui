@@ -112,7 +112,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 click 토글과 open state helper는 있으나 trigger keyboard interaction이 약하다.
   - 완료 기준: Enter/Space toggle, Arrow/Home/End header navigation, single/multiple/collapsible 규칙 테스트가 있다.
 
-- [ ] Slider의 Radix 수준 입력을 완성한다.
+- [x] Slider의 Radix 수준 입력을 완성한다.
   - 현재 pointer drag와 snap/clamp helper는 있으나 keyboard/touch/multiple thumbs/min steps between thumbs가 실제 조작으로 완성됐는지 부족하다.
   - 완료 기준: Arrow/Page/Home/End, vertical/RTL/inverted, multiple thumbs, min step separation, touch/pointer drag 테스트가 있다.
 
