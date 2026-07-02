@@ -17,16 +17,16 @@ use finui_primitives::{
     primitive_context_menu_label, primitive_context_menu_radio_item,
     primitive_context_menu_separator, primitive_context_menu_trigger,
     primitive_dialog_close_button, primitive_dialog_description, primitive_dialog_title,
-    primitive_dialog_trigger, primitive_direction_provider, primitive_dropdown_menu_checkbox_item,
-    primitive_dropdown_menu_item, primitive_dropdown_menu_label,
-    primitive_dropdown_menu_radio_item, primitive_dropdown_menu_separator,
-    primitive_dropdown_menu_trigger, primitive_label_root, primitive_otp_field,
-    primitive_password_toggle_field, primitive_popover_content, primitive_popover_trigger,
-    primitive_select_item, primitive_select_label, primitive_select_separator,
-    primitive_select_trigger, primitive_select_viewport, primitive_slider, primitive_switch,
-    primitive_tabs_content, primitive_tabs_header_with_options, primitive_toast_provider,
-    primitive_toggle, primitive_toggle_group, primitive_toolbar, primitive_tooltip_trigger,
-    show_context_menu, show_dialog, show_dropdown_menu, show_popover, show_select, show_tooltip,
+    primitive_dialog_trigger, primitive_dropdown_menu_checkbox_item, primitive_dropdown_menu_item,
+    primitive_dropdown_menu_label, primitive_dropdown_menu_radio_item,
+    primitive_dropdown_menu_separator, primitive_dropdown_menu_trigger, primitive_label_root,
+    primitive_otp_field, primitive_password_toggle_field, primitive_popover_content,
+    primitive_popover_trigger, primitive_select_item, primitive_select_label,
+    primitive_select_separator, primitive_select_trigger, primitive_select_viewport,
+    primitive_slider, primitive_switch, primitive_tabs_content, primitive_tabs_header_with_options,
+    primitive_toast_provider, primitive_toggle, primitive_toggle_group, primitive_toolbar,
+    primitive_tooltip_trigger, show_context_menu, show_dialog, show_dropdown_menu, show_popover,
+    show_select, show_tooltip,
 };
 
 fn main() -> eframe::Result {
@@ -194,7 +194,6 @@ struct PrimitivesLabApp {
     toolbar_bold: bool,
     toolbar_filter: bool,
     toast_store: ToastStore,
-    toast_seeded: bool,
     last_action: String,
 }
 
@@ -230,7 +229,6 @@ impl Default for PrimitivesLabApp {
             toolbar_bold: true,
             toolbar_filter: false,
             toast_store: ToastStore::default(),
-            toast_seeded: false,
             last_action: "Ready".to_owned(),
         }
     }
@@ -238,19 +236,6 @@ impl Default for PrimitivesLabApp {
 
 impl eframe::App for PrimitivesLabApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        if !self.toast_seeded {
-            self.toast_store.push_accessible(
-                ToastKind::Info,
-                "Primitive lab is live",
-                Some("Use the toolbar and layer controls to exercise runtime states."),
-                Some("Review"),
-                Some("Review primitive runtime state"),
-                Duration::from_secs(90),
-                Instant::now(),
-            );
-            self.toast_seeded = true;
-        }
-
         let theme = PrimitiveTheme::for_mode(
             if self.force_dark_preview || ui.ctx().global_style().visuals.dark_mode {
                 ThemeMode::Dark
@@ -915,7 +900,7 @@ impl PrimitivesLabApp {
                 TabsContentOptions::default().min_height(56.0).theme(theme),
                 |ui| {
                     ui.label(format!(
-                        "{} panel is selected. Use arrow keys to verify roving focus.",
+                        "{} selected",
                         tabs.get(self.selected_tab)
                             .map(|tab| tab.label)
                             .unwrap_or("Unknown")
@@ -935,6 +920,8 @@ impl PrimitivesLabApp {
                 if ui.button("Clear").clicked() {
                     self.otp_value.clear();
                 }
+            });
+            ui.horizontal_wrapped(|ui| {
                 primitive_otp_field(
                     ui,
                     &OtpFieldRootOptions::default()
@@ -950,6 +937,8 @@ impl PrimitivesLabApp {
                 if ui.button("Toggle password").clicked() {
                     self.password_visible = !self.password_visible;
                 }
+            });
+            ui.horizontal_wrapped(|ui| {
                 primitive_password_toggle_field(
                     ui,
                     &PasswordToggleRootOptions::default()
@@ -1073,7 +1062,15 @@ fn row_layout(
     direction: PrimitiveDirection,
     add_contents: impl FnOnce(&mut egui::Ui),
 ) {
-    let _ = primitive_direction_provider(ui, direction, add_contents);
+    if direction.is_rtl() {
+        ui.allocate_ui_with_layout(
+            egui::vec2(ui.available_width(), 34.0),
+            egui::Layout::right_to_left(egui::Align::Center),
+            add_contents,
+        );
+    } else {
+        ui.horizontal_wrapped(add_contents);
+    }
 }
 
 fn state_chip(ui: &mut egui::Ui, label: &str, value: &str, theme: PrimitiveTheme) {
