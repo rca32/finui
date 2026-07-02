@@ -172,7 +172,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 grid screenshot은 있으나 primitive screenshot baseline은 없다.
   - 완료 기준: primitive lab의 주요 상태별 PNG snapshot과 diff threshold가 있다.
 
-- [ ] keyboard scenario test harness를 만든다.
+- [x] keyboard scenario test harness를 만든다.
   - 순수 helper 테스트 외에 실제 egui input sequence 테스트가 필요하다.
   - 완료 기준: 메뉴 열기, 방향키 이동, 타입어헤드, Escape 닫기, Dialog Tab trap 같은 end-to-end 시퀀스가 자동화된다.
 
@@ -275,7 +275,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 다음 조건이 모두 만족되어야 Radix UI 수준에 근접했다고 볼 수 있다.
 
 - [x] 주요 primitive가 Root/Trigger/Content/Portal/Item/Indicator 등 part anatomy를 문서와 코드에서 일관되게 제공한다.
-- [ ] pointer, keyboard, focus, dismiss, controlled/uncontrolled state가 실제 runtime test로 검증된다.
+- [x] pointer, keyboard, focus, dismiss, controlled/uncontrolled state가 실제 runtime test로 검증된다.
 - [x] 스크린리더 의미에 해당하는 Finui accessibility snapshot이 primitive별로 존재한다.
 - [x] Popover/Menu/Tooltip 계열의 포지셔닝이 충돌 후 side/align/output과 일치한다.
 - [ ] 대표 primitive 상태가 visual snapshot으로 검증된다.

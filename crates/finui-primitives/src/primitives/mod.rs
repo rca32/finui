@@ -18,6 +18,7 @@ mod otp;
 mod password_toggle;
 mod popover;
 mod radix_icon;
+mod runtime;
 mod scroll_area;
 mod select;
 mod settings;
@@ -263,6 +264,7 @@ pub use radix_icon::{
     RadixIcon, RadixIconAsset, RadixIconVisual, paint_radix_icon, radix_icon_asset,
     radix_icon_from_visual, radix_icon_tintable_svg, radix_icon_visual,
 };
+pub use runtime::{PrimitiveRuntimeScenarioOutput, primitive_runtime_scenario_output};
 pub use scroll_area::{
     ScrollAreaCornerOutput, ScrollAreaNativeScrollOutput, ScrollAreaRootOptions,
     ScrollAreaRootType, ScrollAreaScrollbarOptions, ScrollAreaScrollbarOrientation,
