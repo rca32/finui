@@ -29,6 +29,7 @@ mod toggle;
 mod toolbar;
 mod tooltip;
 mod utility;
+mod visual;
 
 pub use alert_dialog::{
     AlertDialogActionFocusPriority, AlertDialogActionKind, AlertDialogActionOptions,
@@ -386,3 +387,4 @@ pub use utility::{
     primitive_text_overflow_output, primitive_ux_receipt_json_snapshot,
     primitive_ux_receipt_output, slot_id,
 };
+pub use visual::{PrimitiveVisualSnapshotBaseline, primitive_visual_snapshot_baselines};

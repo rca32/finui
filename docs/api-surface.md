@@ -26,6 +26,7 @@ Primitive-specific reference documents:
 - `docs/agent-ux-receipts.md`
 - `docs/unstyled-theme-boundary.md`
 - `docs/accessibility-snapshots.md`
+- `docs/visual-regression-baseline.md`
 
 Application-specific shell, market data, terminal, api, or chart runtime code
 does not belong in this crate.
