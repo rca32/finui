@@ -15,6 +15,16 @@ pub struct CollapsibleRootOutput<T> {
     pub disabled: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DisclosureKeyboardAction {
+    None,
+    Toggle,
+    First,
+    Last,
+    Next,
+    Previous,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CollapsibleRootOptions {
     pub open: bool,
@@ -521,6 +531,69 @@ pub fn accordion_apply_toggle_with_options(
     }
 }
 
+pub fn collapsible_keyboard_action(key: egui::Key) -> DisclosureKeyboardAction {
+    match key {
+        egui::Key::Enter | egui::Key::Space => DisclosureKeyboardAction::Toggle,
+        _ => DisclosureKeyboardAction::None,
+    }
+}
+
+pub fn accordion_keyboard_action(key: egui::Key) -> DisclosureKeyboardAction {
+    match key {
+        egui::Key::Enter | egui::Key::Space => DisclosureKeyboardAction::Toggle,
+        egui::Key::Home => DisclosureKeyboardAction::First,
+        egui::Key::End => DisclosureKeyboardAction::Last,
+        egui::Key::ArrowDown => DisclosureKeyboardAction::Next,
+        egui::Key::ArrowUp => DisclosureKeyboardAction::Previous,
+        _ => DisclosureKeyboardAction::None,
+    }
+}
+
+pub fn accordion_keyboard_target_index(
+    current_index: usize,
+    enabled_items: &[bool],
+    action: DisclosureKeyboardAction,
+) -> Option<usize> {
+    match action {
+        DisclosureKeyboardAction::None => None,
+        DisclosureKeyboardAction::Toggle => enabled_items
+            .get(current_index)
+            .copied()
+            .unwrap_or(false)
+            .then_some(current_index),
+        DisclosureKeyboardAction::First => enabled_items.iter().position(|enabled| *enabled),
+        DisclosureKeyboardAction::Last => enabled_items.iter().rposition(|enabled| *enabled),
+        DisclosureKeyboardAction::Next => {
+            next_enabled_accordion_index(current_index, enabled_items, 1)
+        }
+        DisclosureKeyboardAction::Previous => {
+            next_enabled_accordion_index(current_index, enabled_items, -1)
+        }
+    }
+}
+
+fn next_enabled_accordion_index(
+    current_index: usize,
+    enabled_items: &[bool],
+    direction: isize,
+) -> Option<usize> {
+    if enabled_items.is_empty() {
+        return None;
+    }
+    let len = enabled_items.len();
+    for step in 1..=len {
+        let index = if direction > 0 {
+            (current_index + step) % len
+        } else {
+            (current_index + len - step % len) % len
+        };
+        if enabled_items[index] {
+            return Some(index);
+        }
+    }
+    None
+}
+
 pub fn accordion_apply_item_open(
     open_items: &mut Vec<usize>,
     index: usize,
@@ -634,6 +707,80 @@ mod tests {
             AccordionRootOptions::single().collapsible(true),
         );
         assert!(open.is_empty());
+    }
+
+    #[test]
+    fn collapsible_keyboard_action_toggles_on_enter_or_space() {
+        assert_eq!(
+            collapsible_keyboard_action(egui::Key::Enter),
+            DisclosureKeyboardAction::Toggle
+        );
+        assert_eq!(
+            collapsible_keyboard_action(egui::Key::Space),
+            DisclosureKeyboardAction::Toggle
+        );
+        assert_eq!(
+            collapsible_keyboard_action(egui::Key::ArrowDown),
+            DisclosureKeyboardAction::None
+        );
+    }
+
+    #[test]
+    fn accordion_keyboard_action_maps_toggle_and_header_navigation_keys() {
+        assert_eq!(
+            accordion_keyboard_action(egui::Key::Enter),
+            DisclosureKeyboardAction::Toggle
+        );
+        assert_eq!(
+            accordion_keyboard_action(egui::Key::Space),
+            DisclosureKeyboardAction::Toggle
+        );
+        assert_eq!(
+            accordion_keyboard_action(egui::Key::ArrowDown),
+            DisclosureKeyboardAction::Next
+        );
+        assert_eq!(
+            accordion_keyboard_action(egui::Key::ArrowUp),
+            DisclosureKeyboardAction::Previous
+        );
+        assert_eq!(
+            accordion_keyboard_action(egui::Key::Home),
+            DisclosureKeyboardAction::First
+        );
+        assert_eq!(
+            accordion_keyboard_action(egui::Key::End),
+            DisclosureKeyboardAction::Last
+        );
+    }
+
+    #[test]
+    fn accordion_keyboard_target_index_skips_disabled_and_wraps() {
+        let enabled = [true, false, true, true];
+
+        assert_eq!(
+            accordion_keyboard_target_index(0, &enabled, DisclosureKeyboardAction::Next),
+            Some(2)
+        );
+        assert_eq!(
+            accordion_keyboard_target_index(0, &enabled, DisclosureKeyboardAction::Previous),
+            Some(3)
+        );
+        assert_eq!(
+            accordion_keyboard_target_index(2, &enabled, DisclosureKeyboardAction::First),
+            Some(0)
+        );
+        assert_eq!(
+            accordion_keyboard_target_index(2, &enabled, DisclosureKeyboardAction::Last),
+            Some(3)
+        );
+        assert_eq!(
+            accordion_keyboard_target_index(1, &enabled, DisclosureKeyboardAction::Toggle),
+            None
+        );
+        assert_eq!(
+            accordion_keyboard_target_index(2, &enabled, DisclosureKeyboardAction::Toggle),
+            Some(2)
+        );
     }
 
     #[test]

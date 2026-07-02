@@ -75,12 +75,14 @@ pub use dialog::{
 pub use disclosure::{
     AccordionHeaderOutput, AccordionItemOutput, AccordionItemState, AccordionRootOptions,
     AccordionRootOutput, CollapsibleContentOptions, CollapsibleOutput, CollapsibleRootOptions,
-    CollapsibleRootOutput, CollapsibleTriggerOptions, accordion_apply_item_open,
-    accordion_apply_toggle, accordion_apply_toggle_with_options, collapsible_trigger_icon,
-    primitive_accordion_content, primitive_accordion_header, primitive_accordion_item,
-    primitive_accordion_item_with_options, primitive_accordion_root, primitive_accordion_trigger,
-    primitive_collapsible_content, primitive_collapsible_content_with_options,
-    primitive_collapsible_header, primitive_collapsible_root, primitive_collapsible_trigger,
+    CollapsibleRootOutput, CollapsibleTriggerOptions, DisclosureKeyboardAction,
+    accordion_apply_item_open, accordion_apply_toggle, accordion_apply_toggle_with_options,
+    accordion_keyboard_action, accordion_keyboard_target_index, collapsible_keyboard_action,
+    collapsible_trigger_icon, primitive_accordion_content, primitive_accordion_header,
+    primitive_accordion_item, primitive_accordion_item_with_options, primitive_accordion_root,
+    primitive_accordion_trigger, primitive_collapsible_content,
+    primitive_collapsible_content_with_options, primitive_collapsible_header,
+    primitive_collapsible_root, primitive_collapsible_trigger,
     primitive_collapsible_trigger_with_options,
 };
 pub use focus::{RovingFocusAction, RovingFocusState};

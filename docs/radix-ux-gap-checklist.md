@@ -108,7 +108,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 horizontal 중심 roving focus가 있고 selected를 즉시 변경한다.
   - 완료 기준: horizontal/vertical, automatic/manual activation, Home/End, disabled tab skip, focus와 selected 분리 테스트가 있다.
 
-- [ ] Accordion/Collapsible의 키보드 계약을 추가한다.
+- [x] Accordion/Collapsible의 키보드 계약을 추가한다.
   - 현재 click 토글과 open state helper는 있으나 trigger keyboard interaction이 약하다.
   - 완료 기준: Enter/Space toggle, Arrow/Home/End header navigation, single/multiple/collapsible 규칙 테스트가 있다.
 
