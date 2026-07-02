@@ -70,7 +70,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 
 ## P1: 접근성 및 의미 전달
 
-- [ ] egui 환경에서 가능한 accessibility bridge를 정의한다.
+- [x] egui 환경에서 가능한 accessibility bridge를 정의한다.
   - ARIA 속성을 그대로 적용할 수 없으므로, `role`, `label`, `description`, `state`, `value`, `live`를 output/event로 노출하는 Finui 고유 계약이 필요하다.
   - 완료 기준: screen-reader용 snapshot 구조 또는 agent-readable accessibility tree가 있다.
 

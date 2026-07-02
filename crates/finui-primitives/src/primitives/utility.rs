@@ -80,6 +80,144 @@ pub struct AccessibleIconRootOutput {
     pub enabled: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveAccessibilityRole {
+    Generic,
+    Button,
+    Checkbox,
+    Dialog,
+    AlertDialog,
+    Group,
+    Menu,
+    MenuItem,
+    Slider,
+    Status,
+    Textbox,
+    Tooltip,
+    Toolbar,
+}
+
+impl PrimitiveAccessibilityRole {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Generic => "generic",
+            Self::Button => "button",
+            Self::Checkbox => "checkbox",
+            Self::Dialog => "dialog",
+            Self::AlertDialog => "alertdialog",
+            Self::Group => "group",
+            Self::Menu => "menu",
+            Self::MenuItem => "menuitem",
+            Self::Slider => "slider",
+            Self::Status => "status",
+            Self::Textbox => "textbox",
+            Self::Tooltip => "tooltip",
+            Self::Toolbar => "toolbar",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveAccessibilityLive {
+    Off,
+    Polite,
+    Assertive,
+}
+
+impl PrimitiveAccessibilityLive {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Polite => "polite",
+            Self::Assertive => "assertive",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveAccessibilityState {
+    pub key: &'static str,
+    pub value: String,
+}
+
+impl PrimitiveAccessibilityState {
+    pub fn new(key: &'static str, value: impl Into<String>) -> Self {
+        Self {
+            key,
+            value: value.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveAccessibilityNodeOptions {
+    pub id: String,
+    pub role: PrimitiveAccessibilityRole,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub value: Option<String>,
+    pub live: PrimitiveAccessibilityLive,
+    pub states: Vec<PrimitiveAccessibilityState>,
+}
+
+impl PrimitiveAccessibilityNodeOptions {
+    pub fn new(id: impl Into<String>, role: PrimitiveAccessibilityRole) -> Self {
+        Self {
+            id: id.into(),
+            role,
+            name: None,
+            description: None,
+            value: None,
+            live: PrimitiveAccessibilityLive::Off,
+            states: Vec::new(),
+        }
+    }
+
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = Some(name.into());
+        self
+    }
+
+    pub fn description(mut self, description: impl Into<String>) -> Self {
+        self.description = Some(description.into());
+        self
+    }
+
+    pub fn value(mut self, value: impl Into<String>) -> Self {
+        self.value = Some(value.into());
+        self
+    }
+
+    pub fn live(mut self, live: PrimitiveAccessibilityLive) -> Self {
+        self.live = live;
+        self
+    }
+
+    pub fn state(mut self, key: &'static str, value: impl Into<String>) -> Self {
+        self.states
+            .push(PrimitiveAccessibilityState::new(key, value));
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveAccessibilityNodeOutput {
+    pub id: String,
+    pub role: PrimitiveAccessibilityRole,
+    pub role_name: &'static str,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub value: Option<String>,
+    pub live: PrimitiveAccessibilityLive,
+    pub live_name: &'static str,
+    pub states: Vec<PrimitiveAccessibilityState>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveAccessibilityTreeOutput {
+    pub nodes: Vec<PrimitiveAccessibilityNodeOutput>,
+}
+
 pub fn primitive_accessible_icon_root_output(
     options: AccessibleIconRootOptions,
 ) -> AccessibleIconRootOutput {
@@ -92,6 +230,30 @@ pub fn primitive_accessible_icon_root_output(
         decorative: options.decorative,
         size: options.size.max(16.0),
         enabled: options.enabled,
+    }
+}
+
+pub fn primitive_accessibility_node_output(
+    options: PrimitiveAccessibilityNodeOptions,
+) -> PrimitiveAccessibilityNodeOutput {
+    PrimitiveAccessibilityNodeOutput {
+        id: options.id,
+        role: options.role,
+        role_name: options.role.as_str(),
+        name: options.name,
+        description: options.description,
+        value: options.value,
+        live: options.live,
+        live_name: options.live.as_str(),
+        states: options.states,
+    }
+}
+
+pub fn primitive_accessibility_tree_output(
+    nodes: impl IntoIterator<Item = PrimitiveAccessibilityNodeOutput>,
+) -> PrimitiveAccessibilityTreeOutput {
+    PrimitiveAccessibilityTreeOutput {
+        nodes: nodes.into_iter().collect(),
     }
 }
 
@@ -242,6 +404,56 @@ mod tests {
         assert_eq!(output.label, None);
         assert!(output.decorative);
         assert!(!output.enabled);
+    }
+
+    #[test]
+    fn accessibility_node_output_preserves_agent_readable_contract() {
+        let node = primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new("volume", PrimitiveAccessibilityRole::Slider)
+                .name("Volume")
+                .description("Audio output level")
+                .value("42")
+                .live(PrimitiveAccessibilityLive::Polite)
+                .state("disabled", "false")
+                .state("orientation", "horizontal"),
+        );
+
+        assert_eq!(node.id, "volume");
+        assert_eq!(node.role, PrimitiveAccessibilityRole::Slider);
+        assert_eq!(node.role_name, "slider");
+        assert_eq!(node.name.as_deref(), Some("Volume"));
+        assert_eq!(node.description.as_deref(), Some("Audio output level"));
+        assert_eq!(node.value.as_deref(), Some("42"));
+        assert_eq!(node.live, PrimitiveAccessibilityLive::Polite);
+        assert_eq!(node.live_name, "polite");
+        assert_eq!(
+            node.states,
+            vec![
+                PrimitiveAccessibilityState::new("disabled", "false"),
+                PrimitiveAccessibilityState::new("orientation", "horizontal")
+            ]
+        );
+    }
+
+    #[test]
+    fn accessibility_tree_output_collects_snapshot_nodes() {
+        let dialog = primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new("confirm", PrimitiveAccessibilityRole::Dialog)
+                .name("Confirm order")
+                .description("Review order details"),
+        );
+        let status = primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new("toast", PrimitiveAccessibilityRole::Status)
+                .name("Saved")
+                .live(PrimitiveAccessibilityLive::Assertive),
+        );
+        let tree = primitive_accessibility_tree_output([dialog, status]);
+
+        assert_eq!(tree.nodes.len(), 2);
+        assert_eq!(tree.nodes[0].role_name, "dialog");
+        assert_eq!(tree.nodes[0].name.as_deref(), Some("Confirm order"));
+        assert_eq!(tree.nodes[1].role_name, "status");
+        assert_eq!(tree.nodes[1].live_name, "assertive");
     }
 
     #[test]
