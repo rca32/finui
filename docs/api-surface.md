@@ -14,6 +14,15 @@ Public primitives expose:
 - pure helpers for keyboard, geometry, and color decisions
 - egui render helpers for primitive parts
 
+Primitive-specific reference documents:
+
+- `docs/primitive-anatomy.md`
+- `docs/primitive-api-reference.md`
+- `docs/primitive-accessibility.md`
+- `docs/primitive-keyboard-interactions.md`
+- `docs/controlled-uncontrolled-examples.md`
+- `docs/radix-parity-matrix.md`
+
 Application-specific shell, market data, terminal, api, or chart runtime code
 does not belong in this crate.
 

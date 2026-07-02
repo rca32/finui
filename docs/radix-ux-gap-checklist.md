@@ -185,22 +185,22 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 
 ## P2: 문서 및 개발자 경험
 
-- [ ] 각 primitive별 "Anatomy" 문서를 추가한다.
+- [x] 각 primitive별 "Anatomy" 문서를 추가한다.
   - Root/Trigger/Portal/Content/Item/Indicator/Arrow 같은 part 목록과 역할을 정리한다.
 
-- [ ] 각 primitive별 API reference를 작성한다.
+- [x] 각 primitive별 API reference를 작성한다.
   - 옵션 필드, output 필드, state/data mapping, 기본값, egui 제한사항을 표로 정리한다.
 
-- [ ] 각 primitive별 Accessibility 문서를 추가한다.
+- [x] 각 primitive별 Accessibility 문서를 추가한다.
   - 웹 ARIA와 Finui egui accessibility bridge 사이의 대응표를 만든다.
 
-- [ ] 각 primitive별 Keyboard Interactions 문서를 추가한다.
+- [x] 각 primitive별 Keyboard Interactions 문서를 추가한다.
   - Radix 문서처럼 key별 동작을 명확히 적고 테스트 이름을 연결한다.
 
-- [ ] controlled/uncontrolled 예제를 추가한다.
+- [x] controlled/uncontrolled 예제를 추가한다.
   - caller-owned state, local helper state, agent-controlled state를 각각 보여준다.
 
-- [ ] "Radix parity matrix" 문서를 유지한다.
+- [x] "Radix parity matrix" 문서를 유지한다.
   - component, supported parts, missing parts, keyboard, focus, accessibility, visual tests, examples, status를 표로 관리한다.
 
 - [x] crate-level feature stability 정책을 문서화한다.

@@ -39,9 +39,9 @@ Experimental APIs should use at least one of these signals:
 - a module path or type name that makes the preview status explicit
 - an examples-only location
 
-`OTP` and `PasswordToggle` stay preview until their form semantics, accessibility
-outputs, and acceptance tests are promoted alongside the rest of the primitive
-catalogue.
+`OTP` and `PasswordToggle` are stable primitive APIs. Their public status is
+enforced by `OTP_FIELD_API_STABILITY`, `PASSWORD_TOGGLE_API_STABILITY`, and
+their stable API acceptance tests.
 
 ## Breaking Changes
 
