@@ -5,8 +5,9 @@ use eframe::egui::{self, Align2, Color32, FontId, Rect, Response, Sense, Stroke,
 use super::{
     DropdownMenuAlign, DropdownMenuDataState, DropdownMenuDirection, DropdownMenuOptions,
     DropdownMenuOutput, DropdownMenuSide, MenuItemOptions, PrimitiveTheme, RadixIcon,
-    dropdown_menu_placement_parts, paint_radix_icon, primitive_menu_item, primitive_menu_label,
-    primitive_menu_separator, radix_colors, show_dropdown_menu,
+    dropdown_menu_placement_parts, paint_radix_icon, primitive_horizontal_arrow_step,
+    primitive_menu_item, primitive_menu_label, primitive_menu_separator, radix_colors,
+    show_dropdown_menu,
 };
 use crate::LayerPlacement;
 
@@ -689,6 +690,21 @@ pub fn select_next_enabled<T: Copy + PartialEq>(
     None
 }
 
+pub fn select_horizontal_next_enabled<T: Copy + PartialEq>(
+    items: &[SelectItem<T>],
+    current: Option<T>,
+    direction: Option<SelectDirection>,
+    arrow_left_pressed: bool,
+    arrow_right_pressed: bool,
+) -> Option<T> {
+    let primitive_direction = direction.map(|direction| match direction {
+        SelectDirection::Ltr => super::PrimitiveDirection::Ltr,
+        SelectDirection::Rtl => super::PrimitiveDirection::Rtl,
+    });
+    primitive_horizontal_arrow_step(primitive_direction, arrow_left_pressed, arrow_right_pressed)
+        .and_then(|step| select_next_enabled(items, current, step))
+}
+
 pub fn select_typeahead_match<T: Copy + PartialEq>(
     items: &[SelectItem<T>],
     current: Option<T>,
@@ -762,6 +778,58 @@ mod tests {
 
         assert_eq!(select_next_enabled(&items, None, 1), Some(2));
         assert_eq!(select_next_enabled(&items, Some(3), 1), Some(2));
+    }
+
+    #[test]
+    fn select_horizontal_next_enabled_reverses_arrow_direction_in_rtl() {
+        let items = [
+            SelectItem {
+                value: 1,
+                label: "A",
+                enabled: true,
+            },
+            SelectItem {
+                value: 2,
+                label: "B",
+                enabled: true,
+            },
+            SelectItem {
+                value: 3,
+                label: "C",
+                enabled: true,
+            },
+        ];
+
+        assert_eq!(
+            select_horizontal_next_enabled(
+                &items,
+                Some(2),
+                Some(SelectDirection::Ltr),
+                false,
+                true
+            ),
+            Some(3)
+        );
+        assert_eq!(
+            select_horizontal_next_enabled(
+                &items,
+                Some(2),
+                Some(SelectDirection::Rtl),
+                false,
+                true
+            ),
+            Some(1)
+        );
+        assert_eq!(
+            select_horizontal_next_enabled(
+                &items,
+                Some(2),
+                Some(SelectDirection::Rtl),
+                true,
+                false
+            ),
+            Some(3)
+        );
     }
 
     #[test]

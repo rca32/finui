@@ -86,7 +86,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 `aria_live`, role, hotkey label output은 있으나 실제 announce queue와 hotkey focus 이동이 부족하다.
   - 완료 기준: foreground/background toast announce 우선순위, viewport hotkey, close/action alt text를 테스트한다.
 
-- [ ] RTL 동작을 표시용 output이 아니라 실제 키보드/배치 동작으로 만든다.
+- [x] RTL 동작을 표시용 output이 아니라 실제 키보드/배치 동작으로 만든다.
   - 일부 RootOptions에 direction이 있으나 ArrowLeft/ArrowRight, side/align, menu direction의 실제 반전 검증이 부족하다.
   - 완료 기준: LTR/RTL 각각에서 menu, select, tabs, radio, slider 키 동작 테스트가 있다.
 

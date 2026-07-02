@@ -2,7 +2,10 @@ use std::hash::Hash;
 
 use eframe::egui::{self, Color32, FontId, Pos2, Rect, Response, RichText, Stroke, Vec2};
 
-use super::{PrimitiveDirection, PrimitiveTheme, RadixIcon, paint_radix_icon, radix_colors};
+use super::{
+    PrimitiveDirection, PrimitiveTheme, RadixIcon, paint_radix_icon,
+    primitive_horizontal_arrow_step, radix_colors,
+};
 
 pub struct PrimitiveControlOutput {
     pub response: Response,
@@ -1493,6 +1496,7 @@ pub fn primitive_radio_group_with_options<T: Copy + PartialEq + Hash>(
     let keyboard_action = ui.input(|input| {
         radio_group_keyboard_action(
             root.options.orientation,
+            root.options.direction,
             input.key_pressed(egui::Key::Enter),
             input.key_pressed(egui::Key::Space),
             input.key_pressed(egui::Key::ArrowUp),
@@ -2299,6 +2303,7 @@ pub fn switch_apply_checked(current: &mut bool, next: bool, options: SwitchRootO
 #[allow(clippy::too_many_arguments)]
 pub fn radio_group_keyboard_action(
     orientation: RadioGroupOrientation,
+    direction: Option<PrimitiveDirection>,
     enter_pressed: bool,
     space_pressed: bool,
     arrow_up_pressed: bool,
@@ -2327,15 +2332,15 @@ pub fn radio_group_keyboard_action(
                 RadioGroupKeyboardAction::None
             }
         }
-        RadioGroupOrientation::Horizontal => {
-            if arrow_right_pressed {
-                RadioGroupKeyboardAction::Next
-            } else if arrow_left_pressed {
-                RadioGroupKeyboardAction::Previous
-            } else {
-                RadioGroupKeyboardAction::None
-            }
-        }
+        RadioGroupOrientation::Horizontal => match primitive_horizontal_arrow_step(
+            direction,
+            arrow_left_pressed,
+            arrow_right_pressed,
+        ) {
+            Some(step) if step > 0 => RadioGroupKeyboardAction::Next,
+            Some(_) => RadioGroupKeyboardAction::Previous,
+            None => RadioGroupKeyboardAction::None,
+        },
     }
 }
 
@@ -2620,6 +2625,7 @@ mod tests {
         assert_eq!(
             radio_group_keyboard_action(
                 RadioGroupOrientation::Vertical,
+                None,
                 false,
                 true,
                 false,
@@ -2634,6 +2640,7 @@ mod tests {
         assert_eq!(
             radio_group_keyboard_action(
                 RadioGroupOrientation::Vertical,
+                None,
                 false,
                 false,
                 false,
@@ -2648,6 +2655,7 @@ mod tests {
         assert_eq!(
             radio_group_keyboard_action(
                 RadioGroupOrientation::Horizontal,
+                None,
                 false,
                 false,
                 false,
@@ -2662,6 +2670,7 @@ mod tests {
         assert_eq!(
             radio_group_keyboard_action(
                 RadioGroupOrientation::Vertical,
+                None,
                 false,
                 false,
                 false,
@@ -2672,6 +2681,40 @@ mod tests {
                 false,
             ),
             RadioGroupKeyboardAction::First
+        );
+    }
+
+    #[test]
+    fn radio_group_keyboard_action_reverses_horizontal_arrows_in_rtl() {
+        assert_eq!(
+            radio_group_keyboard_action(
+                RadioGroupOrientation::Horizontal,
+                Some(PrimitiveDirection::Rtl),
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+            ),
+            RadioGroupKeyboardAction::Previous
+        );
+        assert_eq!(
+            radio_group_keyboard_action(
+                RadioGroupOrientation::Horizontal,
+                Some(PrimitiveDirection::Rtl),
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+            ),
+            RadioGroupKeyboardAction::Next
         );
     }
 

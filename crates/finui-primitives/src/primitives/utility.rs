@@ -538,6 +538,21 @@ impl PrimitiveDirection {
     }
 }
 
+pub fn primitive_horizontal_arrow_step(
+    direction: Option<PrimitiveDirection>,
+    arrow_left_pressed: bool,
+    arrow_right_pressed: bool,
+) -> Option<isize> {
+    let rtl = direction == Some(PrimitiveDirection::Rtl);
+    if arrow_right_pressed {
+        Some(if rtl { -1 } else { 1 })
+    } else if arrow_left_pressed {
+        Some(if rtl { 1 } else { -1 })
+    } else {
+        None
+    }
+}
+
 pub struct PrimitiveDirectionProviderOutput<T> {
     pub inner: T,
     pub direction: PrimitiveDirection,
@@ -953,6 +968,27 @@ mod tests {
 
         assert_eq!(output.inner, 7);
         assert_eq!(output.direction, PrimitiveDirection::Rtl);
+    }
+
+    #[test]
+    fn horizontal_arrow_step_reverses_for_rtl() {
+        assert_eq!(primitive_horizontal_arrow_step(None, false, true), Some(1));
+        assert_eq!(
+            primitive_horizontal_arrow_step(Some(PrimitiveDirection::Ltr), true, false),
+            Some(-1)
+        );
+        assert_eq!(
+            primitive_horizontal_arrow_step(Some(PrimitiveDirection::Rtl), false, true),
+            Some(-1)
+        );
+        assert_eq!(
+            primitive_horizontal_arrow_step(Some(PrimitiveDirection::Rtl), true, false),
+            Some(1)
+        );
+        assert_eq!(
+            primitive_horizontal_arrow_step(Some(PrimitiveDirection::Rtl), false, false),
+            None
+        );
     }
 
     #[test]

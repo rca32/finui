@@ -264,7 +264,8 @@ pub use select::{
     primitive_select_icon, primitive_select_item, primitive_select_label,
     primitive_select_portal_output, primitive_select_root_output, primitive_select_separator,
     primitive_select_trigger, primitive_select_value, primitive_select_viewport, select_apply_open,
-    select_apply_value, select_next_enabled, select_typeahead_match, show_select,
+    select_apply_value, select_horizontal_next_enabled, select_next_enabled,
+    select_typeahead_match, show_select,
 };
 pub use settings::{
     PrimitiveActionKind, PrimitiveColorPickerLabels, PrimitiveSelectOption,
@@ -347,5 +348,5 @@ pub use utility::{
     primitive_accessibility_tree_json_snapshot, primitive_accessibility_tree_output,
     primitive_accessible_icon, primitive_accessible_icon_root_output,
     primitive_controllable_state_output, primitive_data_attributes_output,
-    primitive_direction_provider, primitive_slot, slot_id,
+    primitive_direction_provider, primitive_horizontal_arrow_step, primitive_slot, slot_id,
 };

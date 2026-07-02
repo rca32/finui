@@ -2,7 +2,10 @@ use std::hash::Hash;
 
 use eframe::egui::{self, Color32, FontId, Rect, Response, Vec2};
 
-use super::{PrimitiveTheme, RovingFocusState, radix_colors};
+use super::{
+    PrimitiveDirection, PrimitiveTheme, RovingFocusState, primitive_horizontal_arrow_step,
+    radix_colors,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TabItem {
@@ -41,6 +44,7 @@ pub enum TabsKeyboardAction {
 pub struct TabsHeaderOptions {
     pub theme: PrimitiveTheme,
     pub orientation: TabsOrientation,
+    pub direction: Option<PrimitiveDirection>,
     pub activation_mode: TabsActivationMode,
     pub loop_focus: bool,
 }
@@ -50,6 +54,7 @@ impl Default for TabsHeaderOptions {
         Self {
             theme: PrimitiveTheme::default(),
             orientation: TabsOrientation::Horizontal,
+            direction: None,
             activation_mode: TabsActivationMode::Automatic,
             loop_focus: true,
         }
@@ -64,6 +69,11 @@ impl TabsHeaderOptions {
 
     pub fn orientation(mut self, orientation: TabsOrientation) -> Self {
         self.orientation = orientation;
+        self
+    }
+
+    pub fn direction(mut self, direction: PrimitiveDirection) -> Self {
+        self.direction = Some(direction);
         self
     }
 
@@ -154,6 +164,7 @@ pub fn primitive_tabs_header_with_options(
     let keyboard_action = ui.input(|input| {
         tabs_keyboard_action(
             options.orientation,
+            options.direction,
             input.key_pressed(egui::Key::Enter),
             input.key_pressed(egui::Key::Space),
             input.key_pressed(egui::Key::ArrowUp),
@@ -265,6 +276,7 @@ pub fn primitive_tabs_list_rect_with_orientation(
 #[allow(clippy::too_many_arguments)]
 pub fn tabs_keyboard_action(
     orientation: TabsOrientation,
+    direction: Option<PrimitiveDirection>,
     enter_pressed: bool,
     space_pressed: bool,
     arrow_up_pressed: bool,
@@ -284,15 +296,15 @@ pub fn tabs_keyboard_action(
         return TabsKeyboardAction::FocusLast;
     }
     match orientation {
-        TabsOrientation::Horizontal => {
-            if arrow_right_pressed {
-                TabsKeyboardAction::FocusNext
-            } else if arrow_left_pressed {
-                TabsKeyboardAction::FocusPrevious
-            } else {
-                TabsKeyboardAction::None
-            }
-        }
+        TabsOrientation::Horizontal => match primitive_horizontal_arrow_step(
+            direction,
+            arrow_left_pressed,
+            arrow_right_pressed,
+        ) {
+            Some(step) if step > 0 => TabsKeyboardAction::FocusNext,
+            Some(_) => TabsKeyboardAction::FocusPrevious,
+            None => TabsKeyboardAction::None,
+        },
         TabsOrientation::Vertical => {
             if arrow_down_pressed {
                 TabsKeyboardAction::FocusNext
@@ -587,6 +599,7 @@ mod tests {
         assert_eq!(
             tabs_keyboard_action(
                 TabsOrientation::Horizontal,
+                None,
                 false,
                 false,
                 false,
@@ -601,6 +614,7 @@ mod tests {
         assert_eq!(
             tabs_keyboard_action(
                 TabsOrientation::Horizontal,
+                None,
                 false,
                 false,
                 false,
@@ -615,6 +629,7 @@ mod tests {
         assert_eq!(
             tabs_keyboard_action(
                 TabsOrientation::Vertical,
+                None,
                 false,
                 false,
                 false,
@@ -629,6 +644,7 @@ mod tests {
         assert_eq!(
             tabs_keyboard_action(
                 TabsOrientation::Vertical,
+                None,
                 false,
                 true,
                 false,
@@ -639,6 +655,40 @@ mod tests {
                 false,
             ),
             TabsKeyboardAction::Activate
+        );
+    }
+
+    #[test]
+    fn tabs_keyboard_action_reverses_horizontal_arrows_in_rtl() {
+        assert_eq!(
+            tabs_keyboard_action(
+                TabsOrientation::Horizontal,
+                Some(PrimitiveDirection::Rtl),
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+            ),
+            TabsKeyboardAction::FocusPrevious
+        );
+        assert_eq!(
+            tabs_keyboard_action(
+                TabsOrientation::Horizontal,
+                Some(PrimitiveDirection::Rtl),
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+            ),
+            TabsKeyboardAction::FocusNext
         );
     }
 
