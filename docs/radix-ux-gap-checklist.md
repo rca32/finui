@@ -57,7 +57,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - Radix 수준의 `onEscapeKeyDown`, `onPointerDownOutside`, `onInteractOutside`, close prevent/default 방지에 해당하는 Rust API를 설계한다.
   - 완료 기준: outside pointer, secondary click, Escape, trigger 재클릭, nested layer의 닫힘 순서를 테스트한다.
 
-- [ ] 포털/레이어 컨테이너 계약을 실제 배치 계층으로 연결한다.
+- [x] 포털/레이어 컨테이너 계약을 실제 배치 계층으로 연결한다.
   - 여러 primitive에 `container`/`force_mount` output은 있으나 실제 container routing은 약하다.
   - 완료 기준: 지정 컨테이너, nested portal, forced mounted but visually hidden 상태를 테스트한다.
 

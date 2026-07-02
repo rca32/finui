@@ -148,8 +148,9 @@ pub use instrument_browser::{
 };
 pub use layer::{
     PrimitiveLayerAnimationOutput, PrimitiveLayerOptions, PrimitiveLayerOutput,
-    PrimitivePortalOutput, primitive_dismissable_layer_options, primitive_layer_animation_output,
-    primitive_layer_transform_origin, primitive_portal_output, show_primitive_layer,
+    PrimitivePortalOutput, PrimitivePortalRouteOutput, primitive_dismissable_layer_options,
+    primitive_layer_animation_output, primitive_layer_transform_origin, primitive_portal_output,
+    primitive_portal_route_output, show_primitive_layer,
 };
 pub use layout::{
     AspectRatioOptions, AspectRatioOutput, VisuallyHiddenOutput, aspect_ratio_rect,

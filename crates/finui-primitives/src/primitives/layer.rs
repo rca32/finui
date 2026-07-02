@@ -11,6 +11,7 @@ use crate::{
 pub struct PrimitiveLayerOptions {
     pub id: egui::Id,
     pub anchor_rect: Option<Rect>,
+    pub portal_container: Option<String>,
     pub placement: LayerPlacement,
     pub width: f32,
     pub min_height: Option<f32>,
@@ -27,6 +28,7 @@ impl PrimitiveLayerOptions {
         Self {
             id: egui::Id::new(id),
             anchor_rect: None,
+            portal_container: None,
             placement: LayerPlacement::Fixed(egui::Pos2::ZERO),
             width,
             min_height: None,
@@ -41,6 +43,11 @@ impl PrimitiveLayerOptions {
 
     pub fn anchor_rect(mut self, rect: Rect) -> Self {
         self.anchor_rect = Some(rect);
+        self
+    }
+
+    pub fn portal_container(mut self, container: impl Into<String>) -> Self {
+        self.portal_container = Some(container.into());
         self
     }
 
@@ -86,6 +93,7 @@ pub struct PrimitiveLayerOutput<T> {
     pub dismiss_event: Option<DismissLayerEvent>,
     pub content_rect: Rect,
     pub resolved_placement: LayerResolvedPlacement,
+    pub portal: PrimitivePortalRouteOutput,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -103,8 +111,38 @@ pub struct PrimitivePortalOutput {
     pub content_rect: Rect,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitivePortalRouteOutput {
+    pub container: Option<String>,
+    pub parent_container: Option<String>,
+    pub resolved_container: String,
+    pub nested: bool,
+    pub mounted: bool,
+    pub visually_hidden: bool,
+    pub interactive: bool,
+}
+
 pub fn primitive_portal_output(content_rect: Rect) -> PrimitivePortalOutput {
     PrimitivePortalOutput { content_rect }
+}
+
+pub fn primitive_portal_route_output(
+    container: Option<&str>,
+    parent_container: Option<&str>,
+    open: bool,
+    force_mount: bool,
+) -> PrimitivePortalRouteOutput {
+    let mounted = open || force_mount;
+    let resolved_container = container.or(parent_container).unwrap_or("root").to_owned();
+    PrimitivePortalRouteOutput {
+        container: container.map(str::to_owned),
+        parent_container: parent_container.map(str::to_owned),
+        resolved_container,
+        nested: container.is_some() && parent_container.is_some(),
+        mounted,
+        visually_hidden: mounted && !open,
+        interactive: mounted && open,
+    }
 }
 
 pub fn primitive_dismissable_layer_options(
@@ -172,12 +210,15 @@ pub fn show_primitive_layer<T>(
 
     let output: LayerOutput<T> = show_anchored_layer(ctx, layer, add_contents);
     let portal = primitive_portal_output(output.panel_rect);
+    let portal_route =
+        primitive_portal_route_output(options.portal_container.as_deref(), None, true, false);
     PrimitiveLayerOutput {
         action: output.action,
         should_close: output.should_close,
         dismiss_event: output.dismiss_event,
         content_rect: portal.content_rect,
         resolved_placement: output.resolved_placement,
+        portal: portal_route,
     }
 }
 
@@ -194,12 +235,48 @@ mod tests {
     }
 
     #[test]
+    fn portal_route_output_resolves_default_named_and_nested_containers() {
+        let root = primitive_portal_route_output(None, None, true, false);
+        let named = primitive_portal_route_output(Some("chart-overlays"), None, true, false);
+        let nested =
+            primitive_portal_route_output(Some("submenu-layer"), Some("menu-layer"), true, false);
+
+        assert_eq!(root.resolved_container, "root");
+        assert_eq!(root.container, None);
+        assert_eq!(named.resolved_container, "chart-overlays");
+        assert_eq!(named.container.as_deref(), Some("chart-overlays"));
+        assert!(!named.nested);
+        assert_eq!(nested.parent_container.as_deref(), Some("menu-layer"));
+        assert_eq!(nested.resolved_container, "submenu-layer");
+        assert!(nested.nested);
+    }
+
+    #[test]
+    fn portal_route_output_keeps_force_mounted_closed_content_hidden_and_noninteractive() {
+        let forced = primitive_portal_route_output(Some("dialog-root"), None, false, true);
+        let unmounted = primitive_portal_route_output(Some("dialog-root"), None, false, false);
+        let open = primitive_portal_route_output(Some("dialog-root"), None, true, false);
+
+        assert!(forced.mounted);
+        assert!(forced.visually_hidden);
+        assert!(!forced.interactive);
+        assert!(!unmounted.mounted);
+        assert!(!unmounted.visually_hidden);
+        assert!(!unmounted.interactive);
+        assert!(open.mounted);
+        assert!(!open.visually_hidden);
+        assert!(open.interactive);
+    }
+
+    #[test]
     fn dismissable_layer_options_preserve_policy() {
-        let options = PrimitiveLayerOptions::new("layer-options-test", 180.0);
+        let options =
+            PrimitiveLayerOptions::new("layer-options-test", 180.0).portal_container("layer-root");
         let options =
             primitive_dismissable_layer_options(options, DismissPolicy::OutsideClickAndEscape);
 
         assert_eq!(options.dismiss_policy, DismissPolicy::OutsideClickAndEscape);
+        assert_eq!(options.portal_container.as_deref(), Some("layer-root"));
     }
 
     #[test]
