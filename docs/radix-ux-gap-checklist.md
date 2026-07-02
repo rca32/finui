@@ -255,7 +255,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 | Toolbar/Toggle/Tabs/Accordion | keyboard/action controls and grouped state | `toolbar_apply_action_respects_kind_enabled_and_toggle_state`, `toggle_group_root_output_preserves_radix_group_contract`, `tabs_keyboard_target_skips_disabled_and_respects_loop_focus`, `accordion_keyboard_action_maps_toggle_and_header_navigation_keys` |
 | Theme/Icon/Accessibility utility | state tokens, contrast, accessible icon, JSON snapshot, public stability terms | `theme_state_tokens_keep_numeric_contrast`, `icon_assets_are_tintable_before_egui_tint_is_applied`, `accessibility_tree_json_snapshot_is_stable_and_agent_readable`, `primitive_api_stability_names_match_public_contract_terms` |
 
-- [ ] agent-testable UX receipts를 만든다.
+- [x] agent-testable UX receipts를 만든다.
   - `finui-grid`의 agent-testable 방향을 `finui-primitives`에도 적용한다.
   - 완료 기준: agent가 primitive state, focus, selected item, open layer stack을 snapshot으로 읽을 수 있다.
 

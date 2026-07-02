@@ -466,6 +466,82 @@ pub struct PrimitiveTextOverflowOutput {
     pub accessibility_text: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveUxStatePair {
+    pub key: &'static str,
+    pub value: String,
+}
+
+impl PrimitiveUxStatePair {
+    pub fn new(key: &'static str, value: impl Into<String>) -> Self {
+        Self {
+            key,
+            value: value.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveUxReceiptOptions {
+    pub primitive: String,
+    pub part: String,
+    pub states: Vec<PrimitiveUxStatePair>,
+    pub focused_id: Option<String>,
+    pub selected_item: Option<String>,
+    pub selected_value: Option<String>,
+    pub open_layers: Vec<String>,
+}
+
+impl PrimitiveUxReceiptOptions {
+    pub fn new(primitive: impl Into<String>, part: impl Into<String>) -> Self {
+        Self {
+            primitive: primitive.into(),
+            part: part.into(),
+            states: Vec::new(),
+            focused_id: None,
+            selected_item: None,
+            selected_value: None,
+            open_layers: Vec::new(),
+        }
+    }
+
+    pub fn state(mut self, key: &'static str, value: impl Into<String>) -> Self {
+        self.states.push(PrimitiveUxStatePair::new(key, value));
+        self
+    }
+
+    pub fn focused_id(mut self, focused_id: impl Into<String>) -> Self {
+        self.focused_id = Some(focused_id.into());
+        self
+    }
+
+    pub fn selected_item(mut self, selected_item: impl Into<String>) -> Self {
+        self.selected_item = Some(selected_item.into());
+        self
+    }
+
+    pub fn selected_value(mut self, selected_value: impl Into<String>) -> Self {
+        self.selected_value = Some(selected_value.into());
+        self
+    }
+
+    pub fn open_layer(mut self, open_layer: impl Into<String>) -> Self {
+        self.open_layers.push(open_layer.into());
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveUxReceiptOutput {
+    pub primitive: String,
+    pub part: String,
+    pub states: Vec<PrimitiveUxStatePair>,
+    pub focused_id: Option<String>,
+    pub selected_item: Option<String>,
+    pub selected_value: Option<String>,
+    pub open_layers: Vec<String>,
+}
+
 pub fn primitive_controllable_state_output<T: Clone + PartialEq>(
     scope: PrimitiveControllableScope,
     controlled_value: Option<T>,
@@ -528,6 +604,49 @@ pub fn primitive_data_attributes_output(
         data_orientation: options.data_orientation,
         attributes,
     }
+}
+
+pub fn primitive_ux_receipt_output(options: PrimitiveUxReceiptOptions) -> PrimitiveUxReceiptOutput {
+    PrimitiveUxReceiptOutput {
+        primitive: options.primitive,
+        part: options.part,
+        states: options.states,
+        focused_id: options.focused_id,
+        selected_item: options.selected_item,
+        selected_value: options.selected_value,
+        open_layers: options.open_layers,
+    }
+}
+
+pub fn primitive_ux_receipt_json_snapshot(receipt: &PrimitiveUxReceiptOutput) -> String {
+    let states = receipt
+        .states
+        .iter()
+        .map(|state| {
+            format!(
+                "{{\"key\":\"{}\",\"value\":\"{}\"}}",
+                json_escape(state.key),
+                json_escape(&state.value)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let open_layers = receipt
+        .open_layers
+        .iter()
+        .map(|layer| format!("\"{}\"", json_escape(layer)))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"primitive\":\"{}\",\"part\":\"{}\",\"states\":[{}],\"focused_id\":{},\"selected_item\":{},\"selected_value\":{},\"open_layers\":[{}]}}",
+        json_escape(&receipt.primitive),
+        json_escape(&receipt.part),
+        states,
+        json_option(receipt.focused_id.as_deref()),
+        json_option(receipt.selected_item.as_deref()),
+        json_option(receipt.selected_value.as_deref()),
+        open_layers
+    )
 }
 
 pub fn primitive_text_overflow_output(
@@ -1014,6 +1133,53 @@ mod tests {
     fn primitive_api_stability_names_match_public_contract_terms() {
         assert_eq!(PrimitiveApiStability::Stable.as_str(), "stable");
         assert_eq!(PrimitiveApiStability::Experimental.as_str(), "experimental");
+    }
+
+    #[test]
+    fn ux_receipt_output_collects_state_focus_selection_and_open_layers() {
+        let receipt = primitive_ux_receipt_output(
+            PrimitiveUxReceiptOptions::new("select", "content")
+                .state("open", "true")
+                .state("highlighted", "1W")
+                .focused_id("select-period-item-1w")
+                .selected_item("1W")
+                .selected_value("1W")
+                .open_layer("select.content")
+                .open_layer("select.viewport"),
+        );
+
+        assert_eq!(receipt.primitive, "select");
+        assert_eq!(receipt.part, "content");
+        assert_eq!(
+            receipt.states,
+            vec![
+                PrimitiveUxStatePair::new("open", "true"),
+                PrimitiveUxStatePair::new("highlighted", "1W")
+            ]
+        );
+        assert_eq!(receipt.focused_id.as_deref(), Some("select-period-item-1w"));
+        assert_eq!(receipt.selected_item.as_deref(), Some("1W"));
+        assert_eq!(receipt.selected_value.as_deref(), Some("1W"));
+        assert_eq!(
+            receipt.open_layers,
+            vec!["select.content".to_owned(), "select.viewport".to_owned()]
+        );
+    }
+
+    #[test]
+    fn ux_receipt_json_snapshot_is_stable_and_agent_readable() {
+        let receipt = primitive_ux_receipt_output(
+            PrimitiveUxReceiptOptions::new("dialog", "content")
+                .state("open", "true")
+                .focused_id("confirm-title")
+                .open_layer("dialog.portal")
+                .open_layer("dialog.content"),
+        );
+
+        assert_eq!(
+            primitive_ux_receipt_json_snapshot(&receipt),
+            "{\"primitive\":\"dialog\",\"part\":\"content\",\"states\":[{\"key\":\"open\",\"value\":\"true\"}],\"focused_id\":\"confirm-title\",\"selected_item\":null,\"selected_value\":null,\"open_layers\":[\"dialog.portal\",\"dialog.content\"]}"
+        );
     }
 
     #[test]

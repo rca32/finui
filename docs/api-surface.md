@@ -23,6 +23,7 @@ Primitive-specific reference documents:
 - `docs/controlled-uncontrolled-examples.md`
 - `docs/radix-parity-matrix.md`
 - `docs/text-overflow-policy.md`
+- `docs/agent-ux-receipts.md`
 
 Application-specific shell, market data, terminal, api, or chart runtime code
 does not belong in this crate.
