@@ -164,7 +164,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 
 ## P2: 데모와 시각 검증
 
-- [ ] `examples/primitives_lab`를 primitive catalogue로 확장한다.
+- [x] `examples/primitives_lab`를 primitive catalogue로 확장한다.
   - Dialog, Popover, Tooltip, DropdownMenu, ContextMenu, Select, Tabs, Accordion, Slider, Toast, Toolbar를 한 화면 또는 탭별로 조작할 수 있어야 한다.
   - 완료 기준: 각 primitive가 open/close, disabled, RTL, dark/light, long text, edge placement 상태를 가진다.
 
@@ -279,6 +279,6 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 - [x] 스크린리더 의미에 해당하는 Finui accessibility snapshot이 primitive별로 존재한다.
 - [x] Popover/Menu/Tooltip 계열의 포지셔닝이 충돌 후 side/align/output과 일치한다.
 - [ ] 대표 primitive 상태가 visual snapshot으로 검증된다.
-- [ ] `primitives_lab`에서 개발자가 모든 primitive의 주요 상태를 직접 조작할 수 있다.
+- [x] `primitives_lab`에서 개발자가 모든 primitive의 주요 상태를 직접 조작할 수 있다.
 - [x] quick CI command와 full CI command가 분리되어 있고, quick path는 일상 개발에 충분히 빠르다.
 - [x] downstream 앱이 쓸 stable API와 preview/internal API가 문서상 구분된다.

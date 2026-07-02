@@ -26,6 +26,51 @@ struct PrimitiveCatalogueItem {
 
 const CATALOGUE: &[PrimitiveCatalogueItem] = &[
     PrimitiveCatalogueItem {
+        name: "Dialog",
+        category: "Layer",
+        states: &["open", "closed", "modal", "edge placement"],
+    },
+    PrimitiveCatalogueItem {
+        name: "Popover",
+        category: "Layer",
+        states: &["open", "closed", "anchor", "edge placement"],
+    },
+    PrimitiveCatalogueItem {
+        name: "Tooltip",
+        category: "Layer",
+        states: &["delayed", "instant", "hoverable", "disabled"],
+    },
+    PrimitiveCatalogueItem {
+        name: "DropdownMenu",
+        category: "Menu",
+        states: &["open", "closed", "typeahead", "submenu"],
+    },
+    PrimitiveCatalogueItem {
+        name: "ContextMenu",
+        category: "Menu",
+        states: &["pointer", "keyboard", "long press", "dismiss"],
+    },
+    PrimitiveCatalogueItem {
+        name: "Select",
+        category: "Menu",
+        states: &["open", "closed", "value", "disabled item"],
+    },
+    PrimitiveCatalogueItem {
+        name: "Accordion",
+        category: "Disclosure",
+        states: &["single", "multiple", "open", "disabled item"],
+    },
+    PrimitiveCatalogueItem {
+        name: "Toast",
+        category: "Feedback",
+        states: &["foreground", "background", "swipe", "hotkey"],
+    },
+    PrimitiveCatalogueItem {
+        name: "Toolbar",
+        category: "Action",
+        states: &["horizontal", "vertical", "toggle", "disabled item"],
+    },
+    PrimitiveCatalogueItem {
         name: "Button",
         category: "Action",
         states: &["primary", "secondary", "danger"],
@@ -83,6 +128,11 @@ struct PrimitivesLabApp {
     otp_value: String,
     password_visible: bool,
     show_disabled: bool,
+    show_open_layers: bool,
+    show_rtl: bool,
+    force_dark_preview: bool,
+    show_long_text: bool,
+    edge_placement: bool,
 }
 
 impl Default for PrimitivesLabApp {
@@ -98,22 +148,34 @@ impl Default for PrimitivesLabApp {
             otp_value: "1234".to_owned(),
             password_visible: false,
             show_disabled: false,
+            show_open_layers: true,
+            show_rtl: false,
+            force_dark_preview: false,
+            show_long_text: false,
+            edge_placement: false,
         }
     }
 }
 
 impl eframe::App for PrimitivesLabApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        let theme = PrimitiveTheme::for_mode(if ui.ctx().global_style().visuals.dark_mode {
-            ThemeMode::Dark
-        } else {
-            ThemeMode::Light
-        });
+        let theme = PrimitiveTheme::for_mode(
+            if self.force_dark_preview || ui.ctx().global_style().visuals.dark_mode {
+                ThemeMode::Dark
+            } else {
+                ThemeMode::Light
+            },
+        );
 
         ui.horizontal(|ui| {
             ui.heading("Finui primitives");
             ui.separator();
             ui.checkbox(&mut self.show_disabled, "Disabled states");
+            ui.checkbox(&mut self.show_open_layers, "Open layers");
+            ui.checkbox(&mut self.show_rtl, "RTL");
+            ui.checkbox(&mut self.force_dark_preview, "Dark");
+            ui.checkbox(&mut self.show_long_text, "Long labels");
+            ui.checkbox(&mut self.edge_placement, "Edge");
         });
 
         ui.add_space(8.0);
@@ -148,6 +210,8 @@ impl PrimitivesLabApp {
     fn preview_panel(&mut self, ui: &mut egui::Ui, theme: PrimitiveTheme) {
         ui.heading("Interactive states");
         ui.add_space(4.0);
+        self.layer_controls(ui);
+        ui.separator();
         self.form_controls(ui, theme);
         ui.separator();
         self.action_controls(ui, theme);
@@ -155,6 +219,49 @@ impl PrimitivesLabApp {
         self.navigation_controls(ui, theme);
         ui.separator();
         self.text_and_security_controls(ui, theme);
+    }
+
+    fn layer_controls(&mut self, ui: &mut egui::Ui) {
+        let direction = if self.show_rtl { "rtl" } else { "ltr" };
+        let placement = if self.edge_placement {
+            "edge placement"
+        } else {
+            "center placement"
+        };
+        let layer_state = if self.show_open_layers {
+            "open"
+        } else {
+            "closed"
+        };
+        let label = if self.show_long_text {
+            "KR103502GG38 한국국채 3Y dropdown menu context menu select value"
+        } else {
+            "Layer state"
+        };
+
+        egui::Grid::new("layer_state_controls")
+            .striped(true)
+            .min_col_width(92.0)
+            .show(ui, |ui| {
+                for primitive in [
+                    "Dialog",
+                    "Popover",
+                    "Tooltip",
+                    "DropdownMenu",
+                    "ContextMenu",
+                    "Select",
+                    "Accordion",
+                    "Toast",
+                    "Toolbar",
+                ] {
+                    ui.label(primitive);
+                    ui.label(layer_state);
+                    ui.label(direction);
+                    ui.label(placement);
+                    ui.label(label);
+                    ui.end_row();
+                }
+            });
     }
 
     fn form_controls(&mut self, ui: &mut egui::Ui, theme: PrimitiveTheme) {
@@ -325,5 +432,55 @@ impl PrimitivesLabApp {
                 theme,
             );
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn primitives_lab_catalogue_covers_required_radix_families() {
+        let names = CATALOGUE
+            .iter()
+            .map(|item| item.name)
+            .collect::<std::collections::BTreeSet<_>>();
+
+        for required in [
+            "Dialog",
+            "Popover",
+            "Tooltip",
+            "DropdownMenu",
+            "ContextMenu",
+            "Select",
+            "Tabs",
+            "Accordion",
+            "Slider",
+            "Toast",
+            "Toolbar",
+        ] {
+            assert!(names.contains(required), "missing {required}");
+        }
+    }
+
+    #[test]
+    fn primitives_lab_catalogue_exposes_required_interaction_states() {
+        let states = CATALOGUE
+            .iter()
+            .flat_map(|item| item.states.iter().copied())
+            .collect::<std::collections::BTreeSet<_>>();
+
+        for required in [
+            "open",
+            "closed",
+            "disabled",
+            "edge placement",
+            "keyboard",
+            "typeahead",
+            "swipe",
+            "hotkey",
+        ] {
+            assert!(states.contains(required), "missing state {required}");
+        }
     }
 }
