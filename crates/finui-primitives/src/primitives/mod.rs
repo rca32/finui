@@ -90,9 +90,10 @@ pub use disclosure::{
 };
 pub use focus::{
     PrimitiveFocusCloseReason, PrimitiveFocusManagerOptions, PrimitiveFocusManagerOutput,
-    PrimitiveFocusScope, PrimitiveFocusTarget, RovingFocusAction, RovingFocusKey,
-    RovingFocusOptions, RovingFocusOrientation, RovingFocusOutput, RovingFocusState,
-    primitive_focus_manager_output, primitive_roving_focus_output, roving_focus_target_index,
+    PrimitiveFocusScope, PrimitiveFocusTarget, PrimitiveModalInertOptions,
+    PrimitiveModalInertOutput, RovingFocusAction, RovingFocusKey, RovingFocusOptions,
+    RovingFocusOrientation, RovingFocusOutput, RovingFocusState, primitive_focus_manager_output,
+    primitive_modal_inert_output, primitive_roving_focus_output, roving_focus_target_index,
 };
 pub use form::{
     CheckboxIndicatorOptions, CheckboxIndicatorOutput, CheckboxRootOptions, CheckboxRootOutput,

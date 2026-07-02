@@ -153,6 +153,31 @@ pub struct PrimitiveFocusManagerOutput {
     pub restore_focus_target: Option<PrimitiveFocusTarget>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PrimitiveModalInertOptions {
+    pub scope: PrimitiveFocusScope,
+    pub open: bool,
+    pub modal: bool,
+}
+
+impl PrimitiveModalInertOptions {
+    pub fn new(scope: PrimitiveFocusScope, open: bool, modal: bool) -> Self {
+        Self { scope, open, modal }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PrimitiveModalInertOutput {
+    pub scope: PrimitiveFocusScope,
+    pub open: bool,
+    pub modal: bool,
+    pub background_inert: bool,
+    pub outside_pointer_blocked: bool,
+    pub outside_keyboard_blocked: bool,
+    pub outside_focus_blocked: bool,
+    pub outside_interaction_allowed: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RovingFocusState {
     pub active_index: Option<usize>,
@@ -192,6 +217,23 @@ impl RovingFocusState {
             return RovingFocusAction::Moved;
         }
         RovingFocusAction::None
+    }
+}
+
+pub fn primitive_modal_inert_output(
+    options: PrimitiveModalInertOptions,
+) -> PrimitiveModalInertOutput {
+    let modal = matches!(options.scope, PrimitiveFocusScope::AlertDialog) || options.modal;
+    let blocks_outside = options.open && modal;
+    PrimitiveModalInertOutput {
+        scope: options.scope,
+        open: options.open,
+        modal,
+        background_inert: blocks_outside,
+        outside_pointer_blocked: blocks_outside,
+        outside_keyboard_blocked: blocks_outside,
+        outside_focus_blocked: blocks_outside,
+        outside_interaction_allowed: options.open && !blocks_outside,
     }
 }
 
@@ -502,6 +544,73 @@ mod tests {
         assert_eq!(closed.restore_focus_target, None);
         assert!(no_restore.close_requested);
         assert_eq!(no_restore.restore_focus_target, None);
+    }
+
+    #[test]
+    fn modal_inert_output_blocks_dialog_outside_input_only_when_modal() {
+        let modal = primitive_modal_inert_output(PrimitiveModalInertOptions::new(
+            PrimitiveFocusScope::Dialog,
+            true,
+            true,
+        ));
+        let non_modal = primitive_modal_inert_output(PrimitiveModalInertOptions::new(
+            PrimitiveFocusScope::Dialog,
+            true,
+            false,
+        ));
+
+        assert!(modal.background_inert);
+        assert!(modal.outside_pointer_blocked);
+        assert!(modal.outside_keyboard_blocked);
+        assert!(modal.outside_focus_blocked);
+        assert!(!modal.outside_interaction_allowed);
+        assert!(!non_modal.background_inert);
+        assert!(!non_modal.outside_pointer_blocked);
+        assert!(!non_modal.outside_keyboard_blocked);
+        assert!(!non_modal.outside_focus_blocked);
+        assert!(non_modal.outside_interaction_allowed);
+    }
+
+    #[test]
+    fn modal_inert_output_forces_alert_dialog_modal_even_when_option_is_false() {
+        let output = primitive_modal_inert_output(PrimitiveModalInertOptions::new(
+            PrimitiveFocusScope::AlertDialog,
+            true,
+            false,
+        ));
+
+        assert!(output.modal);
+        assert!(output.background_inert);
+        assert!(output.outside_pointer_blocked);
+        assert!(output.outside_keyboard_blocked);
+        assert!(output.outside_focus_blocked);
+    }
+
+    #[test]
+    fn modal_inert_output_separates_dropdown_menu_modal_and_non_modal_input() {
+        let modal = primitive_modal_inert_output(PrimitiveModalInertOptions::new(
+            PrimitiveFocusScope::Menu,
+            true,
+            true,
+        ));
+        let non_modal = primitive_modal_inert_output(PrimitiveModalInertOptions::new(
+            PrimitiveFocusScope::Menu,
+            true,
+            false,
+        ));
+        let closed = primitive_modal_inert_output(PrimitiveModalInertOptions::new(
+            PrimitiveFocusScope::Menu,
+            false,
+            true,
+        ));
+
+        assert!(modal.outside_pointer_blocked);
+        assert!(modal.outside_keyboard_blocked);
+        assert!(modal.outside_focus_blocked);
+        assert!(!non_modal.outside_pointer_blocked);
+        assert!(non_modal.outside_interaction_allowed);
+        assert!(!closed.background_inert);
+        assert!(!closed.outside_interaction_allowed);
     }
 
     #[test]

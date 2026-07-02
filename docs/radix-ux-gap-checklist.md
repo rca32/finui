@@ -47,7 +47,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - Tooltip/HoverCard: focus와 hover 모두에서 open/close 동작 일관화.
   - 완료 기준: 각 primitive별 `open -> focus target -> Escape/outside close -> trigger restore` 테스트가 있다.
 
-- [ ] modal/inert 정책을 실제 런타임 동작으로 만든다.
+- [x] modal/inert 정책을 실제 런타임 동작으로 만든다.
   - 현재 modal/default flag와 backdrop은 있으나, 배경 영역의 keyboard/pointer/focus 차단 계약을 명확히 증명해야 한다.
   - modal=false일 때 외부 상호작용 허용, modal=true일 때 외부 focus/interaction 차단을 분리한다.
   - 완료 기준: Dialog, AlertDialog, DropdownMenu modal/non-modal 케이스별 입력 차단 테스트가 있다.
