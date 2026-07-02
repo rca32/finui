@@ -31,11 +31,12 @@ mod utility;
 
 pub use alert_dialog::{
     AlertDialogActionFocusPriority, AlertDialogActionKind, AlertDialogActionOptions,
-    AlertDialogActionOutput, AlertDialogContentOptions, AlertDialogOptions, AlertDialogOutput,
-    AlertDialogOverlayOptions, AlertDialogPartStateOutput, AlertDialogPortalOptions,
-    AlertDialogPortalOutput, AlertDialogRootOptions, AlertDialogRootOutput,
-    AlertDialogTriggerOptions, alert_dialog_apply_open, primitive_alert_dialog_action,
-    primitive_alert_dialog_action_output, primitive_alert_dialog_cancel,
+    AlertDialogActionOutput, AlertDialogAnnounceOptions, AlertDialogAnnounceOutput,
+    AlertDialogContentOptions, AlertDialogOptions, AlertDialogOutput, AlertDialogOverlayOptions,
+    AlertDialogPartStateOutput, AlertDialogPortalOptions, AlertDialogPortalOutput,
+    AlertDialogRootOptions, AlertDialogRootOutput, AlertDialogTriggerOptions,
+    alert_dialog_apply_open, primitive_alert_dialog_action, primitive_alert_dialog_action_output,
+    primitive_alert_dialog_announce_output, primitive_alert_dialog_cancel,
     primitive_alert_dialog_content_options, primitive_alert_dialog_description,
     primitive_alert_dialog_overlay_options, primitive_alert_dialog_part_state,
     primitive_alert_dialog_portal_output, primitive_alert_dialog_root_output,
@@ -62,10 +63,12 @@ pub use context_menu::{
     primitive_context_menu_trigger, show_context_menu,
 };
 pub use dialog::{
-    DialogCloseOptions, DialogContentOptions, DialogDataState, DialogOptions, DialogOutput,
-    DialogOverlayOptions, DialogPartStateOutput, DialogPortalOptions, DialogPortalOutput,
-    DialogRootOptions, DialogRootOutput, DialogTriggerOptions, dialog_apply_open,
-    primitive_dialog_close_button, primitive_dialog_content_options, primitive_dialog_description,
+    DialogAnnounceOptions, DialogAnnounceOutput, DialogAnnounceRole, DialogCloseOptions,
+    DialogContentOptions, DialogDataState, DialogOptions, DialogOutput, DialogOverlayOptions,
+    DialogPartStateOutput, DialogPortalOptions, DialogPortalOutput, DialogRootOptions,
+    DialogRootOutput, DialogTitleVisibility, DialogTriggerOptions, dialog_apply_open,
+    primitive_dialog_announce_output, primitive_dialog_close_button,
+    primitive_dialog_content_options, primitive_dialog_description,
     primitive_dialog_overlay_options, primitive_dialog_part_state, primitive_dialog_portal_output,
     primitive_dialog_root_output, primitive_dialog_title, primitive_dialog_trigger, show_dialog,
 };

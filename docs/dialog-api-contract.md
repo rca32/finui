@@ -13,8 +13,8 @@ required for a complete user-facing dialog.
 | Portal | `DialogPortalOptions`, `DialogPortalOutput` | Optional | Carries `force_mount` and optional `container`; required when content is mounted outside the caller layout. |
 | Overlay | `DialogOverlayOptions`, `primitive_dialog_overlay_options` | Required for modal dialogs | Carries backdrop tint, `force_mount`, and open state. Non-modal dialogs may omit it. |
 | Content | `DialogContentOptions`, `primitive_dialog_content_options` | Yes | Defines content bounds, margin, open state, and force-mounted behavior. |
-| Title | `primitive_dialog_title` | Required for accessible dialogs | Gives the dialog its accessible name. If the title is visually hidden, the same text must still be available to the accessibility bridge. |
-| Description | `primitive_dialog_description` | Recommended | Provides supporting context. It may be omitted for simple dialogs with a self-explanatory title. |
+| Title | `primitive_dialog_title`, `DialogAnnounceOptions::title`, `DialogAnnounceOptions::visually_hidden_title` | Required for accessible dialogs | Gives the dialog its accessible name. Visually hidden titles still produce `labelled_by` and `accessible_name`. |
+| Description | `primitive_dialog_description`, `DialogAnnounceOptions::description` | Recommended | Provides supporting context through `described_by`. It may be omitted for simple dialogs with a self-explanatory title. |
 | Close | `DialogCloseOptions`, `primitive_dialog_close_button` | Recommended | Provides explicit close affordance. Escape and outside-dismiss policy are handled by the layer/runtime contract. |
 
 ## Required Runtime Semantics
@@ -25,6 +25,8 @@ required for a complete user-facing dialog.
   force_mount)` semantics: mounted only when open or force-mounted.
 - `Portal` must preserve `container` instead of interpreting it as a visual
   label.
+- `primitive_dialog_announce_output` must expose `role`, `labelled_by`,
+  `described_by`, missing required title state, and visually hidden title state.
 - `Trigger`, `Close`, and layer dismiss events must converge on the same
   caller-owned open state through `dialog_apply_open`.
 - Modal dialogs need focus trapping and inert background behavior at runtime.
@@ -37,6 +39,7 @@ AlertDialog reuses Dialog part contracts through type aliases for Root,
 Trigger, Portal, Overlay, Content, and part state. It differs in two places:
 
 - `primitive_alert_dialog_root_output` forces `modal = true`.
+- `primitive_alert_dialog_announce_output` forces `role = alertdialog`.
 - Actions are split into `AlertDialogActionKind::Cancel` and
   `AlertDialogActionKind::Action`.
 - `primitive_alert_dialog_action_output` exposes `destructive` separately from
@@ -45,7 +48,8 @@ Trigger, Portal, Overlay, Content, and part state. It differs in two places:
 
 ## Current Limits
 
-- Title/Description are render helpers, not yet a structured accessibility tree.
+- Title/Description announce output exists, but full cross-primitive
+  accessibility snapshots are tracked separately.
 - Trigger return focus and modal inert behavior are not completed by this
   document.
 - The `container` field is preserved in output, but full container routing is a

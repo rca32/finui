@@ -74,7 +74,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - ARIA 속성을 그대로 적용할 수 없으므로, `role`, `label`, `description`, `state`, `value`, `live`를 output/event로 노출하는 Finui 고유 계약이 필요하다.
   - 완료 기준: screen-reader용 snapshot 구조 또는 agent-readable accessibility tree가 있다.
 
-- [ ] Dialog/AlertDialog의 Title/Description announce 계약을 강화한다.
+- [x] Dialog/AlertDialog의 Title/Description announce 계약을 강화한다.
   - 현재 title/description 렌더 함수는 있지만, Dialog Content에 accessible title/description이 필수인지 검증하지 않는다.
   - 완료 기준: title 누락, description 생략, visually hidden title을 각각 표현할 수 있다.
 

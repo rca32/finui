@@ -314,6 +314,95 @@ pub struct DialogOutput {
     pub should_close: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DialogAnnounceRole {
+    Dialog,
+    AlertDialog,
+}
+
+impl DialogAnnounceRole {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Dialog => "dialog",
+            Self::AlertDialog => "alertdialog",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DialogTitleVisibility {
+    Visible,
+    VisuallyHidden,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DialogAnnounceOptions {
+    pub content_id: String,
+    pub role: DialogAnnounceRole,
+    pub title: Option<String>,
+    pub title_visibility: DialogTitleVisibility,
+    pub description: Option<String>,
+    pub title_required: bool,
+}
+
+impl DialogAnnounceOptions {
+    pub fn new(content_id: impl Into<String>) -> Self {
+        Self {
+            content_id: content_id.into(),
+            role: DialogAnnounceRole::Dialog,
+            title: None,
+            title_visibility: DialogTitleVisibility::Visible,
+            description: None,
+            title_required: true,
+        }
+    }
+
+    pub fn role(mut self, role: DialogAnnounceRole) -> Self {
+        self.role = role;
+        self
+    }
+
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    pub fn visually_hidden_title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self.title_visibility = DialogTitleVisibility::VisuallyHidden;
+        self
+    }
+
+    pub fn description(mut self, description: impl Into<String>) -> Self {
+        self.description = Some(description.into());
+        self
+    }
+
+    pub fn title_required(mut self, title_required: bool) -> Self {
+        self.title_required = title_required;
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DialogAnnounceOutput {
+    pub role: DialogAnnounceRole,
+    pub role_name: &'static str,
+    pub content_id: String,
+    pub title_id: Option<String>,
+    pub description_id: Option<String>,
+    pub labelled_by: Option<String>,
+    pub described_by: Option<String>,
+    pub accessible_name: Option<String>,
+    pub accessible_description: Option<String>,
+    pub title_required: bool,
+    pub title_present: bool,
+    pub title_visible: bool,
+    pub title_visually_hidden: bool,
+    pub description_present: bool,
+    pub missing_required_title: bool,
+}
+
 pub fn primitive_dialog_root_output(options: DialogRootOptions) -> DialogRootOutput {
     DialogRootOutput {
         open: options.open,
@@ -324,6 +413,34 @@ pub fn primitive_dialog_root_output(options: DialogRootOptions) -> DialogRootOut
         } else {
             DialogDataState::Closed
         },
+    }
+}
+
+pub fn primitive_dialog_announce_output(options: DialogAnnounceOptions) -> DialogAnnounceOutput {
+    let title_present = options.title.is_some();
+    let description_present = options.description.is_some();
+    let title_id = title_present.then(|| format!("{}-title", options.content_id));
+    let description_id = description_present.then(|| format!("{}-description", options.content_id));
+    let title_visible = title_present && options.title_visibility == DialogTitleVisibility::Visible;
+    let title_visually_hidden =
+        title_present && options.title_visibility == DialogTitleVisibility::VisuallyHidden;
+
+    DialogAnnounceOutput {
+        role: options.role,
+        role_name: options.role.as_str(),
+        content_id: options.content_id,
+        title_id: title_id.clone(),
+        description_id: description_id.clone(),
+        labelled_by: title_id,
+        described_by: description_id,
+        accessible_name: options.title,
+        accessible_description: options.description,
+        title_required: options.title_required,
+        title_present,
+        title_visible,
+        title_visually_hidden,
+        description_present,
+        missing_required_title: options.title_required && !title_present,
     }
 }
 
@@ -526,6 +643,64 @@ mod tests {
         assert!(!output.modal);
         assert_eq!(output.data_state, DialogDataState::Open);
         assert_eq!(output.data_state.as_str(), "open");
+    }
+
+    #[test]
+    fn dialog_announce_output_requires_title_and_allows_description_omission() {
+        let missing = primitive_dialog_announce_output(DialogAnnounceOptions::new("settings"));
+        let described = primitive_dialog_announce_output(
+            DialogAnnounceOptions::new("settings")
+                .title("Settings")
+                .description("Update workspace preferences"),
+        );
+        let title_only = primitive_dialog_announce_output(
+            DialogAnnounceOptions::new("confirm").title("Confirm changes"),
+        );
+
+        assert_eq!(missing.role, DialogAnnounceRole::Dialog);
+        assert_eq!(missing.role_name, "dialog");
+        assert!(missing.title_required);
+        assert!(!missing.title_present);
+        assert!(missing.missing_required_title);
+        assert_eq!(missing.labelled_by, None);
+        assert_eq!(missing.described_by, None);
+
+        assert_eq!(described.title_id.as_deref(), Some("settings-title"));
+        assert_eq!(
+            described.description_id.as_deref(),
+            Some("settings-description")
+        );
+        assert_eq!(described.labelled_by.as_deref(), Some("settings-title"));
+        assert_eq!(
+            described.described_by.as_deref(),
+            Some("settings-description")
+        );
+        assert_eq!(described.accessible_name.as_deref(), Some("Settings"));
+        assert_eq!(
+            described.accessible_description.as_deref(),
+            Some("Update workspace preferences")
+        );
+        assert!(described.title_visible);
+        assert!(!described.title_visually_hidden);
+        assert!(!described.missing_required_title);
+
+        assert_eq!(title_only.described_by, None);
+        assert!(!title_only.description_present);
+        assert!(!title_only.missing_required_title);
+    }
+
+    #[test]
+    fn dialog_announce_output_supports_visually_hidden_title() {
+        let output = primitive_dialog_announce_output(
+            DialogAnnounceOptions::new("filter").visually_hidden_title("Filter rows"),
+        );
+
+        assert_eq!(output.labelled_by.as_deref(), Some("filter-title"));
+        assert_eq!(output.accessible_name.as_deref(), Some("Filter rows"));
+        assert!(output.title_present);
+        assert!(!output.title_visible);
+        assert!(output.title_visually_hidden);
+        assert!(!output.missing_required_title);
     }
 
     #[test]

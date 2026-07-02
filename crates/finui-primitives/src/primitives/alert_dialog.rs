@@ -5,9 +5,10 @@ use eframe::egui::{self, Align2, Color32, FontId, Response, Sense, Stroke, Vec2}
 use crate::{CommandDialogOptions, show_command_dialog};
 
 use super::{
-    DialogContentOptions, DialogDataState, DialogOverlayOptions, DialogPartStateOutput,
-    DialogPortalOptions, DialogPortalOutput, DialogRootOptions, DialogRootOutput,
-    DialogTriggerOptions, PrimitiveTheme, dialog_apply_open, primitive_dialog_content_options,
+    DialogAnnounceOptions, DialogAnnounceOutput, DialogAnnounceRole, DialogContentOptions,
+    DialogDataState, DialogOverlayOptions, DialogPartStateOutput, DialogPortalOptions,
+    DialogPortalOutput, DialogRootOptions, DialogRootOutput, DialogTriggerOptions, PrimitiveTheme,
+    dialog_apply_open, primitive_dialog_announce_output, primitive_dialog_content_options,
     primitive_dialog_description, primitive_dialog_overlay_options, primitive_dialog_part_state,
     primitive_dialog_portal_output, primitive_dialog_root_output, primitive_dialog_title,
     primitive_dialog_trigger,
@@ -84,6 +85,8 @@ pub type AlertDialogRootOutput = DialogRootOutput;
 pub type AlertDialogPortalOptions = DialogPortalOptions;
 pub type AlertDialogPortalOutput = DialogPortalOutput;
 pub type AlertDialogPartStateOutput = DialogPartStateOutput;
+pub type AlertDialogAnnounceOptions = DialogAnnounceOptions;
+pub type AlertDialogAnnounceOutput = DialogAnnounceOutput;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlertDialogActionKind {
@@ -216,6 +219,12 @@ pub fn primitive_alert_dialog_title(ui: &mut egui::Ui, text: &str, theme: Primit
 
 pub fn primitive_alert_dialog_description(ui: &mut egui::Ui, text: &str, theme: PrimitiveTheme) {
     primitive_dialog_description(ui, text, theme);
+}
+
+pub fn primitive_alert_dialog_announce_output(
+    options: AlertDialogAnnounceOptions,
+) -> AlertDialogAnnounceOutput {
+    primitive_dialog_announce_output(options.role(DialogAnnounceRole::AlertDialog))
 }
 
 pub fn primitive_alert_dialog_action_output(
@@ -362,6 +371,24 @@ mod tests {
             AlertDialogActionFocusPriority::Initial
         );
         assert!(!cancel_with_destructive_flag.destructive);
+    }
+
+    #[test]
+    fn alert_dialog_announce_output_forces_alertdialog_role() {
+        let output = primitive_alert_dialog_announce_output(
+            AlertDialogAnnounceOptions::new("delete-position")
+                .title("Delete position")
+                .description("This cannot be undone"),
+        );
+
+        assert_eq!(output.role, DialogAnnounceRole::AlertDialog);
+        assert_eq!(output.role_name, "alertdialog");
+        assert_eq!(output.labelled_by.as_deref(), Some("delete-position-title"));
+        assert_eq!(
+            output.described_by.as_deref(),
+            Some("delete-position-description")
+        );
+        assert!(!output.missing_required_title);
     }
 
     #[test]
