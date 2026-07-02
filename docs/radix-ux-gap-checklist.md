@@ -159,7 +159,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 - [x] Tooltip은 Provider shared delay, accessible trigger labeling, hoverable content 정책을 완성한다.
 - [x] Select는 Value/Icon/Viewport/ScrollButton/ItemIndicator/Group contract를 확장한다.
 - [x] ScrollArea는 native scrolling 보존, thumb drag, scrollbar visibility delay, horizontal/vertical corner behavior를 검증한다.
-- [ ] Form Preview 계열은 validation matching, server invalid, async validation demo를 갖춘다.
+- [x] Form Preview 계열은 validation matching, server invalid, async validation demo를 갖춘다.
 - [ ] OTP/PasswordToggle은 preview primitive가 아닌 안정 API로 둘지, experimental로 분리할지 결정한다.
 
 ## P2: 데모와 시각 검증

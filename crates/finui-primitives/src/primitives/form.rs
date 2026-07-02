@@ -399,6 +399,87 @@ pub struct PrimitiveFormMessageOutput {
     pub visible: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveFormAsyncValidationState {
+    Idle,
+    Pending,
+    Valid,
+    Invalid,
+}
+
+impl PrimitiveFormAsyncValidationState {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Idle => "idle",
+            Self::Pending => "pending",
+            Self::Valid => "valid",
+            Self::Invalid => "invalid",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveFormValidationPreviewOptions {
+    pub field_id: String,
+    pub invalid: bool,
+    pub server_invalid: bool,
+    pub client_match: Option<PrimitiveFormMessageMatch>,
+    pub server_match: PrimitiveFormMessageMatch,
+    pub async_state: PrimitiveFormAsyncValidationState,
+    pub async_match: PrimitiveFormMessageMatch,
+}
+
+impl PrimitiveFormValidationPreviewOptions {
+    pub fn new(field_id: impl Into<String>) -> Self {
+        Self {
+            field_id: field_id.into(),
+            invalid: false,
+            server_invalid: false,
+            client_match: None,
+            server_match: PrimitiveFormMessageMatch::ServerInvalid,
+            async_state: PrimitiveFormAsyncValidationState::Idle,
+            async_match: PrimitiveFormMessageMatch::CustomError,
+        }
+    }
+
+    pub fn invalid(mut self, invalid: bool) -> Self {
+        self.invalid = invalid;
+        self
+    }
+
+    pub fn server_invalid(mut self, server_invalid: bool) -> Self {
+        self.server_invalid = server_invalid;
+        self
+    }
+
+    pub fn client_match(mut self, client_match: PrimitiveFormMessageMatch) -> Self {
+        self.client_match = Some(client_match);
+        self
+    }
+
+    pub fn async_state(mut self, async_state: PrimitiveFormAsyncValidationState) -> Self {
+        self.async_state = async_state;
+        self
+    }
+
+    pub fn async_match(mut self, async_match: PrimitiveFormMessageMatch) -> Self {
+        self.async_match = async_match;
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveFormValidationPreviewOutput {
+    pub field_id: String,
+    pub invalid: bool,
+    pub server_invalid: bool,
+    pub async_state: PrimitiveFormAsyncValidationState,
+    pub async_state_name: &'static str,
+    pub pending: bool,
+    pub visible_matches: Vec<PrimitiveFormMessageMatch>,
+    pub data_invalid: bool,
+}
+
 pub fn primitive_form_message_output(
     options: PrimitiveFormMessageOptions,
 ) -> PrimitiveFormMessageOutput {
@@ -407,6 +488,39 @@ pub fn primitive_form_message_output(
         match_kind: options.match_kind,
         force_match: options.force_match,
         visible: options.force_match || options.field_invalid,
+    }
+}
+
+pub fn primitive_form_validation_preview_output(
+    options: PrimitiveFormValidationPreviewOptions,
+) -> PrimitiveFormValidationPreviewOutput {
+    let pending = options.async_state == PrimitiveFormAsyncValidationState::Pending;
+    let async_invalid = options.async_state == PrimitiveFormAsyncValidationState::Invalid;
+    let invalid = options.invalid || options.server_invalid || async_invalid;
+    let mut visible_matches = Vec::new();
+    if options.invalid {
+        visible_matches.push(
+            options
+                .client_match
+                .unwrap_or(PrimitiveFormMessageMatch::CustomError),
+        );
+    }
+    if options.server_invalid {
+        visible_matches.push(options.server_match);
+    }
+    if async_invalid {
+        visible_matches.push(options.async_match);
+    }
+
+    PrimitiveFormValidationPreviewOutput {
+        field_id: options.field_id,
+        invalid,
+        server_invalid: options.server_invalid,
+        async_state: options.async_state,
+        async_state_name: options.async_state.as_str(),
+        pending,
+        visible_matches,
+        data_invalid: invalid,
     }
 }
 
@@ -3364,6 +3478,48 @@ mod tests {
             forced.match_kind.map(PrimitiveFormMessageMatch::as_str),
             Some("serverInvalid")
         );
+    }
+
+    #[test]
+    fn form_validation_preview_output_matches_client_server_and_async_states() {
+        let client = primitive_form_validation_preview_output(
+            PrimitiveFormValidationPreviewOptions::new("email")
+                .invalid(true)
+                .client_match(PrimitiveFormMessageMatch::TypeMismatch),
+        );
+        let server = primitive_form_validation_preview_output(
+            PrimitiveFormValidationPreviewOptions::new("email").server_invalid(true),
+        );
+        let pending = primitive_form_validation_preview_output(
+            PrimitiveFormValidationPreviewOptions::new("email")
+                .async_state(PrimitiveFormAsyncValidationState::Pending),
+        );
+        let async_invalid = primitive_form_validation_preview_output(
+            PrimitiveFormValidationPreviewOptions::new("email")
+                .async_state(PrimitiveFormAsyncValidationState::Invalid)
+                .async_match(PrimitiveFormMessageMatch::PatternMismatch),
+        );
+
+        assert!(client.invalid);
+        assert_eq!(
+            client.visible_matches,
+            vec![PrimitiveFormMessageMatch::TypeMismatch]
+        );
+        assert!(server.server_invalid);
+        assert_eq!(
+            server.visible_matches,
+            vec![PrimitiveFormMessageMatch::ServerInvalid]
+        );
+        assert!(pending.pending);
+        assert!(!pending.invalid);
+        assert_eq!(pending.async_state_name, "pending");
+        assert!(async_invalid.invalid);
+        assert_eq!(async_invalid.async_state_name, "invalid");
+        assert_eq!(
+            async_invalid.visible_matches,
+            vec![PrimitiveFormMessageMatch::PatternMismatch]
+        );
+        assert!(async_invalid.data_invalid);
     }
 
     #[test]
