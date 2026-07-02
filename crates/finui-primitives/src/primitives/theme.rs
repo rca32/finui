@@ -54,6 +54,27 @@ pub struct PrimitiveContentTextColors {
     pub detail: Color32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PrimitiveMountedContentPolicy {
+    pub mounted: bool,
+    pub visually_active: bool,
+    pub interactive: bool,
+    pub text_colors: PrimitiveContentTextColors,
+}
+
+pub fn primitive_mounted_content_policy(
+    open: bool,
+    force_mount: bool,
+    theme: PrimitiveTheme,
+) -> PrimitiveMountedContentPolicy {
+    PrimitiveMountedContentPolicy {
+        mounted: open || force_mount,
+        visually_active: open,
+        interactive: open,
+        text_colors: primitive_mounted_content_text_colors(open, theme),
+    }
+}
+
 pub fn primitive_mounted_content_text_colors(
     open: bool,
     theme: PrimitiveTheme,
@@ -167,6 +188,26 @@ mod tests {
                 detail: theme.disabled_text,
             }
         );
+    }
+
+    #[test]
+    fn mounted_content_policy_keeps_closed_force_mounted_content_noninteractive() {
+        let theme = PrimitiveTheme::light();
+        let open = primitive_mounted_content_policy(true, false, theme);
+        let closed = primitive_mounted_content_policy(false, true, theme);
+        let unmounted = primitive_mounted_content_policy(false, false, theme);
+
+        assert!(open.mounted);
+        assert!(open.visually_active);
+        assert!(open.interactive);
+        assert_eq!(open.text_colors.title, theme.text);
+        assert!(closed.mounted);
+        assert!(!closed.visually_active);
+        assert!(!closed.interactive);
+        assert_eq!(closed.text_colors.title, theme.muted_text);
+        assert_eq!(closed.text_colors.detail, theme.disabled_text);
+        assert!(!unmounted.mounted);
+        assert!(!unmounted.interactive);
     }
 
     #[test]

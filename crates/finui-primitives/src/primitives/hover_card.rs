@@ -6,7 +6,7 @@ use super::{
     DropdownMenuAlign, DropdownMenuDataState, DropdownMenuSide, PopoverArrowSide,
     PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme,
     dropdown_menu_align_from_layer_align, dropdown_menu_placement_parts,
-    dropdown_menu_side_from_layer_side, popover_arrow_side, primitive_mounted_content_text_colors,
+    dropdown_menu_side_from_layer_side, popover_arrow_side, primitive_mounted_content_policy,
     primitive_popover_arrow, show_primitive_layer,
 };
 use crate::{DismissPolicy, LayerPlacement};
@@ -378,10 +378,12 @@ pub fn hover_card_content_text_colors(
     output: &HoverCardContentOutput,
     theme: PrimitiveTheme,
 ) -> (egui::Color32, egui::Color32) {
-    let colors = primitive_mounted_content_text_colors(
+    let colors = primitive_mounted_content_policy(
         output.data_state != HoverCardDataState::Closed,
+        output.force_mount,
         theme,
-    );
+    )
+    .text_colors;
     (colors.title, colors.detail)
 }
 

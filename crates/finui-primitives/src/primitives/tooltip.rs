@@ -6,7 +6,7 @@ use super::{
     DropdownMenuAlign, DropdownMenuSide, PopoverArrowSide, PrimitiveLayerOptions,
     PrimitiveLayerOutput, PrimitiveTheme, dropdown_menu_align_from_layer_align,
     dropdown_menu_placement_parts, dropdown_menu_side_from_layer_side, popover_arrow_side,
-    primitive_mounted_content_text_colors, primitive_popover_arrow, show_primitive_layer,
+    primitive_mounted_content_policy, primitive_popover_arrow, show_primitive_layer,
 };
 use crate::{DismissPolicy, LayerPlacement};
 
@@ -431,8 +431,13 @@ pub fn primitive_tooltip_layer_options(options: &TooltipOptions) -> PrimitiveLay
 }
 
 pub fn tooltip_content_text_color(output: &TooltipContentOutput, theme: PrimitiveTheme) -> Color32 {
-    primitive_mounted_content_text_colors(output.data_state != TooltipDataState::Closed, theme)
-        .title
+    primitive_mounted_content_policy(
+        output.data_state != TooltipDataState::Closed,
+        output.force_mount,
+        theme,
+    )
+    .text_colors
+    .title
 }
 
 pub fn primitive_tooltip_content(ui: &mut egui::Ui, text: &str, theme: PrimitiveTheme) {

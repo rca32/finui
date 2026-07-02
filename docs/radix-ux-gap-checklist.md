@@ -143,7 +143,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - CSS 변수는 없지만 egui에서도 animation origin, open/close progress, collision side를 output으로 줄 수 있다.
   - 완료 기준: Popover/Dropdown/Tooltip/HoverCard가 open/close progress와 transform origin equivalent를 노출한다.
 
-- [ ] Force-mounted closed content의 시각/상호작용 정책을 통일한다.
+- [x] Force-mounted closed content의 시각/상호작용 정책을 통일한다.
   - 일부 text color muted 처리만 있고 hit-test/focus exclusion 계약은 약하다.
   - 완료 기준: force-mounted closed layer는 보이지 않고 focus/pointer 대상이 되지 않는다.
 

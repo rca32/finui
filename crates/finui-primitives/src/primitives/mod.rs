@@ -266,8 +266,8 @@ pub use status::{
     primitive_separator_size, progress_fill_rect,
 };
 pub use theme::{
-    PrimitiveContentTextColors, PrimitiveTheme, ThemeMode, primitive_mounted_content_text_colors,
-    radix_colors,
+    PrimitiveContentTextColors, PrimitiveMountedContentPolicy, PrimitiveTheme, ThemeMode,
+    primitive_mounted_content_policy, primitive_mounted_content_text_colors, radix_colors,
 };
 pub use toast::{
     ToastAction, ToastAnnounceOptions, ToastAnnounceOutput, ToastKind, ToastMessage, ToastOutput,

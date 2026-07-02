@@ -6,8 +6,7 @@ use super::{
     DropdownMenuAlign, DropdownMenuDataState, DropdownMenuSide, PrimitiveLayerOptions,
     PrimitiveLayerOutput, PrimitiveTheme, dropdown_menu_align_from_layer_align,
     dropdown_menu_placement_parts, dropdown_menu_side_from_layer_side,
-    primitive_dismissable_layer_options, primitive_mounted_content_text_colors,
-    show_primitive_layer,
+    primitive_dismissable_layer_options, primitive_mounted_content_policy, show_primitive_layer,
 };
 use crate::{DismissPolicy, LayerPlacement};
 
@@ -461,8 +460,12 @@ pub fn popover_content_text_colors(
     output: &PopoverContentOutput,
     theme: PrimitiveTheme,
 ) -> (egui::Color32, egui::Color32) {
-    let colors =
-        primitive_mounted_content_text_colors(output.data_state != PopoverDataState::Closed, theme);
+    let colors = primitive_mounted_content_policy(
+        output.data_state != PopoverDataState::Closed,
+        output.force_mount,
+        theme,
+    )
+    .text_colors;
     (colors.title, colors.detail)
 }
 
