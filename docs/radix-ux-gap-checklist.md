@@ -226,7 +226,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 
 ## P3: 테스트/릴리스 운영
 
-- [ ] 전체 workspace 테스트가 시간 제한 안에 안정적으로 끝나도록 분리한다.
+- [x] 전체 workspace 테스트가 시간 제한 안에 안정적으로 끝나도록 분리한다.
   - 현재 패키지별 lib 테스트는 빠르게 통과하지만 `cargo test --workspace`는 120초 제한에서 시간 초과했다.
   - 완료 기준: CI와 로컬 quick/full test command가 문서화되고, quick path는 2분 안에 안정적으로 끝난다.
 
@@ -260,5 +260,5 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 - [x] Popover/Menu/Tooltip 계열의 포지셔닝이 충돌 후 side/align/output과 일치한다.
 - [ ] 대표 primitive 상태가 visual snapshot으로 검증된다.
 - [ ] `primitives_lab`에서 개발자가 모든 primitive의 주요 상태를 직접 조작할 수 있다.
-- [ ] quick CI command와 full CI command가 분리되어 있고, quick path는 일상 개발에 충분히 빠르다.
+- [x] quick CI command와 full CI command가 분리되어 있고, quick path는 일상 개발에 충분히 빠르다.
 - [x] downstream 앱이 쓸 stable API와 preview/internal API가 문서상 구분된다.

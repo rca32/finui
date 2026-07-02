@@ -29,12 +29,18 @@ docs/
 
 ## Quick Check
 
+Use the quick path during ordinary development. It keeps format, compile, feature
+boundary, and crate-level lib tests fast.
+
 ```powershell
-cargo fmt --all --check
-cargo check --workspace --all-targets
-cargo clippy --workspace --all-targets
-cargo test --workspace
-cargo check -p finui-grid --no-default-features
+powershell -ExecutionPolicy Bypass -File scripts/check-quick.ps1
+```
+
+Use the full path before publishing or opening a broad pull request. It includes
+the quick gates plus workspace clippy and workspace tests.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/check-full.ps1
 ```
 
 ## Examples

@@ -5,8 +5,8 @@ on:
   pull_request:
 
 jobs:
-  test:
-    name: Rust
+  quick:
+    name: Rust quick
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -15,13 +15,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Format
-        run: cargo fmt --all --check
-      - name: Check
-        run: cargo check --workspace --all-targets
-      - name: Check no default grid fixtures
-        run: cargo check -p finui-grid --no-default-features
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets
-      - name: Test
-        run: cargo test --workspace
+      - name: Quick check
+        shell: pwsh
+        run: ./scripts/check-quick.ps1
+
+  full:
+    name: Rust full
+    runs-on: ${{ matrix.os }}
+    needs: quick
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Full check
+        shell: pwsh
+        run: ./scripts/check-full.ps1
