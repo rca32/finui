@@ -230,7 +230,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 패키지별 lib 테스트는 빠르게 통과하지만 `cargo test --workspace`는 120초 제한에서 시간 초과했다.
   - 완료 기준: CI와 로컬 quick/full test command가 문서화되고, quick path는 2분 안에 안정적으로 끝난다.
 
-- [ ] `cargo fmt --all --check`, `cargo clippy --workspace --all-targets`, `cargo check --workspace --all-targets`, no-default-features check를 CI gate로 명확히 묶는다.
+- [x] `cargo fmt --all --check`, `cargo clippy --workspace --all-targets`, `cargo check --workspace --all-targets`, no-default-features check를 CI gate로 명확히 묶는다.
 
 - [ ] primitive별 acceptance test 이름을 문서 checklist에 연결한다.
   - 체크박스를 완료 처리할 때 테스트 이름과 명령을 함께 남긴다.
