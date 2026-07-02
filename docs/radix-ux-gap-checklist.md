@@ -130,12 +130,12 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 
 ## P1: 포지셔닝, 충돌, 애니메이션
 
-- [ ] Layer placement를 collision-aware contract로 확장한다.
+- [x] Layer placement를 collision-aware contract로 확장한다.
   - 현재 screen clamp와 일부 flip은 있다.
   - Radix 수준은 side, align, sideOffset, alignOffset, collisionPadding, sticky, avoidCollisions, arrow padding 같은 제어가 필요하다.
   - 완료 기준: viewport edge, scroll container, nested layer, arrow alignment 테스트가 있다.
 
-- [ ] side/align output이 실제 충돌 후 결과를 반영하도록 만든다.
+- [x] side/align output이 실제 충돌 후 결과를 반영하도록 만든다.
   - 현재 side/align은 요청 placement에서 계산되는 경우가 많고, 충돌 후 flip 결과와 항상 일치한다고 보기 어렵다.
   - 완료 기준: 아래에서 위로 flip된 경우 `data-side=top`에 해당하는 output이 나온다.
 
@@ -257,7 +257,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 - [ ] 주요 primitive가 Root/Trigger/Content/Portal/Item/Indicator 등 part anatomy를 문서와 코드에서 일관되게 제공한다.
 - [ ] pointer, keyboard, focus, dismiss, controlled/uncontrolled state가 실제 runtime test로 검증된다.
 - [ ] 스크린리더 의미에 해당하는 Finui accessibility snapshot이 primitive별로 존재한다.
-- [ ] Popover/Menu/Tooltip 계열의 포지셔닝이 충돌 후 side/align/output과 일치한다.
+- [x] Popover/Menu/Tooltip 계열의 포지셔닝이 충돌 후 side/align/output과 일치한다.
 - [ ] 대표 primitive 상태가 visual snapshot으로 검증된다.
 - [ ] `primitives_lab`에서 개발자가 모든 primitive의 주요 상태를 직접 조작할 수 있다.
 - [ ] quick CI command와 full CI command가 분리되어 있고, quick path는 일상 개발에 충분히 빠르다.

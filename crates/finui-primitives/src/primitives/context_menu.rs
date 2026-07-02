@@ -5,7 +5,8 @@ use eframe::egui::{self, Align2, FontId, Pos2, Rect, Response, Sense, Stroke, Ve
 use super::{
     DropdownMenuAlign, DropdownMenuDataState, DropdownMenuDirection, DropdownMenuOutput,
     DropdownMenuSide, MenuItem, MenuItemOptions, PrimitiveLayerOptions, PrimitiveTheme,
-    menu_typeahead_match, primitive_menu_checkbox_item, primitive_menu_item, primitive_menu_label,
+    dropdown_menu_align_from_layer_align, dropdown_menu_side_from_layer_side, menu_typeahead_match,
+    primitive_menu_checkbox_item, primitive_menu_item, primitive_menu_label,
     primitive_menu_radio_item, primitive_menu_separator, radix_colors, show_primitive_layer,
 };
 use crate::{DismissPolicy, LayerPlacement};
@@ -334,6 +335,8 @@ pub fn show_context_menu<T>(
         action: output.action,
         should_close: output.should_close,
         content_rect: output.content_rect,
+        side: dropdown_menu_side_from_layer_side(output.resolved_placement.side),
+        align: dropdown_menu_align_from_layer_align(output.resolved_placement.align),
     }
 }
 

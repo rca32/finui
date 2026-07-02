@@ -4,7 +4,8 @@ use eframe::egui::{self, Align2, Color32, FontId, Rect, Response, Sense, Stroke,
 
 use super::{
     DropdownMenuAlign, DropdownMenuSide, PopoverArrowSide, PrimitiveLayerOptions,
-    PrimitiveLayerOutput, PrimitiveTheme, dropdown_menu_placement_parts, popover_arrow_side,
+    PrimitiveLayerOutput, PrimitiveTheme, dropdown_menu_align_from_layer_align,
+    dropdown_menu_placement_parts, dropdown_menu_side_from_layer_side, popover_arrow_side,
     primitive_mounted_content_text_colors, primitive_popover_arrow, show_primitive_layer,
 };
 use crate::{DismissPolicy, LayerPlacement};
@@ -352,6 +353,8 @@ pub struct TooltipContentOutput {
 pub struct TooltipOutput {
     pub content_rect: Rect,
     pub arrow_side: PopoverArrowSide,
+    pub side: TooltipSide,
+    pub align: TooltipAlign,
 }
 
 pub fn primitive_tooltip_trigger(
@@ -486,6 +489,8 @@ pub fn show_tooltip(
     Some(TooltipOutput {
         content_rect: output.content_rect,
         arrow_side: popover_arrow_side(trigger_rect, output.content_rect),
+        side: dropdown_menu_side_from_layer_side(output.resolved_placement.side),
+        align: dropdown_menu_align_from_layer_align(output.resolved_placement.align),
     })
 }
 
@@ -634,6 +639,35 @@ mod tests {
         assert_eq!(output.align.as_str(), "center");
         assert_eq!(output.data_state, TooltipDataState::Closed);
         assert_eq!(output.data_state.as_str(), "closed");
+    }
+
+    #[test]
+    fn tooltip_output_reports_collision_resolved_side_align() {
+        let ctx = egui::Context::default();
+        let _ = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(
+                    egui::pos2(0.0, 0.0),
+                    egui::vec2(320.0, 240.0),
+                )),
+                ..Default::default()
+            },
+            |_| {},
+        );
+        let options = TooltipOptions::new(
+            "tooltip_collision_output_test",
+            Rect::from_min_size(egui::pos2(24.0, 204.0), egui::vec2(42.0, 28.0)),
+        )
+        .placement(LayerPlacement::BelowStart {
+            offset: egui::vec2(0.0, 6.0),
+        })
+        .width(120.0);
+
+        let output = show_tooltip(&ctx, true, options, "Collision tooltip")
+            .expect("open tooltip should render");
+
+        assert_eq!(output.side, TooltipSide::Top);
+        assert_eq!(output.align, TooltipAlign::Start);
     }
 
     #[test]

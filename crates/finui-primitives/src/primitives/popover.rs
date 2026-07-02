@@ -4,7 +4,8 @@ use eframe::egui::{self, Align2, FontId, Pos2, Rect, Response, Sense, Shape, Str
 
 use super::{
     DropdownMenuAlign, DropdownMenuDataState, DropdownMenuSide, PrimitiveLayerOptions,
-    PrimitiveLayerOutput, PrimitiveTheme, dropdown_menu_placement_parts,
+    PrimitiveLayerOutput, PrimitiveTheme, dropdown_menu_align_from_layer_align,
+    dropdown_menu_placement_parts, dropdown_menu_side_from_layer_side,
     primitive_dismissable_layer_options, primitive_mounted_content_text_colors,
     show_primitive_layer,
 };
@@ -330,6 +331,8 @@ pub struct PopoverOutput<T> {
     pub action: Option<T>,
     pub should_close: bool,
     pub content_rect: Rect,
+    pub side: PopoverSide,
+    pub align: PopoverAlign,
 }
 
 pub fn primitive_popover_trigger(
@@ -547,6 +550,8 @@ pub fn show_popover<T>(
         action: output.action,
         should_close: output.should_close,
         content_rect: output.content_rect,
+        side: dropdown_menu_side_from_layer_side(output.resolved_placement.side),
+        align: dropdown_menu_align_from_layer_align(output.resolved_placement.align),
     }
 }
 
@@ -768,6 +773,37 @@ mod tests {
         assert_eq!(output.align.as_str(), "center");
         assert_eq!(output.data_state, PopoverDataState::Closed);
         assert_eq!(output.data_state.as_str(), "closed");
+    }
+
+    #[test]
+    fn popover_output_reports_collision_resolved_side_align() {
+        let ctx = egui::Context::default();
+        let _ = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(
+                    egui::pos2(0.0, 0.0),
+                    egui::vec2(320.0, 240.0),
+                )),
+                ..Default::default()
+            },
+            |_| {},
+        );
+        let options = PopoverOptions::anchored(
+            "popover_collision_output_test",
+            Rect::from_min_size(egui::pos2(24.0, 204.0), egui::vec2(42.0, 28.0)),
+            120.0,
+            LayerPlacement::BelowStart {
+                offset: egui::vec2(0.0, 6.0),
+            },
+        );
+
+        let output = show_popover(&ctx, options, |ui| {
+            primitive_popover_content(ui, "Title", "Description", PrimitiveTheme::default());
+            None::<()>
+        });
+
+        assert_eq!(output.side, PopoverSide::Top);
+        assert_eq!(output.align, PopoverAlign::Start);
     }
 
     #[test]

@@ -5,7 +5,7 @@ use eframe::egui::{self, Rect};
 use super::theme::PrimitiveTheme;
 use crate::{
     AnchoredLayerOptions, DismissLayerEvent, DismissLayerFilter, DismissPolicy, LayerOutput,
-    LayerPlacement, show_anchored_layer,
+    LayerPlacement, LayerResolvedPlacement, show_anchored_layer,
 };
 
 pub struct PrimitiveLayerOptions {
@@ -85,6 +85,7 @@ pub struct PrimitiveLayerOutput<T> {
     pub should_close: bool,
     pub dismiss_event: Option<DismissLayerEvent>,
     pub content_rect: Rect,
+    pub resolved_placement: LayerResolvedPlacement,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -136,6 +137,7 @@ pub fn show_primitive_layer<T>(
         should_close: output.should_close,
         dismiss_event: output.dismiss_event,
         content_rect: portal.content_rect,
+        resolved_placement: output.resolved_placement,
     }
 }
 

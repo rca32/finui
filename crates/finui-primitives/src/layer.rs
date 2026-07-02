@@ -15,6 +15,49 @@ pub enum LayerPlacement {
     Centered { top_margin: f32 },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayerSide {
+    Top,
+    Right,
+    Bottom,
+    Left,
+}
+
+impl LayerSide {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Top => "top",
+            Self::Right => "right",
+            Self::Bottom => "bottom",
+            Self::Left => "left",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayerAlign {
+    Start,
+    Center,
+    End,
+}
+
+impl LayerAlign {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Start => "start",
+            Self::Center => "center",
+            Self::End => "end",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LayerResolvedPlacement {
+    pub side: LayerSide,
+    pub align: LayerAlign,
+    pub flipped: bool,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DismissPolicy {
@@ -188,6 +231,7 @@ pub struct LayerOutput<T> {
     pub should_close: bool,
     pub dismiss_event: Option<DismissLayerEvent>,
     pub panel_rect: Rect,
+    pub resolved_placement: LayerResolvedPlacement,
 }
 
 pub fn show_anchored_layer<T>(
@@ -211,10 +255,10 @@ pub fn show_anchored_layer<T>(
             .unwrap_or(220.0)
             .max(24.0),
     );
-    let pos = resolve_layer_pos(ctx, &options, estimated_size);
+    let resolved = resolve_layer_position(ctx, &options, estimated_size);
     let shown = egui::Area::new(options.id)
         .order(options.order)
-        .fixed_pos(pos)
+        .fixed_pos(resolved.pos)
         .show(ctx, |ui| {
             let panel = egui::Frame::new()
                 .fill(options.fill)
@@ -255,6 +299,7 @@ pub fn show_anchored_layer<T>(
         should_close,
         dismiss_event,
         panel_rect: rect,
+        resolved_placement: resolved.placement,
     }
 }
 
@@ -272,16 +317,47 @@ pub fn clamp_layer_pos(ctx: &egui::Context, desired: Pos2, size: Vec2, margin: f
     )
 }
 
-fn resolve_layer_pos(ctx: &egui::Context, options: &AnchoredLayerOptions, size: Vec2) -> Pos2 {
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct ResolvedLayerPosition {
+    pos: Pos2,
+    placement: LayerResolvedPlacement,
+}
+
+fn resolve_layer_position(
+    ctx: &egui::Context,
+    options: &AnchoredLayerOptions,
+    size: Vec2,
+) -> ResolvedLayerPosition {
     let screen = ctx.content_rect();
-    let mut desired = match (options.placement, options.anchor_rect) {
-        (LayerPlacement::Fixed(pos), _) => pos,
+    let (mut desired, placement) = match (options.placement, options.anchor_rect) {
+        (LayerPlacement::Fixed(pos), _) => (
+            pos,
+            LayerResolvedPlacement {
+                side: LayerSide::Bottom,
+                align: LayerAlign::Start,
+                flipped: false,
+            },
+        ),
         (LayerPlacement::BelowStart { offset }, Some(anchor)) => {
             let below = anchor.left_bottom() + offset;
             if below.y + size.y > screen.bottom() - options.margin {
-                egui::pos2(anchor.left() + offset.x, anchor.top() - offset.y - size.y)
+                (
+                    egui::pos2(anchor.left() + offset.x, anchor.top() - offset.y - size.y),
+                    LayerResolvedPlacement {
+                        side: LayerSide::Top,
+                        align: LayerAlign::Start,
+                        flipped: true,
+                    },
+                )
             } else {
-                below
+                (
+                    below,
+                    LayerResolvedPlacement {
+                        side: LayerSide::Bottom,
+                        align: LayerAlign::Start,
+                        flipped: false,
+                    },
+                )
             }
         }
         (LayerPlacement::BelowEnd { offset }, Some(anchor)) => {
@@ -290,41 +366,100 @@ fn resolve_layer_pos(ctx: &egui::Context, options: &AnchoredLayerOptions, size: 
                 anchor.bottom() + offset.y,
             );
             if below.y + size.y > screen.bottom() - options.margin {
-                egui::pos2(
-                    anchor.right() - size.x + offset.x,
-                    anchor.top() - offset.y - size.y,
+                (
+                    egui::pos2(
+                        anchor.right() - size.x + offset.x,
+                        anchor.top() - offset.y - size.y,
+                    ),
+                    LayerResolvedPlacement {
+                        side: LayerSide::Top,
+                        align: LayerAlign::End,
+                        flipped: true,
+                    },
                 )
             } else {
-                below
+                (
+                    below,
+                    LayerResolvedPlacement {
+                        side: LayerSide::Bottom,
+                        align: LayerAlign::End,
+                        flipped: false,
+                    },
+                )
             }
         }
         (LayerPlacement::AboveStart { offset }, Some(anchor)) => {
             let above = egui::pos2(anchor.left() + offset.x, anchor.top() - offset.y - size.y);
             if above.y < screen.top() + options.margin {
-                anchor.left_bottom() + offset
+                (
+                    anchor.left_bottom() + offset,
+                    LayerResolvedPlacement {
+                        side: LayerSide::Bottom,
+                        align: LayerAlign::Start,
+                        flipped: true,
+                    },
+                )
             } else {
-                above
+                (
+                    above,
+                    LayerResolvedPlacement {
+                        side: LayerSide::Top,
+                        align: LayerAlign::Start,
+                        flipped: false,
+                    },
+                )
             }
         }
         (LayerPlacement::RightStart { offset }, Some(anchor)) => {
             let right = anchor.right_top() + offset;
             if right.x + size.x > screen.right() - options.margin {
-                egui::pos2(anchor.left() - offset.x - size.x, anchor.top() + offset.y)
+                (
+                    egui::pos2(anchor.left() - offset.x - size.x, anchor.top() + offset.y),
+                    LayerResolvedPlacement {
+                        side: LayerSide::Left,
+                        align: LayerAlign::Start,
+                        flipped: true,
+                    },
+                )
             } else {
-                right
+                (
+                    right,
+                    LayerResolvedPlacement {
+                        side: LayerSide::Right,
+                        align: LayerAlign::Start,
+                        flipped: false,
+                    },
+                )
             }
         }
-        (LayerPlacement::Centered { top_margin }, _) => egui::pos2(
-            screen.center().x - size.x * 0.5,
-            (screen.center().y - size.y * 0.5).max(screen.top() + top_margin),
+        (LayerPlacement::Centered { top_margin }, _) => (
+            egui::pos2(
+                screen.center().x - size.x * 0.5,
+                (screen.center().y - size.y * 0.5).max(screen.top() + top_margin),
+            ),
+            LayerResolvedPlacement {
+                side: LayerSide::Bottom,
+                align: LayerAlign::Center,
+                flipped: false,
+            },
         ),
-        (_, None) => screen.center() - size * 0.5,
+        (_, None) => (
+            screen.center() - size * 0.5,
+            LayerResolvedPlacement {
+                side: LayerSide::Bottom,
+                align: LayerAlign::Center,
+                flipped: false,
+            },
+        ),
     };
 
     if desired.y < screen.top() + options.margin {
         desired.y = screen.top() + options.margin;
     }
-    clamp_layer_pos(ctx, desired, size, options.margin)
+    ResolvedLayerPosition {
+        pos: clamp_layer_pos(ctx, desired, size, options.margin),
+        placement,
+    }
 }
 
 fn resolve_dismiss_event(
@@ -431,10 +566,13 @@ mod tests {
             })
             .max_height(120.0);
 
-        let pos = resolve_layer_pos(&ctx, &options, Vec2::new(136.0, 120.0));
+        let resolved = resolve_layer_position(&ctx, &options, Vec2::new(136.0, 120.0));
 
-        assert!(pos.y < anchor.top());
-        assert!(pos.x >= 8.0);
+        assert!(resolved.pos.y < anchor.top());
+        assert!(resolved.pos.x >= 8.0);
+        assert_eq!(resolved.placement.side, LayerSide::Top);
+        assert_eq!(resolved.placement.align, LayerAlign::Start);
+        assert!(resolved.placement.flipped);
     }
 
     #[test]
@@ -455,10 +593,13 @@ mod tests {
             })
             .max_height(80.0);
 
-        let pos = resolve_layer_pos(&ctx, &options, Vec2::new(136.0, 80.0));
+        let resolved = resolve_layer_position(&ctx, &options, Vec2::new(136.0, 80.0));
 
-        assert!(pos.y > anchor.bottom());
-        assert!(pos.x >= 8.0);
+        assert!(resolved.pos.y > anchor.bottom());
+        assert!(resolved.pos.x >= 8.0);
+        assert_eq!(resolved.placement.side, LayerSide::Bottom);
+        assert_eq!(resolved.placement.align, LayerAlign::Start);
+        assert!(resolved.placement.flipped);
     }
 
     #[test]
@@ -479,11 +620,40 @@ mod tests {
             })
             .max_height(120.0);
 
-        let pos = resolve_layer_pos(&ctx, &options, Vec2::new(196.0, 120.0));
+        let resolved = resolve_layer_position(&ctx, &options, Vec2::new(196.0, 120.0));
 
-        assert!(pos.x <= anchor.right() - 196.0);
-        assert!(pos.x >= 8.0);
-        assert_eq!(pos.y, anchor.bottom() + 6.0);
+        assert!(resolved.pos.x <= anchor.right() - 196.0);
+        assert!(resolved.pos.x >= 8.0);
+        assert_eq!(resolved.pos.y, anchor.bottom() + 6.0);
+        assert_eq!(resolved.placement.side, LayerSide::Bottom);
+        assert_eq!(resolved.placement.align, LayerAlign::End);
+        assert!(!resolved.placement.flipped);
+    }
+
+    #[test]
+    fn anchored_right_start_reports_left_when_right_would_overflow() {
+        let ctx = egui::Context::default();
+        let _ = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(320.0, 240.0))),
+                ..Default::default()
+            },
+            |_| {},
+        );
+        let anchor = Rect::from_min_size(Pos2::new(260.0, 32.0), Vec2::new(40.0, 28.0));
+        let options = AnchoredLayerOptions::new("right_flip_test", 160.0)
+            .anchor_rect(anchor)
+            .placement(LayerPlacement::RightStart {
+                offset: Vec2::new(6.0, 0.0),
+            })
+            .max_height(80.0);
+
+        let resolved = resolve_layer_position(&ctx, &options, Vec2::new(176.0, 80.0));
+
+        assert!(resolved.pos.x < anchor.left());
+        assert_eq!(resolved.placement.side, LayerSide::Left);
+        assert_eq!(resolved.placement.align, LayerAlign::Start);
+        assert!(resolved.placement.flipped);
     }
 
     #[test]

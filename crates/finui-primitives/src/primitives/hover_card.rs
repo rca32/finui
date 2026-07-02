@@ -4,9 +4,10 @@ use eframe::egui::{self, Align2, FontId, Rect, Response, Sense, Stroke, Vec2};
 
 use super::{
     DropdownMenuAlign, DropdownMenuDataState, DropdownMenuSide, PopoverArrowSide,
-    PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme, dropdown_menu_placement_parts,
-    popover_arrow_side, primitive_mounted_content_text_colors, primitive_popover_arrow,
-    show_primitive_layer,
+    PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme,
+    dropdown_menu_align_from_layer_align, dropdown_menu_placement_parts,
+    dropdown_menu_side_from_layer_side, popover_arrow_side, primitive_mounted_content_text_colors,
+    primitive_popover_arrow, show_primitive_layer,
 };
 use crate::{DismissPolicy, LayerPlacement};
 
@@ -272,6 +273,8 @@ pub struct HoverCardOutput<T> {
     pub action: Option<T>,
     pub content_rect: Rect,
     pub arrow_side: PopoverArrowSide,
+    pub side: HoverCardSide,
+    pub align: HoverCardAlign,
 }
 
 pub fn primitive_hover_card_trigger(
@@ -439,6 +442,8 @@ pub fn show_hover_card<T>(
         action: output.action,
         content_rect: output.content_rect,
         arrow_side: popover_arrow_side(trigger_rect, output.content_rect),
+        side: dropdown_menu_side_from_layer_side(output.resolved_placement.side),
+        align: dropdown_menu_align_from_layer_align(output.resolved_placement.align),
     })
 }
 

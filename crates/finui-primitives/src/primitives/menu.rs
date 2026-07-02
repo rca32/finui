@@ -6,7 +6,7 @@ use super::{
     PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme, RadixIcon, paint_radix_icon,
     radix_colors, show_primitive_layer,
 };
-use crate::{DismissPolicy, LayerPlacement};
+use crate::{DismissPolicy, LayerAlign, LayerPlacement, LayerSide};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DropdownMenuDataState {
@@ -338,6 +338,8 @@ pub struct DropdownMenuOutput<T> {
     pub action: Option<T>,
     pub should_close: bool,
     pub content_rect: Rect,
+    pub side: DropdownMenuSide,
+    pub align: DropdownMenuAlign,
 }
 
 pub fn primitive_dropdown_menu_trigger(
@@ -414,6 +416,23 @@ pub fn dropdown_menu_placement_parts(
     }
 }
 
+pub fn dropdown_menu_side_from_layer_side(side: LayerSide) -> DropdownMenuSide {
+    match side {
+        LayerSide::Top => DropdownMenuSide::Top,
+        LayerSide::Right => DropdownMenuSide::Right,
+        LayerSide::Bottom => DropdownMenuSide::Bottom,
+        LayerSide::Left => DropdownMenuSide::Left,
+    }
+}
+
+pub fn dropdown_menu_align_from_layer_align(align: LayerAlign) -> DropdownMenuAlign {
+    match align {
+        LayerAlign::Start => DropdownMenuAlign::Start,
+        LayerAlign::Center => DropdownMenuAlign::Center,
+        LayerAlign::End => DropdownMenuAlign::End,
+    }
+}
+
 pub fn primitive_dropdown_menu_content_options(
     options: &DropdownMenuOptions,
 ) -> DropdownMenuContentOptions {
@@ -482,6 +501,8 @@ pub fn show_dropdown_menu<T>(
         action: output.action,
         should_close: output.should_close,
         content_rect: output.content_rect,
+        side: dropdown_menu_side_from_layer_side(output.resolved_placement.side),
+        align: dropdown_menu_align_from_layer_align(output.resolved_placement.align),
     }
 }
 
@@ -1085,6 +1106,38 @@ mod tests {
         assert_eq!(output.data_state.as_str(), "closed");
         assert_eq!(output.side.as_str(), "right");
         assert_eq!(output.align.as_str(), "start");
+    }
+
+    #[test]
+    fn dropdown_menu_output_reports_collision_resolved_side_align() {
+        let ctx = egui::Context::default();
+        let _ = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(
+                    egui::pos2(0.0, 0.0),
+                    egui::vec2(320.0, 240.0),
+                )),
+                ..Default::default()
+            },
+            |_| {},
+        );
+        let options = DropdownMenuOptions::anchored(
+            "dropdown_collision_output_test",
+            Rect::from_min_size(egui::pos2(24.0, 204.0), egui::vec2(42.0, 28.0)),
+            120.0,
+            LayerPlacement::BelowStart {
+                offset: egui::vec2(0.0, 6.0),
+            },
+        )
+        .max_height(120.0);
+
+        let output = show_dropdown_menu(&ctx, options, |ui| {
+            ui.label("Collision item");
+            None::<()>
+        });
+
+        assert_eq!(output.side, DropdownMenuSide::Top);
+        assert_eq!(output.align, DropdownMenuAlign::Start);
     }
 
     #[test]
