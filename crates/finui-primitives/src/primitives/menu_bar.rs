@@ -325,6 +325,88 @@ pub fn menubar_roving_focus_output(
     )
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MenubarNavigationLevel {
+    TopLevel,
+    Content,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MenubarStateMachineOutput {
+    pub level: MenubarNavigationLevel,
+    pub top_level_focus: Option<usize>,
+    pub open_menu: Option<usize>,
+    pub content_focus: Option<usize>,
+    pub top_level_action: RovingFocusAction,
+    pub content_action: RovingFocusAction,
+    pub content_activated: bool,
+}
+
+pub fn menubar_state_machine_output(
+    items: &[MenubarItem],
+    top_level_focus: Option<usize>,
+    open_menu: Option<usize>,
+    content_enabled: &[bool],
+    content_focus: Option<usize>,
+    level: MenubarNavigationLevel,
+    key: Option<RovingFocusKey>,
+    options: &MenubarRootOptions,
+) -> MenubarStateMachineOutput {
+    match level {
+        MenubarNavigationLevel::TopLevel => {
+            let top = menubar_roving_focus_output(items, top_level_focus, key, options);
+            let mut next_open_menu = open_menu;
+            let mut next_content_focus = content_focus;
+            if top.action == RovingFocusAction::Activate {
+                next_open_menu = top.active_index;
+                next_content_focus = first_enabled_index(content_enabled);
+            } else if top.action == RovingFocusAction::Moved {
+                if open_menu.is_some() {
+                    next_open_menu = top.active_index;
+                    next_content_focus = first_enabled_index(content_enabled);
+                }
+            } else if top.action == RovingFocusAction::Close {
+                next_open_menu = None;
+                next_content_focus = None;
+            }
+
+            MenubarStateMachineOutput {
+                level,
+                top_level_focus: top.active_index,
+                open_menu: next_open_menu,
+                content_focus: next_content_focus,
+                top_level_action: top.action,
+                content_action: RovingFocusAction::None,
+                content_activated: false,
+            }
+        }
+        MenubarNavigationLevel::Content => {
+            let content = primitive_roving_focus_output(
+                content_enabled,
+                content_focus,
+                key,
+                RovingFocusOptions::default()
+                    .orientation(RovingFocusOrientation::Vertical)
+                    .loop_focus(options.loop_focus),
+            );
+            let close = content.action == RovingFocusAction::Close;
+            MenubarStateMachineOutput {
+                level,
+                top_level_focus,
+                open_menu: if close { None } else { open_menu },
+                content_focus: if close { None } else { content.active_index },
+                top_level_action: RovingFocusAction::None,
+                content_action: content.action,
+                content_activated: content.action == RovingFocusAction::Activate,
+            }
+        }
+    }
+}
+
+fn first_enabled_index(enabled: &[bool]) -> Option<usize> {
+    enabled.iter().position(|enabled| *enabled)
+}
+
 pub struct MenubarOutput {
     pub changed: bool,
     pub trigger_rect: Option<Rect>,
@@ -1262,6 +1344,92 @@ mod tests {
         );
 
         assert_eq!(output.active_index, Some(0));
+    }
+
+    #[test]
+    fn menubar_state_machine_integrates_top_level_and_open_content_navigation() {
+        let items = [
+            MenubarItem {
+                label: "File",
+                enabled: true,
+            },
+            MenubarItem {
+                label: "Edit",
+                enabled: true,
+            },
+            MenubarItem {
+                label: "Help",
+                enabled: true,
+            },
+        ];
+        let content_enabled = [true, false, true];
+        let options = MenubarRootOptions::default().loop_focus(true);
+
+        let open = menubar_state_machine_output(
+            &items,
+            Some(0),
+            None,
+            &content_enabled,
+            None,
+            MenubarNavigationLevel::TopLevel,
+            Some(RovingFocusKey::Enter),
+            &options,
+        );
+        let switch_open_menu = menubar_state_machine_output(
+            &items,
+            open.top_level_focus,
+            open.open_menu,
+            &content_enabled,
+            open.content_focus,
+            MenubarNavigationLevel::TopLevel,
+            Some(RovingFocusKey::ArrowRight),
+            &options,
+        );
+        let move_content = menubar_state_machine_output(
+            &items,
+            switch_open_menu.top_level_focus,
+            switch_open_menu.open_menu,
+            &content_enabled,
+            switch_open_menu.content_focus,
+            MenubarNavigationLevel::Content,
+            Some(RovingFocusKey::ArrowDown),
+            &options,
+        );
+        let activate_content = menubar_state_machine_output(
+            &items,
+            move_content.top_level_focus,
+            move_content.open_menu,
+            &content_enabled,
+            move_content.content_focus,
+            MenubarNavigationLevel::Content,
+            Some(RovingFocusKey::Enter),
+            &options,
+        );
+        let close = menubar_state_machine_output(
+            &items,
+            activate_content.top_level_focus,
+            activate_content.open_menu,
+            &content_enabled,
+            activate_content.content_focus,
+            MenubarNavigationLevel::Content,
+            Some(RovingFocusKey::Escape),
+            &options,
+        );
+
+        assert_eq!(open.level, MenubarNavigationLevel::TopLevel);
+        assert_eq!(open.open_menu, Some(0));
+        assert_eq!(open.content_focus, Some(0));
+        assert_eq!(open.top_level_action, RovingFocusAction::Activate);
+        assert_eq!(switch_open_menu.open_menu, Some(1));
+        assert_eq!(switch_open_menu.content_focus, Some(0));
+        assert_eq!(move_content.level, MenubarNavigationLevel::Content);
+        assert_eq!(move_content.content_focus, Some(2));
+        assert_eq!(move_content.content_action, RovingFocusAction::Moved);
+        assert!(activate_content.content_activated);
+        assert_eq!(activate_content.open_menu, Some(1));
+        assert_eq!(close.open_menu, None);
+        assert_eq!(close.content_focus, None);
+        assert_eq!(close.content_action, RovingFocusAction::Close);
     }
 
     #[test]

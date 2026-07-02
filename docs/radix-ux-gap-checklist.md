@@ -153,7 +153,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 - [x] AlertDialog는 cancel/action의 focus priority와 destructive action semantics를 분리한다.
 - [x] DropdownMenu는 Item/CheckboxItem/RadioItem/Label/Separator/Group/Sub/Arrow/Shortcut 계약을 완성한다.
 - [x] ContextMenu는 pointer origin, long press/touch open, keyboard context key open을 추가한다.
-- [ ] Menubar는 top-level navigation과 opened menu content navigation을 하나의 state machine으로 통합한다.
+- [x] Menubar는 top-level navigation과 opened menu content navigation을 하나의 state machine으로 통합한다.
 - [ ] NavigationMenu는 viewport/indicator/motion이 실제 hover/focus/open state와 연결되도록 한다.
 - [x] Popover는 Anchor, Trigger, Close, Arrow, modal mode, custom focus hook을 완성한다.
 - [x] Tooltip은 Provider shared delay, accessible trigger labeling, hoverable content 정책을 완성한다.
