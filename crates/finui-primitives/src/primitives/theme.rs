@@ -180,4 +180,56 @@ mod tests {
         assert_ne!(dark.content_stroke.color, dark.content_fill);
         assert_eq!(PrimitiveTheme::for_mode(ThemeMode::Dark), dark);
     }
+
+    #[test]
+    fn theme_state_tokens_keep_numeric_contrast() {
+        for theme in [PrimitiveTheme::light(), PrimitiveTheme::dark()] {
+            for background in [
+                theme.content_fill,
+                theme.item_hover_fill,
+                theme.item_selected_fill,
+            ] {
+                assert!(
+                    contrast_ratio(theme.text, background) >= 4.5,
+                    "primary text contrast fell below readable threshold"
+                );
+                assert!(
+                    contrast_ratio(theme.muted_text, background) >= 3.0,
+                    "muted text contrast fell below readable threshold"
+                );
+            }
+
+            assert!(
+                contrast_ratio(theme.disabled_text, theme.content_fill) >= 1.5,
+                "disabled text contrast should remain visible without reading as active"
+            );
+            assert!(
+                contrast_ratio(theme.content_stroke.color, theme.content_fill) >= 1.25,
+                "content border contrast should remain visible against content fill"
+            );
+        }
+    }
+
+    fn contrast_ratio(foreground: Color32, background: Color32) -> f32 {
+        let foreground = relative_luminance(foreground);
+        let background = relative_luminance(background);
+        let lighter = foreground.max(background);
+        let darker = foreground.min(background);
+        (lighter + 0.05) / (darker + 0.05)
+    }
+
+    fn relative_luminance(color: Color32) -> f32 {
+        0.2126 * linear_channel(color.r())
+            + 0.7152 * linear_channel(color.g())
+            + 0.0722 * linear_channel(color.b())
+    }
+
+    fn linear_channel(value: u8) -> f32 {
+        let value = f32::from(value) / 255.0;
+        if value <= 0.03928 {
+            value / 12.92
+        } else {
+            ((value + 0.055) / 1.055).powf(2.4)
+        }
+    }
 }

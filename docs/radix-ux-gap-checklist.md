@@ -215,7 +215,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 - [x] state token을 통일한다.
   - hover, active, selected, highlighted, checked, disabled, invalid, open/closed 색상/두께/radius 기준을 문서화한다.
 
-- [ ] dark/light contrast 검증을 확대한다.
+- [x] dark/light contrast 검증을 확대한다.
   - 현재 theme 테스트는 기본 대비 수준이다.
   - 완료 기준: 주요 state text/background/border 대비가 snapshot 또는 numeric check로 검증된다.
 
