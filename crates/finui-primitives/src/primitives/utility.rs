@@ -737,6 +737,166 @@ pub fn primitive_accessibility_tree_output(
     }
 }
 
+pub fn primitive_accessibility_snapshot_catalogue_output() -> PrimitiveAccessibilityTreeOutput {
+    primitive_accessibility_tree_output([
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "dialog.content",
+                PrimitiveAccessibilityRole::Dialog,
+            )
+            .name("Dialog content")
+            .state("primitive", "dialog")
+            .state("part", "content")
+            .state("open", "false"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "alert_dialog.content",
+                PrimitiveAccessibilityRole::AlertDialog,
+            )
+            .name("Alert dialog content")
+            .state("primitive", "alert_dialog")
+            .state("part", "content")
+            .state("modal", "true"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "tooltip.content",
+                PrimitiveAccessibilityRole::Tooltip,
+            )
+            .name("Tooltip content")
+            .state("primitive", "tooltip")
+            .state("part", "content")
+            .state("open", "false"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "menu.content",
+                PrimitiveAccessibilityRole::Menu,
+            )
+            .name("Menu content")
+            .state("primitive", "dropdown_menu")
+            .state("part", "content")
+            .state("orientation", "vertical"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "menu.item",
+                PrimitiveAccessibilityRole::MenuItem,
+            )
+            .name("Menu item")
+            .state("primitive", "dropdown_menu")
+            .state("part", "item")
+            .state("disabled", "false"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "select.trigger",
+                PrimitiveAccessibilityRole::Button,
+            )
+            .name("Select trigger")
+            .state("primitive", "select")
+            .state("part", "trigger")
+            .state("open", "false"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new("tabs.root", PrimitiveAccessibilityRole::Group)
+                .name("Tabs")
+                .state("primitive", "tabs")
+                .state("part", "root")
+                .state("activation", "automatic"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "accordion.trigger",
+                PrimitiveAccessibilityRole::Button,
+            )
+            .name("Accordion trigger")
+            .state("primitive", "accordion")
+            .state("part", "trigger")
+            .state("open", "false"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "checkbox.root",
+                PrimitiveAccessibilityRole::Checkbox,
+            )
+            .name("Checkbox")
+            .state("primitive", "checkbox")
+            .state("part", "root")
+            .state("checked", "false"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "radio_group.root",
+                PrimitiveAccessibilityRole::Group,
+            )
+            .name("Radio group")
+            .state("primitive", "radio_group")
+            .state("part", "root")
+            .state("required", "false"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "switch.root",
+                PrimitiveAccessibilityRole::Button,
+            )
+            .name("Switch")
+            .state("primitive", "switch")
+            .state("part", "root")
+            .state("checked", "false"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "slider.root",
+                PrimitiveAccessibilityRole::Slider,
+            )
+            .name("Slider")
+            .value("0")
+            .state("primitive", "slider")
+            .state("part", "root")
+            .state("orientation", "horizontal"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "toast.viewport",
+                PrimitiveAccessibilityRole::Status,
+            )
+            .name("Toast viewport")
+            .live(PrimitiveAccessibilityLive::Polite)
+            .state("primitive", "toast")
+            .state("part", "viewport"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "toolbar.root",
+                PrimitiveAccessibilityRole::Toolbar,
+            )
+            .name("Toolbar")
+            .state("primitive", "toolbar")
+            .state("part", "root")
+            .state("orientation", "horizontal"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new("otp.root", PrimitiveAccessibilityRole::Group)
+                .name("One-time code")
+                .state("primitive", "otp")
+                .state("part", "root")
+                .state("completed", "false"),
+        ),
+        primitive_accessibility_node_output(
+            PrimitiveAccessibilityNodeOptions::new(
+                "password_toggle.input",
+                PrimitiveAccessibilityRole::Textbox,
+            )
+            .name("Password")
+            .state("primitive", "password_toggle")
+            .state("part", "input")
+            .state("visible", "false"),
+        ),
+    ])
+}
+
 pub fn primitive_accessibility_tree_json_snapshot(
     tree: &PrimitiveAccessibilityTreeOutput,
 ) -> String {
@@ -1037,6 +1197,52 @@ mod tests {
             primitive_accessibility_tree_json_snapshot(&tree),
             "{\"nodes\":[{\"id\":\"confirm-dialog\",\"role\":\"dialog\",\"name\":\"Confirm \\\"Order\\\"\",\"description\":\"Review\\nOrder\",\"value\":null,\"live\":\"off\",\"states\":[{\"key\":\"open\",\"value\":\"true\"}]},{\"id\":\"price-input\",\"role\":\"textbox\",\"name\":null,\"description\":null,\"value\":\"103.25\",\"live\":\"off\",\"states\":[{\"key\":\"invalid\",\"value\":\"false\"}]}]}"
         );
+    }
+
+    #[test]
+    fn accessibility_snapshot_catalogue_covers_major_primitives() {
+        let tree = primitive_accessibility_snapshot_catalogue_output();
+        let primitive_names = tree
+            .nodes
+            .iter()
+            .flat_map(|node| node.states.iter())
+            .filter(|state| state.key == "primitive")
+            .map(|state| state.value.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+
+        for expected in [
+            "dialog",
+            "alert_dialog",
+            "tooltip",
+            "dropdown_menu",
+            "select",
+            "tabs",
+            "accordion",
+            "checkbox",
+            "radio_group",
+            "switch",
+            "slider",
+            "toast",
+            "toolbar",
+            "otp",
+            "password_toggle",
+        ] {
+            assert!(
+                primitive_names.contains(expected),
+                "missing accessibility snapshot for {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn accessibility_snapshot_catalogue_json_is_stable() {
+        let tree = primitive_accessibility_snapshot_catalogue_output();
+        let snapshot = primitive_accessibility_tree_json_snapshot(&tree);
+
+        assert!(snapshot.contains("\"id\":\"dialog.content\""));
+        assert!(snapshot.contains("\"role\":\"alertdialog\""));
+        assert!(snapshot.contains("\"key\":\"primitive\",\"value\":\"select\""));
+        assert!(snapshot.contains("\"live\":\"polite\""));
     }
 
     #[test]

@@ -25,6 +25,7 @@ Primitive-specific reference documents:
 - `docs/text-overflow-policy.md`
 - `docs/agent-ux-receipts.md`
 - `docs/unstyled-theme-boundary.md`
+- `docs/accessibility-snapshots.md`
 
 Application-specific shell, market data, terminal, api, or chart runtime code
 does not belong in this crate.
