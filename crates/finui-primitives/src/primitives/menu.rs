@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use eframe::egui::{self, Align2, Color32, FontId, Rect, Response, Sense, Stroke, Vec2};
+use eframe::egui::{self, Align2, Color32, FontId, Pos2, Rect, Response, Sense, Stroke, Vec2};
 
 use super::{
     PrimitiveLayerAnimationOutput, PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme,
@@ -596,6 +596,176 @@ pub type DropdownMenuLabelOptions = f32;
 pub type DropdownMenuSeparatorOptions = f32;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DropdownMenuSubTriggerOptions {
+    pub width: f32,
+    pub open: bool,
+    pub highlighted: bool,
+    pub disabled: bool,
+    pub direction: DropdownMenuDirection,
+    pub theme: PrimitiveTheme,
+}
+
+impl DropdownMenuSubTriggerOptions {
+    pub fn new(width: f32) -> Self {
+        Self {
+            width,
+            open: false,
+            highlighted: false,
+            disabled: false,
+            direction: DropdownMenuDirection::Ltr,
+            theme: PrimitiveTheme::default(),
+        }
+    }
+
+    pub fn open(mut self, open: bool) -> Self {
+        self.open = open;
+        self
+    }
+
+    pub fn highlighted(mut self, highlighted: bool) -> Self {
+        self.highlighted = highlighted;
+        self
+    }
+
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
+
+    pub fn direction(mut self, direction: DropdownMenuDirection) -> Self {
+        self.direction = direction;
+        self
+    }
+
+    pub fn theme(mut self, theme: PrimitiveTheme) -> Self {
+        self.theme = theme;
+        self
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DropdownMenuSubTriggerOutput {
+    pub width: f32,
+    pub open: bool,
+    pub highlighted: bool,
+    pub disabled: bool,
+    pub direction: DropdownMenuDirection,
+    pub data_state: DropdownMenuDataState,
+    pub data_disabled: bool,
+    pub chevron_side: DropdownMenuSide,
+    pub chevron_icon: RadixIcon,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DropdownMenuSubContentOptions {
+    pub width: f32,
+    pub open: bool,
+    pub force_mount: bool,
+    pub side: DropdownMenuSide,
+    pub align: DropdownMenuAlign,
+    pub open_delay_ms: u64,
+    pub pointer_grace_ms: u64,
+    pub pointer_grace: f32,
+    pub theme: PrimitiveTheme,
+}
+
+impl DropdownMenuSubContentOptions {
+    pub fn new(width: f32) -> Self {
+        Self {
+            width,
+            open: false,
+            force_mount: false,
+            side: DropdownMenuSide::Right,
+            align: DropdownMenuAlign::Start,
+            open_delay_ms: 100,
+            pointer_grace_ms: 300,
+            pointer_grace: 12.0,
+            theme: PrimitiveTheme::default(),
+        }
+    }
+
+    pub fn open(mut self, open: bool) -> Self {
+        self.open = open;
+        self
+    }
+
+    pub fn force_mount(mut self, force_mount: bool) -> Self {
+        self.force_mount = force_mount;
+        self
+    }
+
+    pub fn side_align(mut self, side: DropdownMenuSide, align: DropdownMenuAlign) -> Self {
+        self.side = side;
+        self.align = align;
+        self
+    }
+
+    pub fn open_delay_ms(mut self, open_delay_ms: u64) -> Self {
+        self.open_delay_ms = open_delay_ms;
+        self
+    }
+
+    pub fn pointer_grace_ms(mut self, pointer_grace_ms: u64) -> Self {
+        self.pointer_grace_ms = pointer_grace_ms;
+        self
+    }
+
+    pub fn pointer_grace(mut self, pointer_grace: f32) -> Self {
+        self.pointer_grace = pointer_grace;
+        self
+    }
+
+    pub fn theme(mut self, theme: PrimitiveTheme) -> Self {
+        self.theme = theme;
+        self
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DropdownMenuSubContentOutput {
+    pub width: f32,
+    pub open: bool,
+    pub force_mount: bool,
+    pub mounted: bool,
+    pub side: DropdownMenuSide,
+    pub align: DropdownMenuAlign,
+    pub data_state: DropdownMenuDataState,
+    pub open_delay_ms: u64,
+    pub pointer_grace_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DropdownMenuSubKeyboardAction {
+    None,
+    OpenSubmenu,
+    CloseSubmenu,
+    CloseRoot,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DropdownMenuSubDelayOutput {
+    pub requested_open: bool,
+    pub elapsed_ms: u64,
+    pub open_delay_ms: u64,
+    pub should_open: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DropdownMenuSubPointerGraceOutput {
+    pub side: DropdownMenuSide,
+    pub grace_rect: Rect,
+    pub pointer_in_grace_area: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DropdownMenuSubDismissOutput {
+    pub pointer_inside_parent: bool,
+    pub pointer_inside_submenu: bool,
+    pub should_close_submenu: bool,
+    pub should_close_root: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MenuItem<T> {
     pub value: T,
     pub label: &'static str,
@@ -626,6 +796,166 @@ pub fn dropdown_menu_roving_focus_output<T>(
     loop_focus: bool,
 ) -> RovingFocusOutput {
     menu_roving_focus_output(items, current, key, loop_focus)
+}
+
+pub fn primitive_dropdown_menu_sub_trigger_output(
+    options: DropdownMenuSubTriggerOptions,
+) -> DropdownMenuSubTriggerOutput {
+    DropdownMenuSubTriggerOutput {
+        width: options.width,
+        open: options.open,
+        highlighted: options.highlighted,
+        disabled: options.disabled,
+        direction: options.direction,
+        data_state: if options.open {
+            DropdownMenuDataState::Open
+        } else {
+            DropdownMenuDataState::Closed
+        },
+        data_disabled: options.disabled,
+        chevron_side: match options.direction {
+            DropdownMenuDirection::Ltr => DropdownMenuSide::Right,
+            DropdownMenuDirection::Rtl => DropdownMenuSide::Left,
+        },
+        chevron_icon: RadixIcon::ChevronRight,
+    }
+}
+
+pub fn primitive_dropdown_menu_sub_content_output(
+    options: DropdownMenuSubContentOptions,
+) -> DropdownMenuSubContentOutput {
+    DropdownMenuSubContentOutput {
+        width: options.width,
+        open: options.open,
+        force_mount: options.force_mount,
+        mounted: options.open || options.force_mount,
+        side: options.side,
+        align: options.align,
+        data_state: if options.open {
+            DropdownMenuDataState::Open
+        } else {
+            DropdownMenuDataState::Closed
+        },
+        open_delay_ms: options.open_delay_ms,
+        pointer_grace_ms: options.pointer_grace_ms,
+    }
+}
+
+pub fn dropdown_menu_sub_keyboard_action(
+    direction: DropdownMenuDirection,
+    arrow_left_pressed: bool,
+    arrow_right_pressed: bool,
+    escape_pressed: bool,
+) -> DropdownMenuSubKeyboardAction {
+    if escape_pressed {
+        return DropdownMenuSubKeyboardAction::CloseRoot;
+    }
+    match direction {
+        DropdownMenuDirection::Ltr => {
+            if arrow_right_pressed {
+                DropdownMenuSubKeyboardAction::OpenSubmenu
+            } else if arrow_left_pressed {
+                DropdownMenuSubKeyboardAction::CloseSubmenu
+            } else {
+                DropdownMenuSubKeyboardAction::None
+            }
+        }
+        DropdownMenuDirection::Rtl => {
+            if arrow_left_pressed {
+                DropdownMenuSubKeyboardAction::OpenSubmenu
+            } else if arrow_right_pressed {
+                DropdownMenuSubKeyboardAction::CloseSubmenu
+            } else {
+                DropdownMenuSubKeyboardAction::None
+            }
+        }
+    }
+}
+
+pub fn dropdown_menu_sub_delay_output(
+    requested_open: bool,
+    elapsed_ms: u64,
+    open_delay_ms: u64,
+) -> DropdownMenuSubDelayOutput {
+    DropdownMenuSubDelayOutput {
+        requested_open,
+        elapsed_ms,
+        open_delay_ms,
+        should_open: requested_open && elapsed_ms >= open_delay_ms,
+    }
+}
+
+pub fn dropdown_menu_sub_pointer_grace_output(
+    trigger_rect: Rect,
+    content_rect: Rect,
+    pointer_pos: Pos2,
+    side: DropdownMenuSide,
+    grace: f32,
+) -> DropdownMenuSubPointerGraceOutput {
+    let grace = grace.max(0.0);
+    let grace_rect = match side {
+        DropdownMenuSide::Right => Rect::from_min_max(
+            egui::pos2(
+                trigger_rect.right(),
+                trigger_rect.top().min(content_rect.top()) - grace,
+            ),
+            egui::pos2(
+                content_rect.left(),
+                trigger_rect.bottom().max(content_rect.bottom()) + grace,
+            ),
+        ),
+        DropdownMenuSide::Left => Rect::from_min_max(
+            egui::pos2(
+                content_rect.right(),
+                trigger_rect.top().min(content_rect.top()) - grace,
+            ),
+            egui::pos2(
+                trigger_rect.left(),
+                trigger_rect.bottom().max(content_rect.bottom()) + grace,
+            ),
+        ),
+        DropdownMenuSide::Top => Rect::from_min_max(
+            egui::pos2(
+                trigger_rect.left().min(content_rect.left()) - grace,
+                content_rect.bottom(),
+            ),
+            egui::pos2(
+                trigger_rect.right().max(content_rect.right()) + grace,
+                trigger_rect.top(),
+            ),
+        ),
+        DropdownMenuSide::Bottom => Rect::from_min_max(
+            egui::pos2(
+                trigger_rect.left().min(content_rect.left()) - grace,
+                trigger_rect.bottom(),
+            ),
+            egui::pos2(
+                trigger_rect.right().max(content_rect.right()) + grace,
+                content_rect.top(),
+            ),
+        ),
+    };
+
+    DropdownMenuSubPointerGraceOutput {
+        side,
+        grace_rect,
+        pointer_in_grace_area: grace_rect.contains(pointer_pos),
+    }
+}
+
+pub fn dropdown_menu_sub_dismiss_output(
+    parent_content_rect: Rect,
+    submenu_content_rect: Rect,
+    pointer_pos: Pos2,
+) -> DropdownMenuSubDismissOutput {
+    let pointer_inside_parent = parent_content_rect.contains(pointer_pos);
+    let pointer_inside_submenu = submenu_content_rect.contains(pointer_pos);
+    DropdownMenuSubDismissOutput {
+        pointer_inside_parent,
+        pointer_inside_submenu,
+        should_close_submenu: !pointer_inside_submenu,
+        should_close_root: !pointer_inside_parent && !pointer_inside_submenu,
+    }
 }
 
 pub fn primitive_menu_item(ui: &mut egui::Ui, label: &str, options: MenuItemOptions) -> Response {
@@ -950,6 +1280,124 @@ mod tests {
         assert!(options.checked);
         assert!(options.disabled);
         assert_eq!(options.trailing, Some("Ctrl+S"));
+    }
+
+    #[test]
+    fn dropdown_sub_trigger_and_content_outputs_preserve_radix_submenu_parts() {
+        let trigger = primitive_dropdown_menu_sub_trigger_output(
+            DropdownMenuSubTriggerOptions::new(180.0)
+                .open(true)
+                .highlighted(true)
+                .direction(DropdownMenuDirection::Rtl),
+        );
+        let closed_content = primitive_dropdown_menu_sub_content_output(
+            DropdownMenuSubContentOptions::new(220.0)
+                .side_align(DropdownMenuSide::Left, DropdownMenuAlign::Start)
+                .force_mount(true),
+        );
+        let open_content = primitive_dropdown_menu_sub_content_output(
+            DropdownMenuSubContentOptions::new(220.0)
+                .open(true)
+                .open_delay_ms(120)
+                .pointer_grace_ms(250),
+        );
+
+        assert_eq!(trigger.width, 180.0);
+        assert!(trigger.open);
+        assert!(trigger.highlighted);
+        assert_eq!(trigger.data_state, DropdownMenuDataState::Open);
+        assert_eq!(trigger.chevron_side, DropdownMenuSide::Left);
+        assert_eq!(trigger.chevron_icon, RadixIcon::ChevronRight);
+        assert!(closed_content.mounted);
+        assert!(!closed_content.open);
+        assert_eq!(closed_content.side, DropdownMenuSide::Left);
+        assert_eq!(closed_content.data_state, DropdownMenuDataState::Closed);
+        assert!(open_content.mounted);
+        assert_eq!(open_content.open_delay_ms, 120);
+        assert_eq!(open_content.pointer_grace_ms, 250);
+    }
+
+    #[test]
+    fn dropdown_submenu_delay_waits_before_opening() {
+        let waiting = dropdown_menu_sub_delay_output(true, 99, 100);
+        let open = dropdown_menu_sub_delay_output(true, 100, 100);
+        let cancelled = dropdown_menu_sub_delay_output(false, 200, 100);
+
+        assert!(waiting.requested_open);
+        assert!(!waiting.should_open);
+        assert!(open.should_open);
+        assert!(!cancelled.should_open);
+    }
+
+    #[test]
+    fn dropdown_submenu_pointer_grace_tracks_path_between_trigger_and_content() {
+        let trigger = Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(120.0, 28.0));
+        let content = Rect::from_min_size(egui::pos2(150.0, 8.0), egui::vec2(180.0, 140.0));
+        let inside = dropdown_menu_sub_pointer_grace_output(
+            trigger,
+            content,
+            egui::pos2(140.0, 40.0),
+            DropdownMenuSide::Right,
+            8.0,
+        );
+        let outside = dropdown_menu_sub_pointer_grace_output(
+            trigger,
+            content,
+            egui::pos2(140.0, 170.0),
+            DropdownMenuSide::Right,
+            8.0,
+        );
+
+        assert_eq!(inside.side, DropdownMenuSide::Right);
+        assert!(inside.pointer_in_grace_area);
+        assert!(!outside.pointer_in_grace_area);
+        assert_eq!(inside.grace_rect.left(), trigger.right());
+        assert_eq!(inside.grace_rect.right(), content.left());
+    }
+
+    #[test]
+    fn dropdown_submenu_keyboard_action_enters_and_returns_by_direction() {
+        assert_eq!(
+            dropdown_menu_sub_keyboard_action(DropdownMenuDirection::Ltr, false, true, false),
+            DropdownMenuSubKeyboardAction::OpenSubmenu
+        );
+        assert_eq!(
+            dropdown_menu_sub_keyboard_action(DropdownMenuDirection::Ltr, true, false, false),
+            DropdownMenuSubKeyboardAction::CloseSubmenu
+        );
+        assert_eq!(
+            dropdown_menu_sub_keyboard_action(DropdownMenuDirection::Rtl, true, false, false),
+            DropdownMenuSubKeyboardAction::OpenSubmenu
+        );
+        assert_eq!(
+            dropdown_menu_sub_keyboard_action(DropdownMenuDirection::Rtl, false, true, false),
+            DropdownMenuSubKeyboardAction::CloseSubmenu
+        );
+        assert_eq!(
+            dropdown_menu_sub_keyboard_action(DropdownMenuDirection::Rtl, false, false, true),
+            DropdownMenuSubKeyboardAction::CloseRoot
+        );
+    }
+
+    #[test]
+    fn dropdown_submenu_nested_dismiss_closes_submenu_before_root() {
+        let parent = Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(120.0, 160.0));
+        let submenu = Rect::from_min_size(egui::pos2(140.0, 20.0), egui::vec2(160.0, 120.0));
+        let inside_parent =
+            dropdown_menu_sub_dismiss_output(parent, submenu, egui::pos2(40.0, 40.0));
+        let inside_submenu =
+            dropdown_menu_sub_dismiss_output(parent, submenu, egui::pos2(180.0, 40.0));
+        let outside_both =
+            dropdown_menu_sub_dismiss_output(parent, submenu, egui::pos2(400.0, 40.0));
+
+        assert!(inside_parent.pointer_inside_parent);
+        assert!(!inside_parent.pointer_inside_submenu);
+        assert!(inside_parent.should_close_submenu);
+        assert!(!inside_parent.should_close_root);
+        assert!(!inside_submenu.should_close_submenu);
+        assert!(!inside_submenu.should_close_root);
+        assert!(outside_both.should_close_submenu);
+        assert!(outside_both.should_close_root);
     }
 
     #[test]

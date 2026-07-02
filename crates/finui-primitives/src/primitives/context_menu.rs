@@ -4,12 +4,18 @@ use eframe::egui::{self, Align2, FontId, Pos2, Rect, Response, Sense, Stroke, Ve
 
 use super::{
     DropdownMenuAlign, DropdownMenuDataState, DropdownMenuDirection, DropdownMenuOutput,
-    DropdownMenuSide, MenuItem, MenuItemOptions, PrimitiveLayerOptions, PrimitiveTheme,
-    RovingFocusAction, RovingFocusKey, RovingFocusOutput, dropdown_menu_align_from_layer_align,
-    dropdown_menu_roving_focus_output, dropdown_menu_side_from_layer_side, menu_typeahead_match,
-    primitive_layer_animation_output, primitive_menu_checkbox_item, primitive_menu_item,
-    primitive_menu_label, primitive_menu_radio_item, primitive_menu_separator, radix_colors,
-    show_primitive_layer,
+    DropdownMenuSide, DropdownMenuSubContentOptions, DropdownMenuSubContentOutput,
+    DropdownMenuSubDelayOutput, DropdownMenuSubDismissOutput, DropdownMenuSubKeyboardAction,
+    DropdownMenuSubPointerGraceOutput, DropdownMenuSubTriggerOptions, DropdownMenuSubTriggerOutput,
+    MenuItem, MenuItemOptions, PrimitiveLayerOptions, PrimitiveTheme, RovingFocusAction,
+    RovingFocusKey, RovingFocusOutput, dropdown_menu_align_from_layer_align,
+    dropdown_menu_roving_focus_output, dropdown_menu_side_from_layer_side,
+    dropdown_menu_sub_delay_output, dropdown_menu_sub_dismiss_output,
+    dropdown_menu_sub_keyboard_action, dropdown_menu_sub_pointer_grace_output,
+    menu_typeahead_match, primitive_dropdown_menu_sub_content_output,
+    primitive_dropdown_menu_sub_trigger_output, primitive_layer_animation_output,
+    primitive_menu_checkbox_item, primitive_menu_item, primitive_menu_label,
+    primitive_menu_radio_item, primitive_menu_separator, radix_colors, show_primitive_layer,
 };
 use crate::{DismissPolicy, LayerPlacement};
 
@@ -17,6 +23,14 @@ pub type ContextMenuDataState = DropdownMenuDataState;
 pub type ContextMenuDirection = DropdownMenuDirection;
 pub type ContextMenuSide = DropdownMenuSide;
 pub type ContextMenuAlign = DropdownMenuAlign;
+pub type ContextMenuSubTriggerOptions = DropdownMenuSubTriggerOptions;
+pub type ContextMenuSubTriggerOutput = DropdownMenuSubTriggerOutput;
+pub type ContextMenuSubContentOptions = DropdownMenuSubContentOptions;
+pub type ContextMenuSubContentOutput = DropdownMenuSubContentOutput;
+pub type ContextMenuSubKeyboardAction = DropdownMenuSubKeyboardAction;
+pub type ContextMenuSubDelayOutput = DropdownMenuSubDelayOutput;
+pub type ContextMenuSubPointerGraceOutput = DropdownMenuSubPointerGraceOutput;
+pub type ContextMenuSubDismissOutput = DropdownMenuSubDismissOutput;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContextMenuOpenOrigin {
@@ -400,6 +414,58 @@ pub fn context_menu_roving_focus_output<T>(
     dropdown_menu_roving_focus_output(items, current, key, loop_focus)
 }
 
+pub fn primitive_context_menu_sub_trigger_output(
+    options: ContextMenuSubTriggerOptions,
+) -> ContextMenuSubTriggerOutput {
+    primitive_dropdown_menu_sub_trigger_output(options)
+}
+
+pub fn primitive_context_menu_sub_content_output(
+    options: ContextMenuSubContentOptions,
+) -> ContextMenuSubContentOutput {
+    primitive_dropdown_menu_sub_content_output(options)
+}
+
+pub fn context_menu_sub_keyboard_action(
+    direction: ContextMenuDirection,
+    arrow_left_pressed: bool,
+    arrow_right_pressed: bool,
+    escape_pressed: bool,
+) -> ContextMenuSubKeyboardAction {
+    dropdown_menu_sub_keyboard_action(
+        direction,
+        arrow_left_pressed,
+        arrow_right_pressed,
+        escape_pressed,
+    )
+}
+
+pub fn context_menu_sub_delay_output(
+    requested_open: bool,
+    elapsed_ms: u64,
+    open_delay_ms: u64,
+) -> ContextMenuSubDelayOutput {
+    dropdown_menu_sub_delay_output(requested_open, elapsed_ms, open_delay_ms)
+}
+
+pub fn context_menu_sub_pointer_grace_output(
+    trigger_rect: Rect,
+    content_rect: Rect,
+    pointer_pos: Pos2,
+    side: ContextMenuSide,
+    grace: f32,
+) -> ContextMenuSubPointerGraceOutput {
+    dropdown_menu_sub_pointer_grace_output(trigger_rect, content_rect, pointer_pos, side, grace)
+}
+
+pub fn context_menu_sub_dismiss_output(
+    parent_content_rect: Rect,
+    submenu_content_rect: Rect,
+    pointer_pos: Pos2,
+) -> ContextMenuSubDismissOutput {
+    dropdown_menu_sub_dismiss_output(parent_content_rect, submenu_content_rect, pointer_pos)
+}
+
 pub fn context_menu_typeahead_match<T: Copy + PartialEq>(
     items: &[ContextMenuItem<T>],
     current: Option<T>,
@@ -602,6 +668,44 @@ mod tests {
 
         assert_eq!(rect.min, egui::pos2(12.0, 34.0));
         assert_eq!(rect.size(), egui::Vec2::ZERO);
+    }
+
+    #[test]
+    fn context_menu_submenu_reuses_dropdown_submenu_contract() {
+        let trigger = primitive_context_menu_sub_trigger_output(
+            ContextMenuSubTriggerOptions::new(160.0)
+                .open(true)
+                .direction(ContextMenuDirection::Ltr),
+        );
+        let content = primitive_context_menu_sub_content_output(
+            ContextMenuSubContentOptions::new(200.0)
+                .open(true)
+                .side_align(ContextMenuSide::Right, ContextMenuAlign::Start),
+        );
+        let action =
+            context_menu_sub_keyboard_action(ContextMenuDirection::Ltr, false, true, false);
+        let delay = context_menu_sub_delay_output(true, 150, 100);
+        let grace = context_menu_sub_pointer_grace_output(
+            Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(120.0, 28.0)),
+            Rect::from_min_size(egui::pos2(150.0, 8.0), egui::vec2(180.0, 140.0)),
+            egui::pos2(140.0, 40.0),
+            ContextMenuSide::Right,
+            8.0,
+        );
+        let dismiss = context_menu_sub_dismiss_output(
+            Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(120.0, 160.0)),
+            Rect::from_min_size(egui::pos2(140.0, 20.0), egui::vec2(160.0, 120.0)),
+            egui::pos2(400.0, 40.0),
+        );
+
+        assert_eq!(trigger.data_state, ContextMenuDataState::Open);
+        assert_eq!(content.side, ContextMenuSide::Right);
+        assert_eq!(content.data_state, ContextMenuDataState::Open);
+        assert_eq!(action, ContextMenuSubKeyboardAction::OpenSubmenu);
+        assert!(delay.should_open);
+        assert!(grace.pointer_in_grace_area);
+        assert!(dismiss.should_close_submenu);
+        assert!(dismiss.should_close_root);
     }
 
     #[test]

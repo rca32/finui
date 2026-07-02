@@ -96,7 +96,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 typeahead helper와 일부 menubar navigation helper는 있으나, 메뉴 콘텐츠에서 highlighted item/focus item이 input loop에 연결된 증거가 부족하다.
   - 완료 기준: ArrowUp/Down, Home/End, Enter/Space, Escape, typeahead buffer가 실제 menu open 상태에서 동작한다.
 
-- [ ] DropdownMenu/ContextMenu에 submenu를 추가한다.
+- [x] DropdownMenu/ContextMenu에 submenu를 추가한다.
   - Radix 기준에서 submenu는 핵심 기능이다.
   - 완료 기준: SubTrigger/SubContent, open delay, pointer grace area, ArrowRight/ArrowLeft 진입/복귀, nested outside dismissal 테스트가 있다.
 
