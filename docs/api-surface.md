@@ -2,6 +2,9 @@
 
 Finui keeps the public API intentionally narrow.
 
+Stability levels and breaking-change rules are defined in
+`docs/api-stability-policy.md`.
+
 ## `finui-primitives`
 
 Public primitives expose:

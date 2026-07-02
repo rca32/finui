@@ -61,6 +61,9 @@ Endpoint and DuckDB-style table payload fixtures are behind the `fixtures` featu
 The default feature keeps the demo convenient, while `--no-default-features` proves
 the core grid is not coupled to those fixtures.
 
+API stability levels, preview/internal boundaries, and breaking-change rules are
+defined in `docs/api-stability-policy.md`.
+
 ## License
 
 Apache-2.0. Radix icon assets under `crates/finui-primitives/assets/radix-icons`

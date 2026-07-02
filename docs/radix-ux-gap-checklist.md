@@ -203,7 +203,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 - [ ] "Radix parity matrix" 문서를 유지한다.
   - component, supported parts, missing parts, keyboard, focus, accessibility, visual tests, examples, status를 표로 관리한다.
 
-- [ ] crate-level feature stability 정책을 문서화한다.
+- [x] crate-level feature stability 정책을 문서화한다.
   - stable, experimental, preview, internal helper를 구분한다.
 
 ## P2: 테마와 스타일 시스템
@@ -239,7 +239,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - `finui-grid`의 agent-testable 방향을 `finui-primitives`에도 적용한다.
   - 완료 기준: agent가 primitive state, focus, selected item, open layer stack을 snapshot으로 읽을 수 있다.
 
-- [ ] public API breaking change policy를 정한다.
+- [x] public API breaking change policy를 정한다.
   - pre-release이므로 API 축소/정리 여지는 있지만, downstream `imai`가 쓰는 표면은 별도 보호해야 한다.
 
 ## 우선 개발 순서
@@ -261,4 +261,4 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 - [ ] 대표 primitive 상태가 visual snapshot으로 검증된다.
 - [ ] `primitives_lab`에서 개발자가 모든 primitive의 주요 상태를 직접 조작할 수 있다.
 - [ ] quick CI command와 full CI command가 분리되어 있고, quick path는 일상 개발에 충분히 빠르다.
-- [ ] downstream 앱이 쓸 stable API와 preview/internal API가 문서상 구분된다.
+- [x] downstream 앱이 쓸 stable API와 preview/internal API가 문서상 구분된다.
