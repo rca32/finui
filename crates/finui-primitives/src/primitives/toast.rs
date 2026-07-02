@@ -72,6 +72,37 @@ impl ToastSwipeState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ToastSwipeEvent {
+    Start,
+    Move(Vec2),
+    Cancel,
+    End(Vec2),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ToastSwipeOutput {
+    pub state: ToastSwipeState,
+    pub offset: Vec2,
+    pub dismissed: bool,
+    pub data_swipe: &'static str,
+    pub data_swipe_direction: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ToastPauseOutput {
+    pub paused: bool,
+    pub reason: Option<&'static str>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToastFocusTargetsOutput {
+    pub close_focusable: bool,
+    pub close_aria_label: &'static str,
+    pub action_focusable: bool,
+    pub action_alt_text: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct ToastMessage {
     pub id: u64,
@@ -472,7 +503,12 @@ pub fn primitive_toast_provider(
 ) -> Vec<ToastOutput> {
     store.retain_active(now);
     let outputs = primitive_toast_viewport(ui, store, options.viewport);
-    if options.pause_on_hover && outputs.iter().any(|output| output.response.hovered()) {
+    let pause = primitive_toast_pause_output(
+        options,
+        outputs.iter().any(|output| output.response.hovered()),
+        false,
+    );
+    if pause.paused {
         ui.ctx().request_repaint_after(Duration::from_millis(250));
     }
     outputs
@@ -514,6 +550,93 @@ pub fn primitive_toast_viewport_focus_output(
         hotkey: viewport.hotkey,
         label: viewport.label,
         focus_requested,
+    }
+}
+
+pub fn primitive_toast_pause_output(
+    provider: ToastProviderOptions,
+    hovered: bool,
+    focused: bool,
+) -> ToastPauseOutput {
+    if !provider.pause_on_hover {
+        return ToastPauseOutput {
+            paused: false,
+            reason: None,
+        };
+    }
+    if focused {
+        return ToastPauseOutput {
+            paused: true,
+            reason: Some("focus"),
+        };
+    }
+    if hovered {
+        return ToastPauseOutput {
+            paused: true,
+            reason: Some("hover"),
+        };
+    }
+    ToastPauseOutput {
+        paused: false,
+        reason: None,
+    }
+}
+
+pub fn primitive_toast_focus_targets_output(message: &ToastMessage) -> ToastFocusTargetsOutput {
+    ToastFocusTargetsOutput {
+        close_focusable: true,
+        close_aria_label: "Close",
+        action_focusable: message.action_label.is_some(),
+        action_alt_text: message.action_alt_text.clone(),
+    }
+}
+
+pub fn primitive_toast_swipe_output(
+    direction: ToastSwipeDirection,
+    threshold: f32,
+    event: ToastSwipeEvent,
+) -> ToastSwipeOutput {
+    let threshold = threshold.max(0.0);
+    let (state, delta) = match event {
+        ToastSwipeEvent::Start => (ToastSwipeState::Start, Vec2::ZERO),
+        ToastSwipeEvent::Move(delta) => (ToastSwipeState::Move, delta),
+        ToastSwipeEvent::Cancel => (ToastSwipeState::Cancel, Vec2::ZERO),
+        ToastSwipeEvent::End(delta) => {
+            let distance = toast_swipe_distance(direction, delta);
+            if distance >= threshold {
+                (ToastSwipeState::End, delta)
+            } else {
+                (ToastSwipeState::Cancel, Vec2::ZERO)
+            }
+        }
+    };
+    let offset = toast_swipe_offset(direction, delta);
+    ToastSwipeOutput {
+        state,
+        offset,
+        dismissed: state == ToastSwipeState::End,
+        data_swipe: state.as_str(),
+        data_swipe_direction: direction.as_str(),
+    }
+}
+
+fn toast_swipe_distance(direction: ToastSwipeDirection, delta: Vec2) -> f32 {
+    match direction {
+        ToastSwipeDirection::Up => -delta.y,
+        ToastSwipeDirection::Down => delta.y,
+        ToastSwipeDirection::Left => -delta.x,
+        ToastSwipeDirection::Right => delta.x,
+    }
+    .max(0.0)
+}
+
+fn toast_swipe_offset(direction: ToastSwipeDirection, delta: Vec2) -> Vec2 {
+    let distance = toast_swipe_distance(direction, delta);
+    match direction {
+        ToastSwipeDirection::Up => Vec2::new(0.0, -distance),
+        ToastSwipeDirection::Down => Vec2::new(0.0, distance),
+        ToastSwipeDirection::Left => Vec2::new(-distance, 0.0),
+        ToastSwipeDirection::Right => Vec2::new(distance, 0.0),
     }
 }
 
@@ -1026,6 +1149,114 @@ mod tests {
         assert_eq!(focused.label, "Alerts (altKey+KeyT)");
         assert!(focused.focus_requested);
         assert!(!ignored.focus_requested);
+    }
+
+    #[test]
+    fn toast_swipe_output_tracks_start_move_cancel_and_threshold_end() {
+        let start =
+            primitive_toast_swipe_output(ToastSwipeDirection::Right, 50.0, ToastSwipeEvent::Start);
+        let movement = primitive_toast_swipe_output(
+            ToastSwipeDirection::Right,
+            50.0,
+            ToastSwipeEvent::Move(Vec2::new(24.0, 10.0)),
+        );
+        let ignored_reverse = primitive_toast_swipe_output(
+            ToastSwipeDirection::Right,
+            50.0,
+            ToastSwipeEvent::Move(Vec2::new(-24.0, 0.0)),
+        );
+        let cancelled =
+            primitive_toast_swipe_output(ToastSwipeDirection::Right, 50.0, ToastSwipeEvent::Cancel);
+        let short_end = primitive_toast_swipe_output(
+            ToastSwipeDirection::Right,
+            50.0,
+            ToastSwipeEvent::End(Vec2::new(49.0, 0.0)),
+        );
+        let dismissed = primitive_toast_swipe_output(
+            ToastSwipeDirection::Right,
+            50.0,
+            ToastSwipeEvent::End(Vec2::new(50.0, 0.0)),
+        );
+
+        assert_eq!(start.data_swipe, "start");
+        assert_eq!(movement.state, ToastSwipeState::Move);
+        assert_eq!(movement.offset, Vec2::new(24.0, 0.0));
+        assert_eq!(movement.data_swipe_direction, "right");
+        assert_eq!(ignored_reverse.offset, Vec2::ZERO);
+        assert_eq!(cancelled.state, ToastSwipeState::Cancel);
+        assert_eq!(short_end.state, ToastSwipeState::Cancel);
+        assert!(!short_end.dismissed);
+        assert_eq!(dismissed.state, ToastSwipeState::End);
+        assert!(dismissed.dismissed);
+    }
+
+    #[test]
+    fn toast_swipe_output_respects_vertical_and_left_directions() {
+        let up = primitive_toast_swipe_output(
+            ToastSwipeDirection::Up,
+            40.0,
+            ToastSwipeEvent::End(Vec2::new(0.0, -40.0)),
+        );
+        let left = primitive_toast_swipe_output(
+            ToastSwipeDirection::Left,
+            40.0,
+            ToastSwipeEvent::Move(Vec2::new(-12.0, 0.0)),
+        );
+
+        assert_eq!(up.offset, Vec2::new(0.0, -40.0));
+        assert!(up.dismissed);
+        assert_eq!(up.data_swipe_direction, "up");
+        assert_eq!(left.offset, Vec2::new(-12.0, 0.0));
+        assert_eq!(left.data_swipe_direction, "left");
+    }
+
+    #[test]
+    fn toast_pause_output_pauses_for_hover_or_focus_when_enabled() {
+        let enabled = ToastProviderOptions::default().pause_on_hover(true);
+        let disabled = ToastProviderOptions::default().pause_on_hover(false);
+
+        assert_eq!(
+            primitive_toast_pause_output(enabled, true, false),
+            ToastPauseOutput {
+                paused: true,
+                reason: Some("hover"),
+            }
+        );
+        assert_eq!(
+            primitive_toast_pause_output(enabled, false, true),
+            ToastPauseOutput {
+                paused: true,
+                reason: Some("focus"),
+            }
+        );
+        assert_eq!(
+            primitive_toast_pause_output(disabled, true, true),
+            ToastPauseOutput {
+                paused: false,
+                reason: None,
+            }
+        );
+    }
+
+    #[test]
+    fn toast_focus_targets_output_exposes_action_and_close_focus_contract() {
+        let start = Instant::now();
+        let message = ToastMessage {
+            id: 17,
+            kind: ToastKind::Success,
+            title: "Saved".to_owned(),
+            description: Some("2 changes".to_owned()),
+            action_label: Some("Undo".to_owned()),
+            action_alt_text: Some("Undo last save".to_owned()),
+            created_at: start,
+            ttl: Duration::from_secs(5),
+        };
+        let output = primitive_toast_focus_targets_output(&message);
+
+        assert!(output.close_focusable);
+        assert_eq!(output.close_aria_label, "Close");
+        assert!(output.action_focusable);
+        assert_eq!(output.action_alt_text.as_deref(), Some("Undo last save"));
     }
 
     #[test]

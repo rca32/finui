@@ -124,7 +124,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 delay duration 필드와 data-state output은 있으나 runtime timer behavior가 제한적이다.
   - 완료 기준: delay, skipDelay, disableHoverableContent, pointer leave grace, focus open/blur close 테스트가 있다.
 
-- [ ] Toast swipe를 실제 gesture로 구현한다.
+- [x] Toast swipe를 실제 gesture로 구현한다.
   - 현재 swipe state/direction output은 있으나 drag gesture와 threshold dismissal이 약하다.
   - 완료 기준: swipe start/move/cancel/end, threshold, pause on hover/focus, action/close focus 테스트가 있다.
 
