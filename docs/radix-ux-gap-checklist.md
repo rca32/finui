@@ -176,7 +176,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 순수 helper 테스트 외에 실제 egui input sequence 테스트가 필요하다.
   - 완료 기준: 메뉴 열기, 방향키 이동, 타입어헤드, Escape 닫기, Dialog Tab trap 같은 end-to-end 시퀀스가 자동화된다.
 
-- [ ] accessibility snapshot test를 만든다.
+- [x] accessibility snapshot test를 만든다.
   - 완료 기준: primitive별 role/name/state/value/description output을 JSON snapshot으로 검증한다.
 
 - [ ] `grid_lab`와 primitive layer의 통합 시나리오를 만든다.

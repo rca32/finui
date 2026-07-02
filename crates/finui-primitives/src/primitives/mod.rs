@@ -308,6 +308,7 @@ pub use utility::{
     PrimitiveAccessibilityNodeOutput, PrimitiveAccessibilityRole, PrimitiveAccessibilityState,
     PrimitiveAccessibilityTreeOutput, PrimitiveDirection, PrimitiveDirectionProviderOutput,
     accessible_icon_label, primitive_accessibility_node_output,
-    primitive_accessibility_tree_output, primitive_accessible_icon,
-    primitive_accessible_icon_root_output, primitive_direction_provider, primitive_slot, slot_id,
+    primitive_accessibility_tree_json_snapshot, primitive_accessibility_tree_output,
+    primitive_accessible_icon, primitive_accessible_icon_root_output, primitive_direction_provider,
+    primitive_slot, slot_id,
 };

@@ -257,6 +257,66 @@ pub fn primitive_accessibility_tree_output(
     }
 }
 
+pub fn primitive_accessibility_tree_json_snapshot(
+    tree: &PrimitiveAccessibilityTreeOutput,
+) -> String {
+    let nodes = tree
+        .nodes
+        .iter()
+        .map(primitive_accessibility_node_json)
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("{{\"nodes\":[{nodes}]}}")
+}
+
+fn primitive_accessibility_node_json(node: &PrimitiveAccessibilityNodeOutput) -> String {
+    let states = node
+        .states
+        .iter()
+        .map(|state| {
+            format!(
+                "{{\"key\":\"{}\",\"value\":\"{}\"}}",
+                json_escape(state.key),
+                json_escape(&state.value)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"id\":\"{}\",\"role\":\"{}\",\"name\":{},\"description\":{},\"value\":{},\"live\":\"{}\",\"states\":[{}]}}",
+        json_escape(&node.id),
+        json_escape(node.role_name),
+        json_option(node.name.as_deref()),
+        json_option(node.description.as_deref()),
+        json_option(node.value.as_deref()),
+        json_escape(node.live_name),
+        states
+    )
+}
+
+fn json_option(value: Option<&str>) -> String {
+    match value {
+        Some(value) => format!("\"{}\"", json_escape(value)),
+        None => "null".to_owned(),
+    }
+}
+
+fn json_escape(value: &str) -> String {
+    let mut escaped = String::new();
+    for ch in value.chars() {
+        match ch {
+            '\\' => escaped.push_str("\\\\"),
+            '"' => escaped.push_str("\\\""),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\t' => escaped.push_str("\\t"),
+            ch if ch.is_control() => escaped.push_str(&format!("\\u{:04x}", ch as u32)),
+            ch => escaped.push(ch),
+        }
+    }
+    escaped
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PrimitiveDirection {
     Ltr,
@@ -454,6 +514,34 @@ mod tests {
         assert_eq!(tree.nodes[0].name.as_deref(), Some("Confirm order"));
         assert_eq!(tree.nodes[1].role_name, "status");
         assert_eq!(tree.nodes[1].live_name, "assertive");
+    }
+
+    #[test]
+    fn accessibility_tree_json_snapshot_is_stable_and_agent_readable() {
+        let tree = primitive_accessibility_tree_output([
+            primitive_accessibility_node_output(
+                PrimitiveAccessibilityNodeOptions::new(
+                    "confirm-dialog",
+                    PrimitiveAccessibilityRole::Dialog,
+                )
+                .name("Confirm \"Order\"")
+                .description("Review\nOrder")
+                .state("open", "true"),
+            ),
+            primitive_accessibility_node_output(
+                PrimitiveAccessibilityNodeOptions::new(
+                    "price-input",
+                    PrimitiveAccessibilityRole::Textbox,
+                )
+                .value("103.25")
+                .state("invalid", "false"),
+            ),
+        ]);
+
+        assert_eq!(
+            primitive_accessibility_tree_json_snapshot(&tree),
+            "{\"nodes\":[{\"id\":\"confirm-dialog\",\"role\":\"dialog\",\"name\":\"Confirm \\\"Order\\\"\",\"description\":\"Review\\nOrder\",\"value\":null,\"live\":\"off\",\"states\":[{\"key\":\"open\",\"value\":\"true\"}]},{\"id\":\"price-input\",\"role\":\"textbox\",\"name\":null,\"description\":null,\"value\":\"103.25\",\"live\":\"off\",\"states\":[{\"key\":\"invalid\",\"value\":\"false\"}]}]}"
+        );
     }
 
     #[test]
