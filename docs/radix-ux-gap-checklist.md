@@ -104,7 +104,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 Select content는 DropdownMenu 기반이며 item-aligned positioning, selected item focus, typeahead buffer, value text announcement가 약하다.
   - 완료 기준: open 시 selected item focus, Arrow navigation, Enter commit, Escape cancel, disabled item skip, placeholder/value 렌더 테스트가 있다.
 
-- [ ] Tabs의 방향성과 activation mode를 완성한다.
+- [x] Tabs의 방향성과 activation mode를 완성한다.
   - 현재 horizontal 중심 roving focus가 있고 selected를 즉시 변경한다.
   - 완료 기준: horizontal/vertical, automatic/manual activation, Home/End, disabled tab skip, focus와 selected 분리 테스트가 있다.
 

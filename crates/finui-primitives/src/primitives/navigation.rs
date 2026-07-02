@@ -15,6 +15,69 @@ pub struct TabsHeaderOutput {
     pub changed: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TabsOrientation {
+    Horizontal,
+    Vertical,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TabsActivationMode {
+    Automatic,
+    Manual,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TabsKeyboardAction {
+    None,
+    FocusFirst,
+    FocusLast,
+    FocusNext,
+    FocusPrevious,
+    Activate,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TabsHeaderOptions {
+    pub theme: PrimitiveTheme,
+    pub orientation: TabsOrientation,
+    pub activation_mode: TabsActivationMode,
+    pub loop_focus: bool,
+}
+
+impl Default for TabsHeaderOptions {
+    fn default() -> Self {
+        Self {
+            theme: PrimitiveTheme::default(),
+            orientation: TabsOrientation::Horizontal,
+            activation_mode: TabsActivationMode::Automatic,
+            loop_focus: true,
+        }
+    }
+}
+
+impl TabsHeaderOptions {
+    pub fn theme(mut self, theme: PrimitiveTheme) -> Self {
+        self.theme = theme;
+        self
+    }
+
+    pub fn orientation(mut self, orientation: TabsOrientation) -> Self {
+        self.orientation = orientation;
+        self
+    }
+
+    pub fn activation_mode(mut self, activation_mode: TabsActivationMode) -> Self {
+        self.activation_mode = activation_mode;
+        self
+    }
+
+    pub fn loop_focus(mut self, loop_focus: bool) -> Self {
+        self.loop_focus = loop_focus;
+        self
+    }
+}
+
 pub struct TabsContentOutput<T> {
     pub inner: T,
     pub rect: Rect,
@@ -69,17 +132,49 @@ pub fn primitive_tabs_header(
     items: &[TabItem],
     theme: PrimitiveTheme,
 ) -> TabsHeaderOutput {
+    primitive_tabs_header_with_options(
+        ui,
+        id_source,
+        selected,
+        focus,
+        items,
+        TabsHeaderOptions::default().theme(theme),
+    )
+}
+
+pub fn primitive_tabs_header_with_options(
+    ui: &mut egui::Ui,
+    id_source: impl Hash,
+    selected: &mut usize,
+    focus: &mut RovingFocusState,
+    items: &[TabItem],
+    options: TabsHeaderOptions,
+) -> TabsHeaderOutput {
     let enabled = items.iter().map(|item| item.enabled).collect::<Vec<_>>();
-    let _ = ui.input(|input| focus.handle_keyboard(input, &enabled));
-    if let Some(index) = focus.active_index.filter(|index| *index < items.len()) {
-        if enabled[index] {
-            *selected = index;
-        }
-    }
+    let keyboard_action = ui.input(|input| {
+        tabs_keyboard_action(
+            options.orientation,
+            input.key_pressed(egui::Key::Enter),
+            input.key_pressed(egui::Key::Space),
+            input.key_pressed(egui::Key::ArrowUp),
+            input.key_pressed(egui::Key::ArrowDown),
+            input.key_pressed(egui::Key::ArrowLeft),
+            input.key_pressed(egui::Key::ArrowRight),
+            input.key_pressed(egui::Key::Home),
+            input.key_pressed(egui::Key::End),
+        )
+    });
+    let mut changed = tabs_apply_keyboard_action(
+        selected,
+        focus,
+        &enabled,
+        keyboard_action,
+        options.activation_mode,
+        options.loop_focus,
+    );
 
     let bounds = ui.available_rect_before_wrap();
-    let rects = tab_rects(bounds, items);
-    let mut changed = false;
+    let rects = tab_rects_with_orientation(bounds, items, options.orientation);
     let mut last_response = None;
     for (index, (item, rect)) in items.iter().zip(rects.into_iter()).enumerate() {
         let mut response = ui.interact(
@@ -108,11 +203,13 @@ pub fn primitive_tabs_header(
                 enabled: item.enabled,
                 hovered: response.hovered(),
             },
-            theme,
+            options.theme,
         );
         last_response = Some(response);
     }
-    if let Some(last) = primitive_tabs_list_rect(bounds, items) {
+    if let Some(last) =
+        primitive_tabs_list_rect_with_orientation(bounds, items, options.orientation)
+    {
         ui.allocate_rect(last, egui::Sense::hover());
     }
     TabsHeaderOutput {
@@ -148,13 +245,132 @@ pub fn primitive_tabs_content<T>(
 }
 
 pub fn primitive_tabs_list_rect(bounds: Rect, items: &[TabItem]) -> Option<Rect> {
-    let rects = tab_rects(bounds, items);
+    primitive_tabs_list_rect_with_orientation(bounds, items, TabsOrientation::Horizontal)
+}
+
+pub fn primitive_tabs_list_rect_with_orientation(
+    bounds: Rect,
+    items: &[TabItem],
+    orientation: TabsOrientation,
+) -> Option<Rect> {
+    let rects = tab_rects_with_orientation(bounds, items, orientation);
     let first = rects.first()?;
     let mut list = *first;
     for rect in rects.iter().skip(1) {
         list = list.union(*rect);
     }
     Some(list)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn tabs_keyboard_action(
+    orientation: TabsOrientation,
+    enter_pressed: bool,
+    space_pressed: bool,
+    arrow_up_pressed: bool,
+    arrow_down_pressed: bool,
+    arrow_left_pressed: bool,
+    arrow_right_pressed: bool,
+    home_pressed: bool,
+    end_pressed: bool,
+) -> TabsKeyboardAction {
+    if enter_pressed || space_pressed {
+        return TabsKeyboardAction::Activate;
+    }
+    if home_pressed {
+        return TabsKeyboardAction::FocusFirst;
+    }
+    if end_pressed {
+        return TabsKeyboardAction::FocusLast;
+    }
+    match orientation {
+        TabsOrientation::Horizontal => {
+            if arrow_right_pressed {
+                TabsKeyboardAction::FocusNext
+            } else if arrow_left_pressed {
+                TabsKeyboardAction::FocusPrevious
+            } else {
+                TabsKeyboardAction::None
+            }
+        }
+        TabsOrientation::Vertical => {
+            if arrow_down_pressed {
+                TabsKeyboardAction::FocusNext
+            } else if arrow_up_pressed {
+                TabsKeyboardAction::FocusPrevious
+            } else {
+                TabsKeyboardAction::None
+            }
+        }
+    }
+}
+
+pub fn tabs_apply_keyboard_action(
+    selected: &mut usize,
+    focus: &mut RovingFocusState,
+    enabled: &[bool],
+    action: TabsKeyboardAction,
+    activation_mode: TabsActivationMode,
+    loop_focus: bool,
+) -> bool {
+    let Some(target) = tabs_keyboard_target_index(enabled, focus.active_index, action, loop_focus)
+    else {
+        return false;
+    };
+    focus.active_index = Some(target);
+    if action == TabsKeyboardAction::Activate || activation_mode == TabsActivationMode::Automatic {
+        if *selected != target {
+            *selected = target;
+            return true;
+        }
+    }
+    false
+}
+
+pub fn tabs_keyboard_target_index(
+    enabled: &[bool],
+    current: Option<usize>,
+    action: TabsKeyboardAction,
+    loop_focus: bool,
+) -> Option<usize> {
+    match action {
+        TabsKeyboardAction::None => None,
+        TabsKeyboardAction::Activate => {
+            current.filter(|index| enabled.get(*index).copied().unwrap_or(false))
+        }
+        TabsKeyboardAction::FocusFirst => enabled.iter().position(|enabled| *enabled),
+        TabsKeyboardAction::FocusLast => enabled.iter().rposition(|enabled| *enabled),
+        TabsKeyboardAction::FocusNext => tabs_next_keyboard_index(enabled, current, 1, loop_focus),
+        TabsKeyboardAction::FocusPrevious => {
+            tabs_next_keyboard_index(enabled, current, -1, loop_focus)
+        }
+    }
+}
+
+fn tabs_next_keyboard_index(
+    enabled: &[bool],
+    current: Option<usize>,
+    direction: isize,
+    loop_focus: bool,
+) -> Option<usize> {
+    if enabled.is_empty() || !enabled.iter().any(|enabled| *enabled) {
+        return None;
+    }
+    let len = enabled.len() as isize;
+    let start = current
+        .map(|index| index as isize)
+        .unwrap_or(if direction >= 0 { -1 } else { len });
+    for step in 1..=enabled.len() {
+        let raw = start + direction * step as isize;
+        if !loop_focus && (raw < 0 || raw >= len) {
+            return None;
+        }
+        let next = raw.rem_euclid(len) as usize;
+        if enabled[next] {
+            return Some(next);
+        }
+    }
+    None
 }
 
 pub fn tabs_index_by_label(items: &[TabItem], query: &str) -> Option<usize> {
@@ -231,6 +447,21 @@ pub fn primitive_tabs_trigger(
 }
 
 pub fn tab_rects(bounds: Rect, items: &[TabItem]) -> Vec<Rect> {
+    tab_rects_with_orientation(bounds, items, TabsOrientation::Horizontal)
+}
+
+pub fn tab_rects_with_orientation(
+    bounds: Rect,
+    items: &[TabItem],
+    orientation: TabsOrientation,
+) -> Vec<Rect> {
+    match orientation {
+        TabsOrientation::Horizontal => horizontal_tab_rects(bounds, items),
+        TabsOrientation::Vertical => vertical_tab_rects(bounds, items),
+    }
+}
+
+fn horizontal_tab_rects(bounds: Rect, items: &[TabItem]) -> Vec<Rect> {
     let mut x = bounds.left();
     let mut y = bounds.top();
     let right = bounds.right().max(bounds.left() + 1.0);
@@ -244,6 +475,23 @@ pub fn tab_rects(bounds: Rect, items: &[TabItem]) -> Vec<Rect> {
             }
             let rect = Rect::from_min_size(egui::pos2(x, y), Vec2::new(width, 30.0));
             x += width;
+            rect
+        })
+        .collect()
+}
+
+fn vertical_tab_rects(bounds: Rect, items: &[TabItem]) -> Vec<Rect> {
+    let width = items
+        .iter()
+        .map(|item| tab_width(item.label))
+        .fold(54.0, f32::max)
+        .min(bounds.width().max(54.0));
+    let mut y = bounds.top();
+    items
+        .iter()
+        .map(|_| {
+            let rect = Rect::from_min_size(egui::pos2(bounds.left(), y), Vec2::new(width, 30.0));
+            y += 30.0;
             rect
         })
         .collect()
@@ -306,6 +554,175 @@ mod tests {
         assert_eq!(list.left(), bounds.left());
         assert_eq!(list.right(), rects.last().unwrap().right());
         assert_eq!(list.height(), 30.0);
+    }
+
+    #[test]
+    fn vertical_tab_rects_stack_items_and_list_rect_covers_height() {
+        let bounds = Rect::from_min_size(egui::pos2(10.0, 4.0), Vec2::new(400.0, 300.0));
+        let items = [
+            TabItem {
+                label: "A",
+                enabled: true,
+            },
+            TabItem {
+                label: "Long Tab",
+                enabled: true,
+            },
+        ];
+        let rects = tab_rects_with_orientation(bounds, &items, TabsOrientation::Vertical);
+        let list =
+            primitive_tabs_list_rect_with_orientation(bounds, &items, TabsOrientation::Vertical)
+                .expect("non-empty tab list");
+
+        assert_eq!(rects.len(), 2);
+        assert_eq!(rects[0].top(), bounds.top());
+        assert_eq!(rects[1].top(), rects[0].bottom());
+        assert_eq!(rects[0].left(), bounds.left());
+        assert_eq!(list.top(), bounds.top());
+        assert_eq!(list.bottom(), rects.last().unwrap().bottom());
+    }
+
+    #[test]
+    fn tabs_keyboard_action_respects_orientation_and_activation_keys() {
+        assert_eq!(
+            tabs_keyboard_action(
+                TabsOrientation::Horizontal,
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+            ),
+            TabsKeyboardAction::FocusNext
+        );
+        assert_eq!(
+            tabs_keyboard_action(
+                TabsOrientation::Horizontal,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+            ),
+            TabsKeyboardAction::None
+        );
+        assert_eq!(
+            tabs_keyboard_action(
+                TabsOrientation::Vertical,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+            ),
+            TabsKeyboardAction::FocusNext
+        );
+        assert_eq!(
+            tabs_keyboard_action(
+                TabsOrientation::Vertical,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+            ),
+            TabsKeyboardAction::Activate
+        );
+    }
+
+    #[test]
+    fn tabs_keyboard_target_skips_disabled_and_respects_loop_focus() {
+        let enabled = [true, false, true];
+
+        assert_eq!(
+            tabs_keyboard_target_index(&enabled, Some(0), TabsKeyboardAction::FocusNext, true),
+            Some(2)
+        );
+        assert_eq!(
+            tabs_keyboard_target_index(&enabled, Some(2), TabsKeyboardAction::FocusNext, true),
+            Some(0)
+        );
+        assert_eq!(
+            tabs_keyboard_target_index(&enabled, Some(2), TabsKeyboardAction::FocusNext, false),
+            None
+        );
+        assert_eq!(
+            tabs_keyboard_target_index(&enabled, Some(0), TabsKeyboardAction::FocusPrevious, true),
+            Some(2)
+        );
+        assert_eq!(
+            tabs_keyboard_target_index(&enabled, Some(1), TabsKeyboardAction::Activate, true),
+            None
+        );
+    }
+
+    #[test]
+    fn tabs_apply_keyboard_action_separates_manual_focus_from_selected_value() {
+        let enabled = [true, true, true];
+        let mut selected = 0;
+        let mut focus = RovingFocusState {
+            active_index: Some(0),
+        };
+
+        let changed = tabs_apply_keyboard_action(
+            &mut selected,
+            &mut focus,
+            &enabled,
+            TabsKeyboardAction::FocusNext,
+            TabsActivationMode::Manual,
+            true,
+        );
+
+        assert!(!changed);
+        assert_eq!(selected, 0);
+        assert_eq!(focus.active_index, Some(1));
+
+        let changed = tabs_apply_keyboard_action(
+            &mut selected,
+            &mut focus,
+            &enabled,
+            TabsKeyboardAction::Activate,
+            TabsActivationMode::Manual,
+            true,
+        );
+
+        assert!(changed);
+        assert_eq!(selected, 1);
+        assert_eq!(focus.active_index, Some(1));
+    }
+
+    #[test]
+    fn tabs_apply_keyboard_action_selects_focused_tab_in_automatic_mode() {
+        let enabled = [true, true, true];
+        let mut selected = 0;
+        let mut focus = RovingFocusState {
+            active_index: Some(0),
+        };
+
+        let changed = tabs_apply_keyboard_action(
+            &mut selected,
+            &mut focus,
+            &enabled,
+            TabsKeyboardAction::FocusNext,
+            TabsActivationMode::Automatic,
+            true,
+        );
+
+        assert!(changed);
+        assert_eq!(selected, 1);
+        assert_eq!(focus.active_index, Some(1));
     }
 
     #[test]

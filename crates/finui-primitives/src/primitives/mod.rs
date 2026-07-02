@@ -187,9 +187,12 @@ pub use menu_bar::{
     primitive_navigation_viewport_output,
 };
 pub use navigation::{
-    TabItem, TabsContentOptions, TabsContentOutput, TabsHeaderOutput, TabsTriggerState,
-    primitive_tabs_content, primitive_tabs_header, primitive_tabs_list_rect,
-    primitive_tabs_trigger, tab_rects, tabs_index_by_label,
+    TabItem, TabsActivationMode, TabsContentOptions, TabsContentOutput, TabsHeaderOptions,
+    TabsHeaderOutput, TabsKeyboardAction, TabsOrientation, TabsTriggerState,
+    primitive_tabs_content, primitive_tabs_header, primitive_tabs_header_with_options,
+    primitive_tabs_list_rect, primitive_tabs_list_rect_with_orientation, primitive_tabs_trigger,
+    tab_rects, tab_rects_with_orientation, tabs_apply_keyboard_action, tabs_index_by_label,
+    tabs_keyboard_action, tabs_keyboard_target_index,
 };
 pub use otp::{
     OtpFieldHiddenInputOutput, OtpFieldInputOutput, OtpFieldInputType, OtpFieldOrientation,
