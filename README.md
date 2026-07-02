@@ -50,43 +50,16 @@ cargo run -p grid_lab
 cargo run -p primitives_lab
 ```
 
-## Screenshots And Visual Baselines
+## Screenshot
 
-The checked-in images show the current target surfaces for dense financial
-workflows and Radix-style primitive visual states. They live in `docs/images/` so
-README previews and visual baselines stay close to the code.
-
-### Grid Lab
+The checked-in screenshot shows the current target surface for dense financial
+workflows. It lives in `docs/images/` so README previews stay close to the code.
 
 ![Finui grid lab sample](docs/images/grid-lab.png)
 
 `grid_lab` exercises the financial grid surface: typed cells, dense row layout,
 sorting/filtering affordances, row-source metadata, and demo fixtures that mimic
 table-like endpoint payloads.
-
-### Primitive Visual Baseline: Light States
-
-![Finui primitive lab light state sample](docs/images/primitives-lab-light.png)
-
-This is a stable visual-regression baseline for light-mode primitive states,
-including open, disabled, and long-text coverage. It is not a live window capture;
-it is the image used to anchor regression thresholds in
-`docs/visual-regression-baseline.md`.
-
-### Primitive Visual Baseline: Dark And RTL States
-
-![Finui primitive lab dark and RTL state sample](docs/images/primitives-lab-dark.png)
-
-The dark baseline keeps contrast, disabled treatment, and right-to-left state
-coverage visible from the top-level project documentation.
-
-### Primitive Visual Baseline: Layer States
-
-![Finui primitive lab layer state sample](docs/images/primitives-lab-layers.png)
-
-The layer baseline focuses on open-layer and edge-placement coverage. Use it when
-checking popup, menu, dialog, and placement behavior against the Radix-style UX
-target.
 
 ## Feature Boundaries
 
