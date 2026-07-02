@@ -4,12 +4,13 @@ use eframe::egui::{self, Align2, FontId, Rect, Response, Sense, Stroke, Vec2};
 
 use super::{
     DropdownMenuAlign, DropdownMenuDataState, DropdownMenuSide, PopoverArrowSide,
-    PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme,
-    dropdown_menu_align_from_layer_align, dropdown_menu_placement_parts,
-    dropdown_menu_side_from_layer_side, popover_arrow_side, primitive_mounted_content_policy,
-    primitive_popover_arrow, show_primitive_layer,
+    PrimitiveLayerAnimationOutput, PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme,
+    dropdown_menu_align_from_layer_align, dropdown_menu_layer_align, dropdown_menu_layer_side,
+    dropdown_menu_placement_parts, dropdown_menu_side_from_layer_side, popover_arrow_side,
+    primitive_layer_animation_output, primitive_mounted_content_policy, primitive_popover_arrow,
+    show_primitive_layer,
 };
-use crate::{DismissPolicy, LayerPlacement};
+use crate::{DismissPolicy, LayerPlacement, LayerResolvedPlacement};
 
 pub type HoverCardDataState = DropdownMenuDataState;
 pub type HoverCardSide = DropdownMenuSide;
@@ -318,6 +319,7 @@ pub struct HoverCardContentOutput {
     pub data_state: HoverCardDataState,
     pub open_delay_ms: u64,
     pub close_delay_ms: u64,
+    pub animation: PrimitiveLayerAnimationOutput,
 }
 
 pub struct HoverCardOutput<T> {
@@ -326,6 +328,7 @@ pub struct HoverCardOutput<T> {
     pub arrow_side: PopoverArrowSide,
     pub side: HoverCardSide,
     pub align: HoverCardAlign,
+    pub animation: PrimitiveLayerAnimationOutput,
 }
 
 pub fn primitive_hover_card_trigger(
@@ -388,6 +391,15 @@ pub fn primitive_hover_card_content_output(
         data_state: options.data_state,
         open_delay_ms: options.open_delay_ms,
         close_delay_ms: options.close_delay_ms,
+        animation: primitive_layer_animation_output(
+            options.data_state == HoverCardDataState::Open,
+            LayerResolvedPlacement {
+                side: dropdown_menu_layer_side(options.side),
+                align: dropdown_menu_layer_align(options.align),
+                flipped: false,
+            },
+            1.0,
+        ),
     }
 }
 
@@ -420,6 +432,15 @@ pub fn primitive_hover_card_content(
         data_state: HoverCardDataState::Open,
         open_delay_ms: 0,
         close_delay_ms: 0,
+        animation: primitive_layer_animation_output(
+            true,
+            LayerResolvedPlacement {
+                side: dropdown_menu_layer_side(HoverCardSide::Bottom),
+                align: dropdown_menu_layer_align(HoverCardAlign::Start),
+                flipped: false,
+            },
+            1.0,
+        ),
     };
     let (title_color, description_color) = hover_card_content_text_colors(&output, theme);
     primitive_hover_card_content_text(ui, title, description, title_color, description_color);
@@ -497,6 +518,7 @@ pub fn show_hover_card<T>(
         arrow_side: popover_arrow_side(trigger_rect, output.content_rect),
         side: dropdown_menu_side_from_layer_side(output.resolved_placement.side),
         align: dropdown_menu_align_from_layer_align(output.resolved_placement.align),
+        animation: primitive_layer_animation_output(true, output.resolved_placement, 1.0),
     })
 }
 
@@ -705,6 +727,46 @@ mod tests {
         assert_eq!(output.data_state.as_str(), "closed");
         assert_eq!(output.open_delay_ms, 80);
         assert_eq!(output.close_delay_ms, 160);
+        assert_eq!(output.animation.open_progress, 0.0);
+        assert_eq!(output.animation.data_side, "bottom");
+        assert_eq!(output.animation.data_align, "center");
+        assert_eq!(output.animation.transform_origin, egui::pos2(0.5, 0.0));
+    }
+
+    #[test]
+    fn hover_card_output_reports_collision_resolved_side_align_and_animation_origin() {
+        let ctx = egui::Context::default();
+        let _ = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(
+                    egui::pos2(0.0, 0.0),
+                    egui::vec2(320.0, 240.0),
+                )),
+                ..Default::default()
+            },
+            |_| {},
+        );
+        let options = HoverCardOptions::anchored(
+            "hover_card_collision_output_test",
+            Rect::from_min_size(egui::pos2(24.0, 204.0), egui::vec2(42.0, 28.0)),
+            120.0,
+            LayerPlacement::BelowStart {
+                offset: egui::vec2(0.0, 6.0),
+            },
+        );
+
+        let output = show_hover_card(&ctx, true, options, |ui| {
+            primitive_hover_card_content(ui, "Title", "Description", PrimitiveTheme::default());
+            None::<()>
+        })
+        .expect("open hover card should render");
+
+        assert_eq!(output.side, HoverCardSide::Top);
+        assert_eq!(output.align, HoverCardAlign::Start);
+        assert_eq!(output.animation.data_side, "top");
+        assert_eq!(output.animation.data_align, "start");
+        assert_eq!(output.animation.transform_origin, egui::pos2(0.0, 1.0));
+        assert!(output.animation.collision_flipped);
     }
 
     #[test]
@@ -720,10 +782,28 @@ mod tests {
             data_state: HoverCardDataState::Open,
             open_delay_ms: 120,
             close_delay_ms: 300,
+            animation: primitive_layer_animation_output(
+                true,
+                LayerResolvedPlacement {
+                    side: dropdown_menu_layer_side(HoverCardSide::Bottom),
+                    align: dropdown_menu_layer_align(HoverCardAlign::Start),
+                    flipped: false,
+                },
+                1.0,
+            ),
         };
         let closed = HoverCardContentOutput {
             data_state: HoverCardDataState::Closed,
             open: false,
+            animation: primitive_layer_animation_output(
+                false,
+                LayerResolvedPlacement {
+                    side: dropdown_menu_layer_side(HoverCardSide::Bottom),
+                    align: dropdown_menu_layer_align(HoverCardAlign::Start),
+                    flipped: false,
+                },
+                1.0,
+            ),
             ..open
         };
 

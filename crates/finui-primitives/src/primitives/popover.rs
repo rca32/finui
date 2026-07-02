@@ -3,12 +3,14 @@ use std::hash::Hash;
 use eframe::egui::{self, Align2, FontId, Pos2, Rect, Response, Sense, Shape, Stroke, Vec2};
 
 use super::{
-    DropdownMenuAlign, DropdownMenuDataState, DropdownMenuSide, PrimitiveLayerOptions,
-    PrimitiveLayerOutput, PrimitiveTheme, dropdown_menu_align_from_layer_align,
+    DropdownMenuAlign, DropdownMenuDataState, DropdownMenuSide, PrimitiveLayerAnimationOutput,
+    PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme,
+    dropdown_menu_align_from_layer_align, dropdown_menu_layer_align, dropdown_menu_layer_side,
     dropdown_menu_placement_parts, dropdown_menu_side_from_layer_side,
-    primitive_dismissable_layer_options, primitive_mounted_content_policy, show_primitive_layer,
+    primitive_dismissable_layer_options, primitive_layer_animation_output,
+    primitive_mounted_content_policy, show_primitive_layer,
 };
-use crate::{DismissPolicy, LayerPlacement};
+use crate::{DismissPolicy, LayerPlacement, LayerResolvedPlacement};
 
 pub type PopoverDataState = DropdownMenuDataState;
 pub type PopoverSide = DropdownMenuSide;
@@ -287,6 +289,7 @@ pub struct PopoverContentOutput {
     pub side: PopoverSide,
     pub align: PopoverAlign,
     pub data_state: PopoverDataState,
+    pub animation: PrimitiveLayerAnimationOutput,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -332,6 +335,7 @@ pub struct PopoverOutput<T> {
     pub content_rect: Rect,
     pub side: PopoverSide,
     pub align: PopoverAlign,
+    pub animation: PrimitiveLayerAnimationOutput,
 }
 
 pub fn primitive_popover_trigger(
@@ -422,6 +426,15 @@ pub fn primitive_popover_content_output(options: PopoverContentOptions) -> Popov
         side: options.side,
         align: options.align,
         data_state: options.data_state,
+        animation: primitive_layer_animation_output(
+            options.data_state == PopoverDataState::Open,
+            LayerResolvedPlacement {
+                side: dropdown_menu_layer_side(options.side),
+                align: dropdown_menu_layer_align(options.align),
+                flipped: false,
+            },
+            1.0,
+        ),
     }
 }
 
@@ -451,6 +464,15 @@ pub fn primitive_popover_content(
         side: PopoverSide::Bottom,
         align: PopoverAlign::Start,
         data_state: PopoverDataState::Open,
+        animation: primitive_layer_animation_output(
+            true,
+            LayerResolvedPlacement {
+                side: dropdown_menu_layer_side(PopoverSide::Bottom),
+                align: dropdown_menu_layer_align(PopoverAlign::Start),
+                flipped: false,
+            },
+            1.0,
+        ),
     };
     let (title_color, description_color) = popover_content_text_colors(&output, theme);
     primitive_popover_content_text(ui, title, description, title_color, description_color);
@@ -555,6 +577,7 @@ pub fn show_popover<T>(
         content_rect: output.content_rect,
         side: dropdown_menu_side_from_layer_side(output.resolved_placement.side),
         align: dropdown_menu_align_from_layer_align(output.resolved_placement.align),
+        animation: primitive_layer_animation_output(true, output.resolved_placement, 1.0),
     }
 }
 
@@ -776,6 +799,10 @@ mod tests {
         assert_eq!(output.align.as_str(), "center");
         assert_eq!(output.data_state, PopoverDataState::Closed);
         assert_eq!(output.data_state.as_str(), "closed");
+        assert_eq!(output.animation.open_progress, 0.0);
+        assert_eq!(output.animation.data_side, "bottom");
+        assert_eq!(output.animation.data_align, "center");
+        assert_eq!(output.animation.transform_origin, egui::pos2(0.5, 0.0));
     }
 
     #[test]
@@ -807,6 +834,10 @@ mod tests {
 
         assert_eq!(output.side, PopoverSide::Top);
         assert_eq!(output.align, PopoverAlign::Start);
+        assert_eq!(output.animation.data_side, "top");
+        assert_eq!(output.animation.data_align, "start");
+        assert_eq!(output.animation.transform_origin, egui::pos2(0.0, 1.0));
+        assert!(output.animation.collision_flipped);
     }
 
     #[test]
@@ -820,10 +851,28 @@ mod tests {
             side: PopoverSide::Bottom,
             align: PopoverAlign::Start,
             data_state: PopoverDataState::Open,
+            animation: primitive_layer_animation_output(
+                true,
+                LayerResolvedPlacement {
+                    side: dropdown_menu_layer_side(PopoverSide::Bottom),
+                    align: dropdown_menu_layer_align(PopoverAlign::Start),
+                    flipped: false,
+                },
+                1.0,
+            ),
         };
         let closed = PopoverContentOutput {
             data_state: PopoverDataState::Closed,
             open: false,
+            animation: primitive_layer_animation_output(
+                false,
+                LayerResolvedPlacement {
+                    side: dropdown_menu_layer_side(PopoverSide::Bottom),
+                    align: dropdown_menu_layer_align(PopoverAlign::Start),
+                    flipped: false,
+                },
+                1.0,
+            ),
             ..open
         };
 

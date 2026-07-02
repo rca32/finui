@@ -139,7 +139,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 side/align은 요청 placement에서 계산되는 경우가 많고, 충돌 후 flip 결과와 항상 일치한다고 보기 어렵다.
   - 완료 기준: 아래에서 위로 flip된 경우 `data-side=top`에 해당하는 output이 나온다.
 
-- [ ] origin-aware/collision-aware animation hook을 추가한다.
+- [x] origin-aware/collision-aware animation hook을 추가한다.
   - CSS 변수는 없지만 egui에서도 animation origin, open/close progress, collision side를 output으로 줄 수 있다.
   - 완료 기준: Popover/Dropdown/Tooltip/HoverCard가 open/close progress와 transform origin equivalent를 노출한다.
 

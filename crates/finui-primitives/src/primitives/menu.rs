@@ -3,10 +3,11 @@ use std::hash::Hash;
 use eframe::egui::{self, Align2, Color32, FontId, Rect, Response, Sense, Stroke, Vec2};
 
 use super::{
-    PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme, RadixIcon, paint_radix_icon,
-    radix_colors, show_primitive_layer,
+    PrimitiveLayerAnimationOutput, PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme,
+    RadixIcon, paint_radix_icon, primitive_layer_animation_output, radix_colors,
+    show_primitive_layer,
 };
-use crate::{DismissPolicy, LayerAlign, LayerPlacement, LayerSide};
+use crate::{DismissPolicy, LayerAlign, LayerPlacement, LayerResolvedPlacement, LayerSide};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DropdownMenuDataState {
@@ -332,6 +333,7 @@ pub struct DropdownMenuContentOutput {
     pub side: DropdownMenuSide,
     pub align: DropdownMenuAlign,
     pub data_state: DropdownMenuDataState,
+    pub animation: PrimitiveLayerAnimationOutput,
 }
 
 pub struct DropdownMenuOutput<T> {
@@ -340,6 +342,7 @@ pub struct DropdownMenuOutput<T> {
     pub content_rect: Rect,
     pub side: DropdownMenuSide,
     pub align: DropdownMenuAlign,
+    pub animation: PrimitiveLayerAnimationOutput,
 }
 
 pub fn primitive_dropdown_menu_trigger(
@@ -433,6 +436,23 @@ pub fn dropdown_menu_align_from_layer_align(align: LayerAlign) -> DropdownMenuAl
     }
 }
 
+pub fn dropdown_menu_layer_side(side: DropdownMenuSide) -> LayerSide {
+    match side {
+        DropdownMenuSide::Top => LayerSide::Top,
+        DropdownMenuSide::Right => LayerSide::Right,
+        DropdownMenuSide::Bottom => LayerSide::Bottom,
+        DropdownMenuSide::Left => LayerSide::Left,
+    }
+}
+
+pub fn dropdown_menu_layer_align(align: DropdownMenuAlign) -> LayerAlign {
+    match align {
+        DropdownMenuAlign::Start => LayerAlign::Start,
+        DropdownMenuAlign::Center => LayerAlign::Center,
+        DropdownMenuAlign::End => LayerAlign::End,
+    }
+}
+
 pub fn primitive_dropdown_menu_content_options(
     options: &DropdownMenuOptions,
 ) -> DropdownMenuContentOptions {
@@ -467,6 +487,15 @@ pub fn primitive_dropdown_menu_content_output(
         side: options.side,
         align: options.align,
         data_state: options.data_state,
+        animation: primitive_layer_animation_output(
+            options.data_state == DropdownMenuDataState::Open,
+            LayerResolvedPlacement {
+                side: dropdown_menu_layer_side(options.side),
+                align: dropdown_menu_layer_align(options.align),
+                flipped: false,
+            },
+            1.0,
+        ),
     }
 }
 
@@ -503,6 +532,7 @@ pub fn show_dropdown_menu<T>(
         content_rect: output.content_rect,
         side: dropdown_menu_side_from_layer_side(output.resolved_placement.side),
         align: dropdown_menu_align_from_layer_align(output.resolved_placement.align),
+        animation: primitive_layer_animation_output(true, output.resolved_placement, 1.0),
     }
 }
 
@@ -1106,6 +1136,10 @@ mod tests {
         assert_eq!(output.data_state.as_str(), "closed");
         assert_eq!(output.side.as_str(), "right");
         assert_eq!(output.align.as_str(), "start");
+        assert_eq!(output.animation.open_progress, 0.0);
+        assert_eq!(output.animation.data_side, "right");
+        assert_eq!(output.animation.data_align, "start");
+        assert_eq!(output.animation.transform_origin, egui::pos2(0.0, 0.0));
     }
 
     #[test]
@@ -1138,6 +1172,10 @@ mod tests {
 
         assert_eq!(output.side, DropdownMenuSide::Top);
         assert_eq!(output.align, DropdownMenuAlign::Start);
+        assert_eq!(output.animation.data_side, "top");
+        assert_eq!(output.animation.data_align, "start");
+        assert_eq!(output.animation.transform_origin, egui::pos2(0.0, 1.0));
+        assert!(output.animation.collision_flipped);
     }
 
     #[test]

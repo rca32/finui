@@ -3,12 +3,14 @@ use std::hash::Hash;
 use eframe::egui::{self, Align2, Color32, FontId, Rect, Response, Sense, Stroke, Vec2};
 
 use super::{
-    DropdownMenuAlign, DropdownMenuSide, PopoverArrowSide, PrimitiveLayerOptions,
-    PrimitiveLayerOutput, PrimitiveTheme, dropdown_menu_align_from_layer_align,
+    DropdownMenuAlign, DropdownMenuSide, PopoverArrowSide, PrimitiveLayerAnimationOutput,
+    PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme,
+    dropdown_menu_align_from_layer_align, dropdown_menu_layer_align, dropdown_menu_layer_side,
     dropdown_menu_placement_parts, dropdown_menu_side_from_layer_side, popover_arrow_side,
-    primitive_mounted_content_policy, primitive_popover_arrow, show_primitive_layer,
+    primitive_layer_animation_output, primitive_mounted_content_policy, primitive_popover_arrow,
+    show_primitive_layer,
 };
-use crate::{DismissPolicy, LayerPlacement};
+use crate::{DismissPolicy, LayerPlacement, LayerResolvedPlacement};
 
 pub type TooltipSide = DropdownMenuSide;
 pub type TooltipAlign = DropdownMenuAlign;
@@ -427,6 +429,7 @@ pub struct TooltipContentOutput {
     pub side: TooltipSide,
     pub align: TooltipAlign,
     pub data_state: TooltipDataState,
+    pub animation: PrimitiveLayerAnimationOutput,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -435,6 +438,7 @@ pub struct TooltipOutput {
     pub arrow_side: PopoverArrowSide,
     pub side: TooltipSide,
     pub align: TooltipAlign,
+    pub animation: PrimitiveLayerAnimationOutput,
 }
 
 pub fn primitive_tooltip_trigger(
@@ -494,6 +498,15 @@ pub fn primitive_tooltip_content_output(options: TooltipContentOptions) -> Toolt
         side: options.side,
         align: options.align,
         data_state: options.data_state,
+        animation: primitive_layer_animation_output(
+            options.data_state != TooltipDataState::Closed,
+            LayerResolvedPlacement {
+                side: dropdown_menu_layer_side(options.side),
+                align: dropdown_menu_layer_align(options.align),
+                flipped: false,
+            },
+            1.0,
+        ),
     }
 }
 
@@ -576,6 +589,7 @@ pub fn show_tooltip(
         arrow_side: popover_arrow_side(trigger_rect, output.content_rect),
         side: dropdown_menu_side_from_layer_side(output.resolved_placement.side),
         align: dropdown_menu_align_from_layer_align(output.resolved_placement.align),
+        animation: primitive_layer_animation_output(true, output.resolved_placement, 1.0),
     })
 }
 
@@ -724,6 +738,10 @@ mod tests {
         assert_eq!(output.align.as_str(), "center");
         assert_eq!(output.data_state, TooltipDataState::Closed);
         assert_eq!(output.data_state.as_str(), "closed");
+        assert_eq!(output.animation.open_progress, 0.0);
+        assert_eq!(output.animation.data_side, "bottom");
+        assert_eq!(output.animation.data_align, "center");
+        assert_eq!(output.animation.transform_origin, egui::pos2(0.5, 0.0));
     }
 
     #[test]
@@ -753,6 +771,10 @@ mod tests {
 
         assert_eq!(output.side, TooltipSide::Top);
         assert_eq!(output.align, TooltipAlign::Start);
+        assert_eq!(output.animation.data_side, "top");
+        assert_eq!(output.animation.data_align, "start");
+        assert_eq!(output.animation.transform_origin, egui::pos2(0.0, 1.0));
+        assert!(output.animation.collision_flipped);
     }
 
     #[test]

@@ -138,8 +138,9 @@ pub use instrument_browser::{
     primitive_instrument_browser_surface_spec,
 };
 pub use layer::{
-    PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitivePortalOutput,
-    primitive_dismissable_layer_options, primitive_portal_output, show_primitive_layer,
+    PrimitiveLayerAnimationOutput, PrimitiveLayerOptions, PrimitiveLayerOutput,
+    PrimitivePortalOutput, primitive_dismissable_layer_options, primitive_layer_animation_output,
+    primitive_layer_transform_origin, primitive_portal_output, show_primitive_layer,
 };
 pub use layout::{
     AspectRatioOptions, AspectRatioOutput, VisuallyHiddenOutput, aspect_ratio_rect,
@@ -153,15 +154,16 @@ pub use menu::{
     DropdownMenuPortalOutput, DropdownMenuRootOptions, DropdownMenuRootOutput,
     DropdownMenuSeparatorOptions, DropdownMenuSide, DropdownMenuTriggerOptions, MenuItem,
     MenuItemOptions, dropdown_menu_align_from_layer_align, dropdown_menu_apply_open,
-    dropdown_menu_placement_parts, dropdown_menu_side_from_layer_side, menu_apply_value,
-    menu_checkbox_next_state, menu_radio_next_value, menu_typeahead_match,
-    primitive_dropdown_menu_checkbox_item, primitive_dropdown_menu_content_options,
-    primitive_dropdown_menu_content_output, primitive_dropdown_menu_item,
-    primitive_dropdown_menu_label, primitive_dropdown_menu_layer_options,
-    primitive_dropdown_menu_portal_output, primitive_dropdown_menu_radio_item,
-    primitive_dropdown_menu_root_output, primitive_dropdown_menu_separator,
-    primitive_dropdown_menu_trigger, primitive_menu_checkbox_item, primitive_menu_item,
-    primitive_menu_label, primitive_menu_radio_item, primitive_menu_separator, show_dropdown_menu,
+    dropdown_menu_layer_align, dropdown_menu_layer_side, dropdown_menu_placement_parts,
+    dropdown_menu_side_from_layer_side, menu_apply_value, menu_checkbox_next_state,
+    menu_radio_next_value, menu_typeahead_match, primitive_dropdown_menu_checkbox_item,
+    primitive_dropdown_menu_content_options, primitive_dropdown_menu_content_output,
+    primitive_dropdown_menu_item, primitive_dropdown_menu_label,
+    primitive_dropdown_menu_layer_options, primitive_dropdown_menu_portal_output,
+    primitive_dropdown_menu_radio_item, primitive_dropdown_menu_root_output,
+    primitive_dropdown_menu_separator, primitive_dropdown_menu_trigger,
+    primitive_menu_checkbox_item, primitive_menu_item, primitive_menu_label,
+    primitive_menu_radio_item, primitive_menu_separator, show_dropdown_menu,
 };
 pub use menu_bar::{
     MenuNavigationAction, MenubarAlign, MenubarContentOptions, MenubarContentOutput,

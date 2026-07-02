@@ -4,8 +4,8 @@ use eframe::egui::{self, Rect};
 
 use super::theme::PrimitiveTheme;
 use crate::{
-    AnchoredLayerOptions, DismissLayerEvent, DismissLayerFilter, DismissPolicy, LayerOutput,
-    LayerPlacement, LayerResolvedPlacement, show_anchored_layer,
+    AnchoredLayerOptions, DismissLayerEvent, DismissLayerFilter, DismissPolicy, LayerAlign,
+    LayerOutput, LayerPlacement, LayerResolvedPlacement, LayerSide, show_anchored_layer,
 };
 
 pub struct PrimitiveLayerOptions {
@@ -89,6 +89,16 @@ pub struct PrimitiveLayerOutput<T> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PrimitiveLayerAnimationOutput {
+    pub open_progress: f32,
+    pub close_progress: f32,
+    pub transform_origin: egui::Pos2,
+    pub data_side: &'static str,
+    pub data_align: &'static str,
+    pub collision_flipped: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PrimitivePortalOutput {
     pub content_rect: Rect,
 }
@@ -102,6 +112,36 @@ pub fn primitive_dismissable_layer_options(
     dismiss_policy: DismissPolicy,
 ) -> PrimitiveLayerOptions {
     options.dismiss_policy(dismiss_policy)
+}
+
+pub fn primitive_layer_animation_output(
+    open: bool,
+    placement: LayerResolvedPlacement,
+    progress: f32,
+) -> PrimitiveLayerAnimationOutput {
+    let open_progress = if open { progress.clamp(0.0, 1.0) } else { 0.0 };
+    PrimitiveLayerAnimationOutput {
+        open_progress,
+        close_progress: if open { 1.0 - open_progress } else { 1.0 },
+        transform_origin: primitive_layer_transform_origin(placement.side, placement.align),
+        data_side: placement.side.as_str(),
+        data_align: placement.align.as_str(),
+        collision_flipped: placement.flipped,
+    }
+}
+
+pub fn primitive_layer_transform_origin(side: LayerSide, align: LayerAlign) -> egui::Pos2 {
+    let align_fraction = match align {
+        LayerAlign::Start => 0.0,
+        LayerAlign::Center => 0.5,
+        LayerAlign::End => 1.0,
+    };
+    match side {
+        LayerSide::Top => egui::pos2(align_fraction, 1.0),
+        LayerSide::Bottom => egui::pos2(align_fraction, 0.0),
+        LayerSide::Left => egui::pos2(1.0, align_fraction),
+        LayerSide::Right => egui::pos2(0.0, align_fraction),
+    }
 }
 
 pub fn show_primitive_layer<T>(
@@ -172,5 +212,37 @@ mod tests {
             PrimitiveLayerOptions::new("layer-filter-test", 180.0).dismiss_filter(prevent);
 
         assert!(options.dismiss_filter.is_some());
+    }
+
+    #[test]
+    fn layer_animation_output_reports_progress_origin_and_collision_parts() {
+        let output = primitive_layer_animation_output(
+            true,
+            LayerResolvedPlacement {
+                side: LayerSide::Top,
+                align: LayerAlign::End,
+                flipped: true,
+            },
+            0.35,
+        );
+        let closed = primitive_layer_animation_output(
+            false,
+            LayerResolvedPlacement {
+                side: LayerSide::Right,
+                align: LayerAlign::Center,
+                flipped: false,
+            },
+            0.75,
+        );
+
+        assert_eq!(output.open_progress, 0.35);
+        assert_eq!(output.close_progress, 0.65);
+        assert_eq!(output.transform_origin, egui::pos2(1.0, 1.0));
+        assert_eq!(output.data_side, "top");
+        assert_eq!(output.data_align, "end");
+        assert!(output.collision_flipped);
+        assert_eq!(closed.open_progress, 0.0);
+        assert_eq!(closed.close_progress, 1.0);
+        assert_eq!(closed.transform_origin, egui::pos2(0.0, 0.5));
     }
 }
