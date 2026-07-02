@@ -378,6 +378,94 @@ pub struct PrimitiveDataAttributesOutput {
     pub attributes: Vec<PrimitiveDataAttributePair>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveTextOverflowMode {
+    Clip,
+    Ellipsis,
+}
+
+impl PrimitiveTextOverflowMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Clip => "clip",
+            Self::Ellipsis => "ellipsis",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveTextLabelKind {
+    Plain,
+    DenseFinancial,
+    Korean,
+    MixedNumeric,
+}
+
+impl PrimitiveTextLabelKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Plain => "plain",
+            Self::DenseFinancial => "dense_financial",
+            Self::Korean => "korean",
+            Self::MixedNumeric => "mixed_numeric",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveTextOverflowOptions {
+    pub text: String,
+    pub max_chars: Option<usize>,
+    pub mode: PrimitiveTextOverflowMode,
+    pub label_kind: PrimitiveTextLabelKind,
+    pub tooltip_when_clipped: bool,
+}
+
+impl PrimitiveTextOverflowOptions {
+    pub fn new(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            max_chars: None,
+            mode: PrimitiveTextOverflowMode::Ellipsis,
+            label_kind: PrimitiveTextLabelKind::Plain,
+            tooltip_when_clipped: true,
+        }
+    }
+
+    pub fn max_chars(mut self, max_chars: usize) -> Self {
+        self.max_chars = Some(max_chars);
+        self
+    }
+
+    pub fn mode(mut self, mode: PrimitiveTextOverflowMode) -> Self {
+        self.mode = mode;
+        self
+    }
+
+    pub fn label_kind(mut self, label_kind: PrimitiveTextLabelKind) -> Self {
+        self.label_kind = label_kind;
+        self
+    }
+
+    pub fn tooltip_when_clipped(mut self, tooltip_when_clipped: bool) -> Self {
+        self.tooltip_when_clipped = tooltip_when_clipped;
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimitiveTextOverflowOutput {
+    pub text: String,
+    pub display_text: String,
+    pub clipped: bool,
+    pub mode: PrimitiveTextOverflowMode,
+    pub mode_name: &'static str,
+    pub label_kind: PrimitiveTextLabelKind,
+    pub label_kind_name: &'static str,
+    pub tooltip_text: Option<String>,
+    pub accessibility_text: String,
+}
+
 pub fn primitive_controllable_state_output<T: Clone + PartialEq>(
     scope: PrimitiveControllableScope,
     controlled_value: Option<T>,
@@ -439,6 +527,55 @@ pub fn primitive_data_attributes_output(
         data_disabled: options.data_disabled,
         data_orientation: options.data_orientation,
         attributes,
+    }
+}
+
+pub fn primitive_text_overflow_output(
+    options: PrimitiveTextOverflowOptions,
+) -> PrimitiveTextOverflowOutput {
+    let text_len = options.text.chars().count();
+    let clipped = options
+        .max_chars
+        .is_some_and(|max_chars| text_len > max_chars);
+    let display_text = if let Some(max_chars) = options.max_chars {
+        primitive_truncated_text(&options.text, max_chars, options.mode)
+    } else {
+        options.text.clone()
+    };
+    let tooltip_text = (clipped && options.tooltip_when_clipped).then(|| options.text.clone());
+
+    PrimitiveTextOverflowOutput {
+        accessibility_text: options.text.clone(),
+        text: options.text,
+        display_text,
+        clipped,
+        mode: options.mode,
+        mode_name: options.mode.as_str(),
+        label_kind: options.label_kind,
+        label_kind_name: options.label_kind.as_str(),
+        tooltip_text,
+    }
+}
+
+fn primitive_truncated_text(
+    text: &str,
+    max_chars: usize,
+    mode: PrimitiveTextOverflowMode,
+) -> String {
+    let current_len = text.chars().count();
+    if current_len <= max_chars {
+        return text.to_owned();
+    }
+    match mode {
+        PrimitiveTextOverflowMode::Clip => text.chars().take(max_chars).collect(),
+        PrimitiveTextOverflowMode::Ellipsis => {
+            if max_chars <= 3 {
+                ".".repeat(max_chars)
+            } else {
+                let prefix = text.chars().take(max_chars - 3).collect::<String>();
+                format!("{prefix}...")
+            }
+        }
     }
 }
 
@@ -978,6 +1115,56 @@ mod tests {
         assert_eq!(label.data_disabled, None);
         assert_eq!(label.data_orientation, None);
         assert!(label.attributes.is_empty());
+    }
+
+    #[test]
+    fn text_overflow_output_ellipsizes_long_dense_financial_labels() {
+        let output = primitive_text_overflow_output(
+            PrimitiveTextOverflowOptions::new("KR103502GG38 3Y Treasury 2026-06-30")
+                .max_chars(18)
+                .label_kind(PrimitiveTextLabelKind::DenseFinancial),
+        );
+
+        assert_eq!(output.display_text, "KR103502GG38 3Y...");
+        assert!(output.clipped);
+        assert_eq!(output.mode_name, "ellipsis");
+        assert_eq!(output.label_kind_name, "dense_financial");
+        assert_eq!(
+            output.tooltip_text.as_deref(),
+            Some("KR103502GG38 3Y Treasury 2026-06-30")
+        );
+        assert_eq!(output.accessibility_text, output.text);
+    }
+
+    #[test]
+    fn text_overflow_output_clips_korean_labels_on_char_boundaries() {
+        let output = primitive_text_overflow_output(
+            PrimitiveTextOverflowOptions::new("한국국채 수익률")
+                .max_chars(4)
+                .mode(PrimitiveTextOverflowMode::Clip)
+                .label_kind(PrimitiveTextLabelKind::Korean),
+        );
+
+        assert_eq!(output.display_text, "한국국채");
+        assert!(output.clipped);
+        assert_eq!(output.mode_name, "clip");
+        assert_eq!(output.label_kind_name, "korean");
+        assert_eq!(output.accessibility_text, "한국국채 수익률");
+    }
+
+    #[test]
+    fn text_overflow_output_preserves_mixed_numeric_label_when_it_fits() {
+        let output = primitive_text_overflow_output(
+            PrimitiveTextOverflowOptions::new("KTB 3Y 3.245%")
+                .max_chars(16)
+                .label_kind(PrimitiveTextLabelKind::MixedNumeric)
+                .tooltip_when_clipped(false),
+        );
+
+        assert_eq!(output.display_text, "KTB 3Y 3.245%");
+        assert!(!output.clipped);
+        assert_eq!(output.tooltip_text, None);
+        assert_eq!(output.label_kind_name, "mixed_numeric");
     }
 
     #[test]

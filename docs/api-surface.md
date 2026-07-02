@@ -22,6 +22,7 @@ Primitive-specific reference documents:
 - `docs/primitive-keyboard-interactions.md`
 - `docs/controlled-uncontrolled-examples.md`
 - `docs/radix-parity-matrix.md`
+- `docs/text-overflow-policy.md`
 
 Application-specific shell, market data, terminal, api, or chart runtime code
 does not belong in this crate.
