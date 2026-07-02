@@ -41,7 +41,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 
 ## P0: 공통 런타임 계약
 
-- [ ] 공통 focus manager를 만든다.
+- [x] 공통 focus manager를 만든다.
   - Dialog/AlertDialog: 열릴 때 초기 포커스 이동, 닫힐 때 trigger로 복귀, modal 내부 Tab/Shift+Tab 순환.
   - Popover/Menu/Select: 열릴 때 콘텐츠 또는 첫 활성 항목 focus, 닫힐 때 trigger 복귀.
   - Tooltip/HoverCard: focus와 hover 모두에서 open/close 동작 일관화.

@@ -89,8 +89,10 @@ pub use disclosure::{
     primitive_collapsible_trigger_with_options,
 };
 pub use focus::{
-    RovingFocusAction, RovingFocusKey, RovingFocusOptions, RovingFocusOrientation,
-    RovingFocusOutput, RovingFocusState, primitive_roving_focus_output, roving_focus_target_index,
+    PrimitiveFocusCloseReason, PrimitiveFocusManagerOptions, PrimitiveFocusManagerOutput,
+    PrimitiveFocusScope, PrimitiveFocusTarget, RovingFocusAction, RovingFocusKey,
+    RovingFocusOptions, RovingFocusOrientation, RovingFocusOutput, RovingFocusState,
+    primitive_focus_manager_output, primitive_roving_focus_output, roving_focus_target_index,
 };
 pub use form::{
     CheckboxIndicatorOptions, CheckboxIndicatorOutput, CheckboxRootOptions, CheckboxRootOutput,
