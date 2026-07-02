@@ -212,7 +212,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 primitive가 Radix color와 Finui theme를 직접 칠하는 경우가 많다.
   - 완료 기준: logic-only part output과 themed renderer를 분리할 수 있다.
 
-- [ ] state token을 통일한다.
+- [x] state token을 통일한다.
   - hover, active, selected, highlighted, checked, disabled, invalid, open/closed 색상/두께/radius 기준을 문서화한다.
 
 - [ ] dark/light contrast 검증을 확대한다.
