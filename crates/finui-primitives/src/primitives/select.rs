@@ -279,6 +279,12 @@ impl SelectViewportOptions {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SelectViewportOutput {
+    pub width: f32,
+    pub item_gap: f32,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct SelectTriggerOptions {
     pub width: f32,
@@ -334,6 +340,21 @@ impl SelectTriggerOptions {
 pub struct SelectTriggerOutput {
     pub response: Response,
     pub rect: Rect,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SelectValueOutput {
+    pub text: String,
+    pub placeholder: bool,
+    pub data_placeholder: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SelectIconOutput {
+    pub open: bool,
+    pub enabled: bool,
+    pub icon: RadixIcon,
+    pub data_state: SelectDataState,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -404,6 +425,72 @@ impl SelectSeparatorOptions {
     pub fn new(width: f32) -> Self {
         Self { width }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SelectGroupOptions {
+    pub label: Option<String>,
+    pub item_count: usize,
+    pub disabled_count: usize,
+}
+
+impl SelectGroupOptions {
+    pub fn new(item_count: usize) -> Self {
+        Self {
+            label: None,
+            item_count,
+            disabled_count: 0,
+        }
+    }
+
+    pub fn label(mut self, label: impl Into<String>) -> Self {
+        self.label = Some(label.into());
+        self
+    }
+
+    pub fn disabled_count(mut self, disabled_count: usize) -> Self {
+        self.disabled_count = disabled_count;
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SelectGroupOutput {
+    pub label: Option<String>,
+    pub item_count: usize,
+    pub disabled_count: usize,
+    pub enabled_count: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectScrollButtonDirection {
+    Up,
+    Down,
+}
+
+impl SelectScrollButtonDirection {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Up => "up",
+            Self::Down => "down",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SelectScrollButtonOutput {
+    pub direction: SelectScrollButtonDirection,
+    pub direction_name: &'static str,
+    pub enabled: bool,
+    pub data_disabled: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SelectItemIndicatorOutput {
+    pub selected: bool,
+    pub force_mount: bool,
+    pub mounted: bool,
+    pub data_state: SelectDataState,
 }
 
 impl SelectOptions {
@@ -503,6 +590,13 @@ pub fn primitive_select_viewport<T>(
         ui.spacing_mut().item_spacing.y = options.item_gap;
     }
     add_items(ui, options)
+}
+
+pub fn primitive_select_viewport_output(options: SelectViewportOptions) -> SelectViewportOutput {
+    SelectViewportOutput {
+        width: options.width,
+        item_gap: options.item_gap,
+    }
 }
 
 pub fn primitive_select_item(
@@ -610,6 +704,35 @@ pub fn primitive_select_value(
     );
 }
 
+pub fn primitive_select_value_output(
+    value: Option<impl Into<String>>,
+    placeholder: impl Into<String>,
+) -> SelectValueOutput {
+    let output = select_value_text_output(value, placeholder);
+    SelectValueOutput {
+        text: output.text,
+        placeholder: output.placeholder,
+        data_placeholder: output.placeholder,
+    }
+}
+
+pub fn primitive_select_icon_output(open: bool, enabled: bool) -> SelectIconOutput {
+    SelectIconOutput {
+        open,
+        enabled,
+        icon: if open {
+            RadixIcon::ChevronUp
+        } else {
+            RadixIcon::ChevronDown
+        },
+        data_state: if open {
+            SelectDataState::Open
+        } else {
+            SelectDataState::Closed
+        },
+    }
+}
+
 pub fn primitive_select_icon(
     ui: &egui::Ui,
     trigger_rect: Rect,
@@ -632,6 +755,44 @@ pub fn primitive_select_icon(
     };
     let icon_rect = Rect::from_center_size(center, Vec2::splat(15.0));
     paint_radix_icon(ui, icon, icon_rect, color);
+}
+
+pub fn primitive_select_group_output(options: SelectGroupOptions) -> SelectGroupOutput {
+    let disabled_count = options.disabled_count.min(options.item_count);
+    SelectGroupOutput {
+        label: options.label,
+        item_count: options.item_count,
+        disabled_count,
+        enabled_count: options.item_count - disabled_count,
+    }
+}
+
+pub fn primitive_select_scroll_button_output(
+    direction: SelectScrollButtonDirection,
+    enabled: bool,
+) -> SelectScrollButtonOutput {
+    SelectScrollButtonOutput {
+        direction,
+        direction_name: direction.as_str(),
+        enabled,
+        data_disabled: !enabled,
+    }
+}
+
+pub fn primitive_select_item_indicator_output(
+    selected: bool,
+    force_mount: bool,
+) -> SelectItemIndicatorOutput {
+    SelectItemIndicatorOutput {
+        selected,
+        force_mount,
+        mounted: selected || force_mount,
+        data_state: if selected {
+            SelectDataState::Open
+        } else {
+            SelectDataState::Closed
+        },
+    }
 }
 
 fn is_dark_primitive_theme(theme: PrimitiveTheme) -> bool {
@@ -1161,6 +1322,49 @@ mod tests {
         assert!(placeholder.placeholder);
         assert_eq!(value.text, "3M");
         assert!(!value.placeholder);
+    }
+
+    #[test]
+    fn select_part_outputs_cover_value_icon_viewport_scroll_indicator_and_group() {
+        let placeholder = primitive_select_value_output(None::<String>, "선택");
+        let value = primitive_select_value_output(Some("3M"), "선택");
+        let open_icon = primitive_select_icon_output(true, true);
+        let closed_disabled_icon = primitive_select_icon_output(false, false);
+        let viewport =
+            primitive_select_viewport_output(SelectViewportOptions::new(220.0).item_gap(4.0));
+        let scroll_up =
+            primitive_select_scroll_button_output(SelectScrollButtonDirection::Up, true);
+        let scroll_down_disabled =
+            primitive_select_scroll_button_output(SelectScrollButtonDirection::Down, false);
+        let indicator = primitive_select_item_indicator_output(true, false);
+        let forced_indicator = primitive_select_item_indicator_output(false, true);
+        let group = primitive_select_group_output(
+            SelectGroupOptions::new(4).label("만기").disabled_count(1),
+        );
+
+        assert_eq!(placeholder.text, "선택");
+        assert!(placeholder.placeholder);
+        assert!(placeholder.data_placeholder);
+        assert_eq!(value.text, "3M");
+        assert!(!value.placeholder);
+        assert_eq!(open_icon.icon, RadixIcon::ChevronUp);
+        assert_eq!(open_icon.data_state, SelectDataState::Open);
+        assert_eq!(closed_disabled_icon.icon, RadixIcon::ChevronDown);
+        assert!(!closed_disabled_icon.enabled);
+        assert_eq!(viewport.width, 220.0);
+        assert_eq!(viewport.item_gap, 4.0);
+        assert_eq!(scroll_up.direction_name, "up");
+        assert!(scroll_up.enabled);
+        assert_eq!(scroll_down_disabled.direction_name, "down");
+        assert!(scroll_down_disabled.data_disabled);
+        assert!(indicator.selected);
+        assert!(indicator.mounted);
+        assert_eq!(indicator.data_state, SelectDataState::Open);
+        assert!(!forced_indicator.selected);
+        assert!(forced_indicator.force_mount);
+        assert!(forced_indicator.mounted);
+        assert_eq!(group.label.as_deref(), Some("만기"));
+        assert_eq!(group.enabled_count, 3);
     }
 
     #[test]
