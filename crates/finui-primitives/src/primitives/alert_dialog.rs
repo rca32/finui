@@ -91,13 +91,28 @@ pub enum AlertDialogActionKind {
     Cancel,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AlertDialogActionFocusPriority {
+    Initial,
+    Normal,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AlertDialogActionOptions {
     pub width: f32,
     pub height: f32,
     pub kind: AlertDialogActionKind,
+    pub destructive: bool,
     pub enabled: bool,
     pub theme: PrimitiveTheme,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AlertDialogActionOutput {
+    pub kind: AlertDialogActionKind,
+    pub destructive: bool,
+    pub focus_priority: AlertDialogActionFocusPriority,
+    pub enabled: bool,
 }
 
 impl AlertDialogActionOptions {
@@ -106,6 +121,7 @@ impl AlertDialogActionOptions {
             width: 96.0,
             height: 32.0,
             kind,
+            destructive: false,
             enabled: true,
             theme: PrimitiveTheme::default(),
         }
@@ -119,6 +135,11 @@ impl AlertDialogActionOptions {
 
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.enabled = !disabled;
+        self
+    }
+
+    pub fn destructive(mut self, destructive: bool) -> Self {
+        self.destructive = destructive;
         self
     }
 
@@ -197,6 +218,20 @@ pub fn primitive_alert_dialog_description(ui: &mut egui::Ui, text: &str, theme: 
     primitive_dialog_description(ui, text, theme);
 }
 
+pub fn primitive_alert_dialog_action_output(
+    options: AlertDialogActionOptions,
+) -> AlertDialogActionOutput {
+    AlertDialogActionOutput {
+        kind: options.kind,
+        destructive: options.kind == AlertDialogActionKind::Action && options.destructive,
+        focus_priority: match options.kind {
+            AlertDialogActionKind::Action => AlertDialogActionFocusPriority::Normal,
+            AlertDialogActionKind::Cancel => AlertDialogActionFocusPriority::Initial,
+        },
+        enabled: options.enabled,
+    }
+}
+
 pub fn primitive_alert_dialog_action(
     ui: &mut egui::Ui,
     label: &str,
@@ -232,6 +267,7 @@ fn primitive_alert_dialog_action_button(
     label: &str,
     options: AlertDialogActionOptions,
 ) -> Response {
+    let output = primitive_alert_dialog_action_output(options);
     let sense = if options.enabled {
         Sense::click()
     } else {
@@ -243,7 +279,7 @@ fn primitive_alert_dialog_action_button(
     } else {
         response
     };
-    let fill = match (options.kind, response.hovered() && options.enabled) {
+    let fill = match (output.kind, response.hovered() && output.enabled) {
         (AlertDialogActionKind::Action, true) => options.theme.item_selected_fill,
         (AlertDialogActionKind::Action, false) => options.theme.item_hover_fill,
         (AlertDialogActionKind::Cancel, true) => options.theme.item_hover_fill,
@@ -285,6 +321,7 @@ mod tests {
         assert_eq!(options.width, 112.0);
         assert_eq!(options.height, 28.0);
         assert_eq!(options.kind, AlertDialogActionKind::Action);
+        assert!(!options.destructive);
         assert!(!options.enabled);
     }
 
@@ -298,6 +335,33 @@ mod tests {
 
         assert_eq!(options.kind, AlertDialogActionKind::Cancel);
         assert_eq!(options.theme.menu_row_height, 24.0);
+    }
+
+    #[test]
+    fn alert_dialog_action_output_separates_focus_priority_and_destructive_semantics() {
+        let action = primitive_alert_dialog_action_output(
+            AlertDialogActionOptions::new(AlertDialogActionKind::Action).destructive(true),
+        );
+        let cancel = primitive_alert_dialog_action_output(AlertDialogActionOptions::new(
+            AlertDialogActionKind::Cancel,
+        ));
+        let cancel_with_destructive_flag = primitive_alert_dialog_action_output(
+            AlertDialogActionOptions::new(AlertDialogActionKind::Cancel).destructive(true),
+        );
+
+        assert_eq!(action.kind, AlertDialogActionKind::Action);
+        assert!(action.destructive);
+        assert_eq!(
+            action.focus_priority,
+            AlertDialogActionFocusPriority::Normal
+        );
+        assert_eq!(cancel.kind, AlertDialogActionKind::Cancel);
+        assert!(!cancel.destructive);
+        assert_eq!(
+            cancel.focus_priority,
+            AlertDialogActionFocusPriority::Initial
+        );
+        assert!(!cancel_with_destructive_flag.destructive);
     }
 
     #[test]

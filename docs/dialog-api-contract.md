@@ -38,8 +38,10 @@ Trigger, Portal, Overlay, Content, and part state. It differs in two places:
 
 - `primitive_alert_dialog_root_output` forces `modal = true`.
 - Actions are split into `AlertDialogActionKind::Cancel` and
-  `AlertDialogActionKind::Action`; destructive semantics and cancel-first focus
-  priority are tracked separately.
+  `AlertDialogActionKind::Action`.
+- `primitive_alert_dialog_action_output` exposes `destructive` separately from
+  kind, and gives cancel actions `AlertDialogActionFocusPriority::Initial` so
+  the least destructive action can receive initial focus.
 
 ## Current Limits
 

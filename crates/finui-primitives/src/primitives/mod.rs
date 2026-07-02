@@ -30,11 +30,12 @@ mod tooltip;
 mod utility;
 
 pub use alert_dialog::{
-    AlertDialogActionKind, AlertDialogActionOptions, AlertDialogContentOptions, AlertDialogOptions,
-    AlertDialogOutput, AlertDialogOverlayOptions, AlertDialogPartStateOutput,
-    AlertDialogPortalOptions, AlertDialogPortalOutput, AlertDialogRootOptions,
-    AlertDialogRootOutput, AlertDialogTriggerOptions, alert_dialog_apply_open,
-    primitive_alert_dialog_action, primitive_alert_dialog_cancel,
+    AlertDialogActionFocusPriority, AlertDialogActionKind, AlertDialogActionOptions,
+    AlertDialogActionOutput, AlertDialogContentOptions, AlertDialogOptions, AlertDialogOutput,
+    AlertDialogOverlayOptions, AlertDialogPartStateOutput, AlertDialogPortalOptions,
+    AlertDialogPortalOutput, AlertDialogRootOptions, AlertDialogRootOutput,
+    AlertDialogTriggerOptions, alert_dialog_apply_open, primitive_alert_dialog_action,
+    primitive_alert_dialog_action_output, primitive_alert_dialog_cancel,
     primitive_alert_dialog_content_options, primitive_alert_dialog_description,
     primitive_alert_dialog_overlay_options, primitive_alert_dialog_part_state,
     primitive_alert_dialog_portal_output, primitive_alert_dialog_root_output,
