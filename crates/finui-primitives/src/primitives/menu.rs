@@ -595,6 +595,83 @@ pub type DropdownMenuItemOptions = MenuItemOptions;
 pub type DropdownMenuLabelOptions = f32;
 pub type DropdownMenuSeparatorOptions = f32;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DropdownMenuGroupOptions {
+    pub label: Option<String>,
+    pub item_count: usize,
+    pub disabled_count: usize,
+}
+
+impl DropdownMenuGroupOptions {
+    pub fn new(item_count: usize) -> Self {
+        Self {
+            label: None,
+            item_count,
+            disabled_count: 0,
+        }
+    }
+
+    pub fn label(mut self, label: impl Into<String>) -> Self {
+        self.label = Some(label.into());
+        self
+    }
+
+    pub fn disabled_count(mut self, disabled_count: usize) -> Self {
+        self.disabled_count = disabled_count;
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DropdownMenuGroupOutput {
+    pub label: Option<String>,
+    pub item_count: usize,
+    pub disabled_count: usize,
+    pub enabled_count: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DropdownMenuArrowOptions {
+    pub side: DropdownMenuSide,
+    pub size: f32,
+    pub offset: f32,
+}
+
+impl DropdownMenuArrowOptions {
+    pub fn new(side: DropdownMenuSide) -> Self {
+        Self {
+            side,
+            size: 8.0,
+            offset: 0.0,
+        }
+    }
+
+    pub fn size(mut self, size: f32) -> Self {
+        self.size = size;
+        self
+    }
+
+    pub fn offset(mut self, offset: f32) -> Self {
+        self.offset = offset;
+        self
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DropdownMenuArrowOutput {
+    pub side: DropdownMenuSide,
+    pub size: f32,
+    pub offset: f32,
+    pub points: [egui::Pos2; 3],
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DropdownMenuShortcutOutput {
+    pub text: String,
+    pub disabled: bool,
+    pub data_disabled: bool,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DropdownMenuSubTriggerOptions {
     pub width: f32,
@@ -796,6 +873,66 @@ pub fn dropdown_menu_roving_focus_output<T>(
     loop_focus: bool,
 ) -> RovingFocusOutput {
     menu_roving_focus_output(items, current, key, loop_focus)
+}
+
+pub fn primitive_dropdown_menu_group_output(
+    options: DropdownMenuGroupOptions,
+) -> DropdownMenuGroupOutput {
+    let disabled_count = options.disabled_count.min(options.item_count);
+    DropdownMenuGroupOutput {
+        label: options.label,
+        item_count: options.item_count,
+        disabled_count,
+        enabled_count: options.item_count - disabled_count,
+    }
+}
+
+pub fn primitive_dropdown_menu_arrow_output(
+    options: DropdownMenuArrowOptions,
+) -> DropdownMenuArrowOutput {
+    let size = options.size.max(0.0);
+    let half = size * 0.5;
+    let offset = options.offset;
+    let points = match options.side {
+        DropdownMenuSide::Top => [
+            egui::pos2(offset - half, 0.0),
+            egui::pos2(offset + half, 0.0),
+            egui::pos2(offset, -size),
+        ],
+        DropdownMenuSide::Right => [
+            egui::pos2(0.0, offset - half),
+            egui::pos2(0.0, offset + half),
+            egui::pos2(size, offset),
+        ],
+        DropdownMenuSide::Bottom => [
+            egui::pos2(offset - half, 0.0),
+            egui::pos2(offset + half, 0.0),
+            egui::pos2(offset, size),
+        ],
+        DropdownMenuSide::Left => [
+            egui::pos2(0.0, offset - half),
+            egui::pos2(0.0, offset + half),
+            egui::pos2(-size, offset),
+        ],
+    };
+
+    DropdownMenuArrowOutput {
+        side: options.side,
+        size,
+        offset,
+        points,
+    }
+}
+
+pub fn primitive_dropdown_menu_shortcut_output(
+    text: impl Into<String>,
+    disabled: bool,
+) -> DropdownMenuShortcutOutput {
+    DropdownMenuShortcutOutput {
+        text: text.into(),
+        disabled,
+        data_disabled: disabled,
+    }
 }
 
 pub fn primitive_dropdown_menu_sub_trigger_output(
@@ -1280,6 +1417,38 @@ mod tests {
         assert!(options.checked);
         assert!(options.disabled);
         assert_eq!(options.trailing, Some("Ctrl+S"));
+    }
+
+    #[test]
+    fn dropdown_menu_group_arrow_and_shortcut_outputs_complete_part_contract() {
+        let group = primitive_dropdown_menu_group_output(
+            DropdownMenuGroupOptions::new(5)
+                .label("주문")
+                .disabled_count(2),
+        );
+        let clamped_group = primitive_dropdown_menu_group_output(
+            DropdownMenuGroupOptions::new(2).disabled_count(9),
+        );
+        let arrow = primitive_dropdown_menu_arrow_output(
+            DropdownMenuArrowOptions::new(DropdownMenuSide::Right)
+                .size(10.0)
+                .offset(4.0),
+        );
+        let shortcut = primitive_dropdown_menu_shortcut_output("Ctrl+K", true);
+
+        assert_eq!(group.label.as_deref(), Some("주문"));
+        assert_eq!(group.item_count, 5);
+        assert_eq!(group.disabled_count, 2);
+        assert_eq!(group.enabled_count, 3);
+        assert_eq!(clamped_group.disabled_count, 2);
+        assert_eq!(clamped_group.enabled_count, 0);
+        assert_eq!(arrow.side, DropdownMenuSide::Right);
+        assert_eq!(arrow.points[0], egui::pos2(0.0, -1.0));
+        assert_eq!(arrow.points[1], egui::pos2(0.0, 9.0));
+        assert_eq!(arrow.points[2], egui::pos2(10.0, 4.0));
+        assert_eq!(shortcut.text, "Ctrl+K");
+        assert!(shortcut.disabled);
+        assert!(shortcut.data_disabled);
     }
 
     #[test]

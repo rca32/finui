@@ -151,7 +151,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
 
 - [x] Dialog API에 `Trigger`, `Portal`, `Overlay`, `Content`, `Title`, `Description`, `Close`의 역할/필수성 문서를 붙인다.
 - [x] AlertDialog는 cancel/action의 focus priority와 destructive action semantics를 분리한다.
-- [ ] DropdownMenu는 Item/CheckboxItem/RadioItem/Label/Separator/Group/Sub/Arrow/Shortcut 계약을 완성한다.
+- [x] DropdownMenu는 Item/CheckboxItem/RadioItem/Label/Separator/Group/Sub/Arrow/Shortcut 계약을 완성한다.
 - [x] ContextMenu는 pointer origin, long press/touch open, keyboard context key open을 추가한다.
 - [ ] Menubar는 top-level navigation과 opened menu content navigation을 하나의 state machine으로 통합한다.
 - [ ] NavigationMenu는 viewport/indicator/motion이 실제 hover/focus/open state와 연결되도록 한다.
