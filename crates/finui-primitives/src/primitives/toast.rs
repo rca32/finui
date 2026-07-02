@@ -298,6 +298,33 @@ pub struct ToastRootOutput {
     pub close_aria_label: &'static str,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct ToastAnnounceOptions<'a> {
+    pub message: &'a ToastMessage,
+    pub toast_type: ToastType,
+}
+
+impl<'a> ToastAnnounceOptions<'a> {
+    pub fn new(message: &'a ToastMessage, toast_type: ToastType) -> Self {
+        Self {
+            message,
+            toast_type,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToastAnnounceOutput {
+    pub id: u64,
+    pub title: String,
+    pub description: Option<String>,
+    pub role: &'static str,
+    pub aria_live: &'static str,
+    pub priority: u8,
+    pub action_alt_text: Option<String>,
+    pub close_aria_label: &'static str,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ToastViewportOptions {
     pub max_width: f32,
@@ -352,6 +379,13 @@ impl ToastViewportOptions {
 pub struct ToastViewportOutput {
     pub hotkey: Vec<&'static str>,
     pub label: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToastViewportFocusOutput {
+    pub hotkey: Vec<&'static str>,
+    pub label: String,
+    pub focus_requested: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -468,6 +502,57 @@ pub fn primitive_toast_viewport_output(options: ToastViewportOptions) -> ToastVi
     let hotkey = options.hotkey.to_vec();
     let label = options.label.replace("{hotkey}", &hotkey.join("+"));
     ToastViewportOutput { hotkey, label }
+}
+
+pub fn primitive_toast_viewport_focus_output(
+    options: ToastViewportOptions,
+    pressed_keys: &[&str],
+) -> ToastViewportFocusOutput {
+    let viewport = primitive_toast_viewport_output(options);
+    let focus_requested = viewport.hotkey.as_slice() == pressed_keys;
+    ToastViewportFocusOutput {
+        hotkey: viewport.hotkey,
+        label: viewport.label,
+        focus_requested,
+    }
+}
+
+pub fn primitive_toast_announce_output(options: ToastAnnounceOptions<'_>) -> ToastAnnounceOutput {
+    ToastAnnounceOutput {
+        id: options.message.id,
+        title: options.message.title.clone(),
+        description: options.message.description.clone(),
+        role: "status",
+        aria_live: options.toast_type.aria_live(),
+        priority: toast_announce_priority(options.toast_type),
+        action_alt_text: options.message.action_alt_text.clone(),
+        close_aria_label: "Close",
+    }
+}
+
+pub fn primitive_toast_announce_queue<'a>(
+    options: impl IntoIterator<Item = ToastAnnounceOptions<'a>>,
+) -> Vec<ToastAnnounceOutput> {
+    let mut items = options
+        .into_iter()
+        .enumerate()
+        .map(|(index, options)| {
+            (
+                toast_announce_priority(options.toast_type),
+                index,
+                primitive_toast_announce_output(options),
+            )
+        })
+        .collect::<Vec<_>>();
+    items.sort_by_key(|(priority, index, _)| (*priority, *index));
+    items.into_iter().map(|(_, _, output)| output).collect()
+}
+
+fn toast_announce_priority(toast_type: ToastType) -> u8 {
+    match toast_type {
+        ToastType::Foreground => 0,
+        ToastType::Background => 1,
+    }
 }
 
 pub fn primitive_toast(
@@ -884,6 +969,63 @@ mod tests {
         assert_eq!(output.swipe_threshold, 64.0);
         assert_eq!(output.viewport.hotkey, vec!["altKey", "KeyT"]);
         assert_eq!(output.viewport.label, "Alerts (altKey+KeyT)");
+    }
+
+    #[test]
+    fn toast_announce_queue_prioritizes_foreground_and_preserves_accessible_actions() {
+        let start = Instant::now();
+        let mut store = ToastStore::default();
+        store.push_accessible(
+            ToastKind::Info,
+            "Background sync",
+            Some("Portfolio prices refreshed"),
+            None::<String>,
+            None::<String>,
+            Duration::from_secs(5),
+            start,
+        );
+        store.push_accessible(
+            ToastKind::Error,
+            "Order rejected",
+            Some("Limit price is stale"),
+            Some("Review"),
+            Some("Review rejected order"),
+            Duration::from_secs(5),
+            start,
+        );
+
+        let queue = primitive_toast_announce_queue([
+            ToastAnnounceOptions::new(&store.messages()[0], ToastType::Background),
+            ToastAnnounceOptions::new(&store.messages()[1], ToastType::Foreground),
+        ]);
+
+        assert_eq!(queue.len(), 2);
+        assert_eq!(queue[0].title, "Order rejected");
+        assert_eq!(queue[0].aria_live, "assertive");
+        assert_eq!(queue[0].priority, 0);
+        assert_eq!(
+            queue[0].action_alt_text.as_deref(),
+            Some("Review rejected order")
+        );
+        assert_eq!(queue[0].close_aria_label, "Close");
+        assert_eq!(queue[1].title, "Background sync");
+        assert_eq!(queue[1].aria_live, "polite");
+        assert_eq!(queue[1].priority, 1);
+    }
+
+    #[test]
+    fn toast_viewport_hotkey_output_requests_focus_only_for_matching_chord() {
+        let options = ToastViewportOptions::default()
+            .hotkey(&["altKey", "KeyT"])
+            .label("Alerts ({hotkey})");
+
+        let focused = primitive_toast_viewport_focus_output(options, &["altKey", "KeyT"]);
+        let ignored = primitive_toast_viewport_focus_output(options, &["KeyT"]);
+
+        assert_eq!(focused.hotkey, vec!["altKey", "KeyT"]);
+        assert_eq!(focused.label, "Alerts (altKey+KeyT)");
+        assert!(focused.focus_requested);
+        assert!(!ignored.focus_requested);
     }
 
     #[test]

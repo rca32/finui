@@ -82,7 +82,7 @@ Radix Primitives의 핵심 기준은 컴포넌트 외형이 아니라 동작 계
   - 현재 validity/data output은 있으나 label-control-message 연결 관계가 UI runtime에서 추적되는지 약하다.
   - 완료 기준: field name, label for/id, described-by, error message mapping에 해당하는 Finui 계약이 있다.
 
-- [ ] Toast live region 동작을 구현/검증한다.
+- [x] Toast live region 동작을 구현/검증한다.
   - 현재 `aria_live`, role, hotkey label output은 있으나 실제 announce queue와 hotkey focus 이동이 부족하다.
   - 완료 기준: foreground/background toast announce 우선순위, viewport hotkey, close/action alt text를 테스트한다.
 
