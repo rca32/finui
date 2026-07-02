@@ -58,6 +58,47 @@ pub struct PopoverRootOutput {
     pub data_state: PopoverDataState,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PopoverModalPolicyOutput {
+    pub modal: bool,
+    pub trap_focus: bool,
+    pub disable_outside_pointer_events: bool,
+    pub aria_modal: bool,
+    pub restore_focus_on_close: bool,
+    pub dismiss_policy: DismissPolicy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PopoverFocusHook {
+    OpenAutoFocus,
+    CloseAutoFocus,
+    EscapeKeyDown,
+    PointerDownOutside,
+    InteractOutside,
+}
+
+impl PopoverFocusHook {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::OpenAutoFocus => "open-auto-focus",
+            Self::CloseAutoFocus => "close-auto-focus",
+            Self::EscapeKeyDown => "escape-key-down",
+            Self::PointerDownOutside => "pointer-down-outside",
+            Self::InteractOutside => "interact-outside",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PopoverFocusHookOutput {
+    pub hook: PopoverFocusHook,
+    pub data_hook: &'static str,
+    pub default_prevented: bool,
+    pub focus_content: bool,
+    pub restore_focus_to_trigger: bool,
+    pub should_close: bool,
+}
+
 pub fn primitive_popover_root_output(options: PopoverRootOptions) -> PopoverRootOutput {
     PopoverRootOutput {
         open: options.open,
@@ -68,6 +109,39 @@ pub fn primitive_popover_root_output(options: PopoverRootOptions) -> PopoverRoot
         } else {
             PopoverDataState::Closed
         },
+    }
+}
+
+pub fn primitive_popover_modal_policy_output(
+    options: PopoverRootOptions,
+) -> PopoverModalPolicyOutput {
+    let active_modal = options.open && options.modal;
+    PopoverModalPolicyOutput {
+        modal: options.modal,
+        trap_focus: active_modal,
+        disable_outside_pointer_events: active_modal,
+        aria_modal: active_modal,
+        restore_focus_on_close: true,
+        dismiss_policy: DismissPolicy::OutsideClickAndEscape,
+    }
+}
+
+pub fn primitive_popover_focus_hook_output(
+    hook: PopoverFocusHook,
+    default_prevented: bool,
+) -> PopoverFocusHookOutput {
+    PopoverFocusHookOutput {
+        hook,
+        data_hook: hook.as_str(),
+        default_prevented,
+        focus_content: hook == PopoverFocusHook::OpenAutoFocus && !default_prevented,
+        restore_focus_to_trigger: hook == PopoverFocusHook::CloseAutoFocus && !default_prevented,
+        should_close: matches!(
+            hook,
+            PopoverFocusHook::EscapeKeyDown
+                | PopoverFocusHook::PointerDownOutside
+                | PopoverFocusHook::InteractOutside
+        ) && !default_prevented,
     }
 }
 
@@ -736,6 +810,51 @@ mod tests {
         assert!(output.modal);
         assert_eq!(output.data_state, PopoverDataState::Open);
         assert_eq!(output.data_state.as_str(), "open");
+    }
+
+    #[test]
+    fn popover_modal_policy_output_traps_focus_only_for_open_modal_root() {
+        let modal_open = primitive_popover_modal_policy_output(
+            PopoverRootOptions::default().open(true).modal(true),
+        );
+        let modal_closed = primitive_popover_modal_policy_output(
+            PopoverRootOptions::default().open(false).modal(true),
+        );
+        let non_modal =
+            primitive_popover_modal_policy_output(PopoverRootOptions::default().open(true));
+
+        assert!(modal_open.modal);
+        assert!(modal_open.trap_focus);
+        assert!(modal_open.disable_outside_pointer_events);
+        assert!(modal_open.aria_modal);
+        assert!(modal_open.restore_focus_on_close);
+        assert_eq!(
+            modal_open.dismiss_policy,
+            DismissPolicy::OutsideClickAndEscape
+        );
+        assert!(!modal_closed.trap_focus);
+        assert!(!modal_closed.aria_modal);
+        assert!(!non_modal.trap_focus);
+        assert!(!non_modal.disable_outside_pointer_events);
+    }
+
+    #[test]
+    fn popover_focus_hook_output_respects_prevent_default_for_auto_focus_and_dismiss() {
+        let open = primitive_popover_focus_hook_output(PopoverFocusHook::OpenAutoFocus, false);
+        let close_prevented =
+            primitive_popover_focus_hook_output(PopoverFocusHook::CloseAutoFocus, true);
+        let escape = primitive_popover_focus_hook_output(PopoverFocusHook::EscapeKeyDown, false);
+        let outside_prevented =
+            primitive_popover_focus_hook_output(PopoverFocusHook::InteractOutside, true);
+
+        assert_eq!(open.data_hook, "open-auto-focus");
+        assert!(open.focus_content);
+        assert!(!open.should_close);
+        assert!(!close_prevented.restore_focus_to_trigger);
+        assert!(close_prevented.default_prevented);
+        assert!(escape.should_close);
+        assert_eq!(escape.data_hook, "escape-key-down");
+        assert!(!outside_prevented.should_close);
     }
 
     #[test]

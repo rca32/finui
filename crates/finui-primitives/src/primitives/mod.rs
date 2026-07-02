@@ -224,13 +224,15 @@ pub use password_toggle::{
 };
 pub use popover::{
     PopoverAlign, PopoverAnchorOptions, PopoverAnchorOutput, PopoverArrowSide, PopoverCloseOptions,
-    PopoverContentOptions, PopoverContentOutput, PopoverDataState, PopoverOptions, PopoverOutput,
+    PopoverContentOptions, PopoverContentOutput, PopoverDataState, PopoverFocusHook,
+    PopoverFocusHookOutput, PopoverModalPolicyOutput, PopoverOptions, PopoverOutput,
     PopoverPortalOptions, PopoverPortalOutput, PopoverRootOptions, PopoverRootOutput, PopoverSide,
     PopoverTriggerOptions, popover_apply_open, popover_arrow_points, popover_arrow_side,
     primitive_popover_anchor, primitive_popover_anchor_output, primitive_popover_arrow,
     primitive_popover_close, primitive_popover_content, primitive_popover_content_options,
     primitive_popover_content_output, primitive_popover_content_with_options,
-    primitive_popover_layer_options, primitive_popover_portal_output,
+    primitive_popover_focus_hook_output, primitive_popover_layer_options,
+    primitive_popover_modal_policy_output, primitive_popover_portal_output,
     primitive_popover_root_output, primitive_popover_trigger, show_popover,
 };
 pub use radix_icon::{
