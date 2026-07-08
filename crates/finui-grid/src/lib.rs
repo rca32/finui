@@ -66,6 +66,7 @@ pub struct FinancialDataGrid<'a> {
     height: Option<f32>,
     surface_theme: Option<GridSurfaceTheme>,
     text_theme: Option<GridTextTheme>,
+    header_icons: bool,
 }
 
 impl<'a> FinancialDataGrid<'a> {
@@ -83,6 +84,7 @@ impl<'a> FinancialDataGrid<'a> {
             height: None,
             surface_theme: None,
             text_theme: None,
+            header_icons: true,
         }
     }
 }
@@ -100,6 +102,7 @@ pub struct FinancialDataGridBuilder<'a> {
     height: Option<f32>,
     surface_theme: Option<GridSurfaceTheme>,
     text_theme: Option<GridTextTheme>,
+    header_icons: bool,
 }
 
 impl<'a> FinancialDataGridBuilder<'a> {
@@ -158,6 +161,11 @@ impl<'a> FinancialDataGridBuilder<'a> {
         self
     }
 
+    pub fn header_icons(mut self, header_icons: bool) -> Self {
+        self.header_icons = header_icons;
+        self
+    }
+
     pub fn show(self, ui: &mut egui::Ui) -> GridOutput {
         FinancialDataGrid {
             id: self.id,
@@ -174,6 +182,7 @@ impl<'a> FinancialDataGridBuilder<'a> {
             height: self.height,
             surface_theme: self.surface_theme,
             text_theme: self.text_theme,
+            header_icons: self.header_icons,
         }
         .show(ui)
     }
@@ -209,6 +218,7 @@ mod tests {
             height,
             surface_theme,
             text_theme,
+            header_icons,
         } = builder;
         let grid = FinancialDataGrid {
             id,
@@ -223,11 +233,13 @@ mod tests {
             height,
             surface_theme,
             text_theme,
+            header_icons,
         };
 
         assert_eq!(grid.height, Some(224.0));
         assert_eq!(grid.surface_theme, None);
         assert_eq!(grid.text_theme, None);
+        assert!(grid.header_icons);
     }
 
     #[test]
@@ -263,6 +275,7 @@ mod tests {
             height,
             surface_theme,
             text_theme,
+            header_icons,
         } = builder;
         let grid = FinancialDataGrid {
             id,
@@ -277,9 +290,26 @@ mod tests {
             height,
             surface_theme,
             text_theme,
+            header_icons,
         };
 
         assert_eq!(grid.text_theme, Some(theme));
+    }
+
+    #[test]
+    fn financial_data_grid_builder_can_hide_header_icons() {
+        let columns = demo_columns();
+        let source = InMemoryGridSource::new(demo_rows(2));
+        let mut state = GridState::default();
+
+        let builder = FinancialDataGrid::new("header-icon-contract")
+            .columns(&columns)
+            .source(&source)
+            .state(&mut state)
+            .header_icons(false);
+        let FinancialDataGridBuilder { header_icons, .. } = builder;
+
+        assert!(!header_icons);
     }
 
     #[test]

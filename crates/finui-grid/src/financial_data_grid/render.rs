@@ -161,7 +161,11 @@ impl<'a> FinancialDataGrid<'a> {
                 .iter()
                 .find(|sort| sort.column_id == column.id)
                 .map(|sort| sort.direction);
-            let header_icon = header_icon_for_column(&column.id, &pinned_left, &pinned_right);
+            let header_icon = if self.header_icons {
+                header_icon_for_column(&column.id, &pinned_left, &pinned_right)
+            } else {
+                None
+            };
             if let Some(icon) = header_icon {
                 paint_radix_icon(
                     ui,
