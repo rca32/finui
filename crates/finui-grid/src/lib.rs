@@ -53,6 +53,12 @@ pub struct GridTextTheme {
     pub cell_font_size: f32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GridHeaderTheme {
+    pub height: f32,
+    pub font_size: f32,
+}
+
 pub struct FinancialDataGrid<'a> {
     id: &'a str,
     columns: &'a [GridColumnDef],
@@ -66,6 +72,7 @@ pub struct FinancialDataGrid<'a> {
     height: Option<f32>,
     surface_theme: Option<GridSurfaceTheme>,
     text_theme: Option<GridTextTheme>,
+    header_theme: Option<GridHeaderTheme>,
     header_icons: bool,
 }
 
@@ -84,6 +91,7 @@ impl<'a> FinancialDataGrid<'a> {
             height: None,
             surface_theme: None,
             text_theme: None,
+            header_theme: None,
             header_icons: true,
         }
     }
@@ -102,6 +110,7 @@ pub struct FinancialDataGridBuilder<'a> {
     height: Option<f32>,
     surface_theme: Option<GridSurfaceTheme>,
     text_theme: Option<GridTextTheme>,
+    header_theme: Option<GridHeaderTheme>,
     header_icons: bool,
 }
 
@@ -161,6 +170,11 @@ impl<'a> FinancialDataGridBuilder<'a> {
         self
     }
 
+    pub fn header_theme(mut self, theme: GridHeaderTheme) -> Self {
+        self.header_theme = Some(theme);
+        self
+    }
+
     pub fn header_icons(mut self, header_icons: bool) -> Self {
         self.header_icons = header_icons;
         self
@@ -182,6 +196,7 @@ impl<'a> FinancialDataGridBuilder<'a> {
             height: self.height,
             surface_theme: self.surface_theme,
             text_theme: self.text_theme,
+            header_theme: self.header_theme,
             header_icons: self.header_icons,
         }
         .show(ui)
@@ -218,6 +233,7 @@ mod tests {
             height,
             surface_theme,
             text_theme,
+            header_theme,
             header_icons,
         } = builder;
         let grid = FinancialDataGrid {
@@ -233,12 +249,14 @@ mod tests {
             height,
             surface_theme,
             text_theme,
+            header_theme,
             header_icons,
         };
 
         assert_eq!(grid.height, Some(224.0));
         assert_eq!(grid.surface_theme, None);
         assert_eq!(grid.text_theme, None);
+        assert_eq!(grid.header_theme, None);
         assert!(grid.header_icons);
     }
 
@@ -275,6 +293,7 @@ mod tests {
             height,
             surface_theme,
             text_theme,
+            header_theme,
             header_icons,
         } = builder;
         let grid = FinancialDataGrid {
@@ -290,10 +309,31 @@ mod tests {
             height,
             surface_theme,
             text_theme,
+            header_theme,
             header_icons,
         };
 
         assert_eq!(grid.text_theme, Some(theme));
+    }
+
+    #[test]
+    fn financial_data_grid_builder_accepts_explicit_header_theme() {
+        let columns = demo_columns();
+        let source = InMemoryGridSource::new(demo_rows(2));
+        let mut state = GridState::default();
+        let theme = GridHeaderTheme {
+            height: 22.0,
+            font_size: 10.0,
+        };
+
+        let builder = FinancialDataGrid::new("header-theme-contract")
+            .columns(&columns)
+            .source(&source)
+            .state(&mut state)
+            .header_theme(theme);
+        let FinancialDataGridBuilder { header_theme, .. } = builder;
+
+        assert_eq!(header_theme, Some(theme));
     }
 
     #[test]
