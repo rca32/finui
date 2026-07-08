@@ -8,7 +8,9 @@ use super::menu::show_grid_status_bar;
 use super::paint::paint_row_cells;
 use super::state::{GridFilter, GridPinSide, GridSort, GridSortDirection};
 use super::viewport::{build_column_layout, center_total_width, column_width};
-use crate::{FinancialDataGrid, GridHeaderTheme, GridRowTheme, GridSurfaceTheme};
+use crate::{
+    FinancialDataGrid, GridHeaderTheme, GridRowInteractionTheme, GridRowTheme, GridSurfaceTheme,
+};
 use finui_primitives::{
     ContextMenuItemOptions, ContextMenuOptions, RadixIcon, ThemeMode, paint_radix_icon,
     primitive_context_menu_item, primitive_scroll_thumb_rect, radix_colors, show_context_menu,
@@ -22,6 +24,9 @@ impl<'a> FinancialDataGrid<'a> {
         let surface_theme = self
             .surface_theme
             .unwrap_or_else(|| grid_surface_theme_for_ui(ui));
+        let row_interaction_theme = self
+            .row_interaction_theme
+            .unwrap_or_else(|| grid_row_interaction_theme_for_ui(ui));
         debug_assert_eq!(row_model_cache_key.row_count, self.source.row_count());
         let mut actions = Vec::new();
         if self.status_bar {
@@ -532,16 +537,18 @@ impl<'a> FinancialDataGrid<'a> {
                 Pos2::new(body_rect.left(), row_top),
                 Vec2::new(body_rect.width(), row_height),
             );
-            if self.state.selection.selected_row.as_ref() == Some(&row_id) {
-                body_painter.rect_filled(row_rect, 0.0, surface_theme.selected_row_fill);
-            } else if screen_index % 2 == 1 {
-                body_painter.rect_filled(row_rect, 0.0, surface_theme.row_alt_fill);
-            }
             let row_response = ui.interact(
                 row_rect,
                 ui.make_persistent_id((self.id, "row-slot", screen_index)),
                 Sense::click(),
             );
+            if self.state.selection.selected_row.as_ref() == Some(&row_id) {
+                body_painter.rect_filled(row_rect, 0.0, surface_theme.selected_row_fill);
+            } else if row_response.hovered() {
+                body_painter.rect_filled(row_rect, 0.0, row_interaction_theme.hover_fill);
+            } else if screen_index % 2 == 1 {
+                body_painter.rect_filled(row_rect, 0.0, surface_theme.row_alt_fill);
+            }
             if row_response.clicked() {
                 row_response.request_focus();
                 response.request_focus();
@@ -952,6 +959,17 @@ fn grid_surface_theme_for_ui(ui: &egui::Ui) -> GridSurfaceTheme {
             scrollbar_track: Color32::from_rgba_unmultiplied(0x36, 0x3d, 0x49, 120),
             scrollbar_stroke: Color32::from_rgba_unmultiplied(0x72, 0x7b, 0x8c, 150),
             scrollbar_thumb: Color32::from_rgba_unmultiplied(0x8f, 0xa8, 0xff, 185),
+        },
+    }
+}
+
+fn grid_row_interaction_theme_for_ui(ui: &egui::Ui) -> GridRowInteractionTheme {
+    match theme_mode_for_ui(ui) {
+        ThemeMode::Light => GridRowInteractionTheme {
+            hover_fill: alpha_color(radix_colors::SLATE_4, 120),
+        },
+        ThemeMode::Dark => GridRowInteractionTheme {
+            hover_fill: Color32::from_rgba_unmultiplied(0x24, 0x29, 0x34, 118),
         },
     }
 }
