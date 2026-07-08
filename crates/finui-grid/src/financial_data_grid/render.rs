@@ -8,7 +8,7 @@ use super::menu::show_grid_status_bar;
 use super::paint::paint_row_cells;
 use super::state::{GridFilter, GridPinSide, GridSort, GridSortDirection};
 use super::viewport::{build_column_layout, center_total_width, column_width};
-use crate::{FinancialDataGrid, GridHeaderTheme, GridSurfaceTheme};
+use crate::{FinancialDataGrid, GridHeaderTheme, GridRowTheme, GridSurfaceTheme};
 use finui_primitives::{
     ContextMenuItemOptions, ContextMenuOptions, RadixIcon, ThemeMode, paint_radix_icon,
     primitive_context_menu_item, primitive_scroll_thumb_rect, radix_colors, show_context_menu,
@@ -27,7 +27,11 @@ impl<'a> FinancialDataGrid<'a> {
         if self.status_bar {
             show_grid_status_bar(ui, self.state);
         }
-        let row_height = self.density.row_height();
+        let density_row_height = self.density.row_height();
+        let row_theme = self.row_theme.unwrap_or(GridRowTheme {
+            height: density_row_height,
+        });
+        let row_height = row_theme.height.clamp(18.0, density_row_height + 8.0);
         let header_theme = self.header_theme.unwrap_or(GridHeaderTheme {
             height: row_height + 4.0,
             font_size: 12.0,
