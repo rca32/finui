@@ -9,6 +9,7 @@ use super::provenance::GridCellProvenance;
 use super::source::GridRowSource;
 use super::state::GridState;
 use super::viewport::GridColumnLayout;
+use crate::GridTextTheme;
 use finui_primitives::LayerPlacement;
 use finui_primitives::{
     ContextMenuItemOptions, ContextMenuOptions, HoverCardOptions, PrimitiveTheme, ThemeMode,
@@ -33,10 +34,11 @@ pub fn paint_row_cells(
     provenance_policy: GridProvenancePolicy,
     row_selection_only: bool,
     theme_mode: ThemeMode,
+    text_theme: Option<GridTextTheme>,
     actions: &mut Vec<GridAction>,
     hovered_cell: &mut Option<GridCellRef>,
 ) {
-    let paint_theme = grid_paint_theme(theme_mode);
+    let paint_theme = grid_paint_theme(theme_mode).with_text_theme(text_theme);
     for layout in column_layouts {
         let Some(column) = columns.iter().find(|column| column.id == layout.column_id) else {
             continue;
@@ -270,7 +272,7 @@ pub fn paint_row_cells(
                 anchor,
                 align,
                 value,
-                finui_primitives::scaled_proportional_font(ui, 12.0),
+                finui_primitives::scaled_proportional_font(ui, paint_theme.cell_font_size),
                 cell_text_color(&cell_value, paint_theme),
             );
         }
@@ -554,6 +556,22 @@ struct GridPaintTheme {
     sparkline_stroke: Color32,
     delta_positive_fill: Color32,
     delta_negative_fill: Color32,
+    cell_font_size: f32,
+}
+
+impl GridPaintTheme {
+    fn with_text_theme(mut self, text_theme: Option<GridTextTheme>) -> Self {
+        if let Some(text_theme) = text_theme {
+            self.text = text_theme.text;
+            self.positive_text = text_theme.positive_text;
+            self.negative_text = text_theme.negative_text;
+            self.error_text = text_theme.error_text;
+            self.agent_text = text_theme.agent_text;
+            self.grid_line = text_theme.grid_line;
+            self.cell_font_size = text_theme.cell_font_size.clamp(9.0, 14.0);
+        }
+        self
+    }
 }
 
 fn grid_paint_theme(mode: ThemeMode) -> GridPaintTheme {
@@ -580,6 +598,7 @@ fn grid_paint_theme(mode: ThemeMode) -> GridPaintTheme {
             sparkline_stroke: radix_colors::INDIGO_11,
             delta_positive_fill: radix_colors::INDIGO_8,
             delta_negative_fill: radix_colors::INDIGO_8,
+            cell_font_size: 12.0,
         },
         ThemeMode::Dark => GridPaintTheme {
             text: Color32::from_rgb(0xed, 0xf1, 0xf7),
@@ -603,7 +622,66 @@ fn grid_paint_theme(mode: ThemeMode) -> GridPaintTheme {
             sparkline_stroke: Color32::from_rgb(0x8f, 0xa8, 0xff),
             delta_positive_fill: Color32::from_rgb(0x7a, 0x99, 0xff),
             delta_negative_fill: Color32::from_rgb(0xff, 0xa3, 0x9a),
+            cell_font_size: 12.0,
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn grid_text_theme_overrides_cell_text_and_line_tokens() {
+        let theme = GridTextTheme {
+            text: Color32::from_rgb(0xaa, 0xaa, 0xb2),
+            positive_text: Color32::from_rgb(0x7c, 0xd4, 0xa3),
+            negative_text: Color32::from_rgb(0xf0, 0x7a, 0x80),
+            error_text: Color32::from_rgb(0xf0, 0xc5, 0x69),
+            agent_text: Color32::from_rgb(0x9a, 0xa6, 0xff),
+            grid_line: Color32::from_rgb(0x24, 0x24, 0x2a),
+            cell_font_size: 10.5,
+        };
+
+        let paint = grid_paint_theme(ThemeMode::Dark).with_text_theme(Some(theme));
+
+        assert_eq!(paint.text, theme.text);
+        assert_eq!(paint.positive_text, theme.positive_text);
+        assert_eq!(paint.negative_text, theme.negative_text);
+        assert_eq!(paint.error_text, theme.error_text);
+        assert_eq!(paint.agent_text, theme.agent_text);
+        assert_eq!(paint.grid_line, theme.grid_line);
+        assert_eq!(paint.cell_font_size, 10.5);
+    }
+
+    #[test]
+    fn grid_text_theme_clamps_cell_font_size_to_readable_range() {
+        let tiny = GridTextTheme {
+            text: Color32::WHITE,
+            positive_text: Color32::WHITE,
+            negative_text: Color32::WHITE,
+            error_text: Color32::WHITE,
+            agent_text: Color32::WHITE,
+            grid_line: Color32::BLACK,
+            cell_font_size: 6.0,
+        };
+        let huge = GridTextTheme {
+            cell_font_size: 24.0,
+            ..tiny
+        };
+
+        assert_eq!(
+            grid_paint_theme(ThemeMode::Dark)
+                .with_text_theme(Some(tiny))
+                .cell_font_size,
+            9.0
+        );
+        assert_eq!(
+            grid_paint_theme(ThemeMode::Dark)
+                .with_text_theme(Some(huge))
+                .cell_font_size,
+            14.0
+        );
     }
 }
 

@@ -637,6 +637,7 @@ impl<'a> FinancialDataGrid<'a> {
                 self.provenance_policy,
                 self.row_selection_only,
                 theme_mode_for_ui(ui),
+                self.text_theme,
                 &mut actions,
                 &mut hovered_cell,
             );

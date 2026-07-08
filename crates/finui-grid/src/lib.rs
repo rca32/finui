@@ -42,6 +42,17 @@ pub struct GridSurfaceTheme {
     pub scrollbar_thumb: egui::Color32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GridTextTheme {
+    pub text: egui::Color32,
+    pub positive_text: egui::Color32,
+    pub negative_text: egui::Color32,
+    pub error_text: egui::Color32,
+    pub agent_text: egui::Color32,
+    pub grid_line: egui::Color32,
+    pub cell_font_size: f32,
+}
+
 pub struct FinancialDataGrid<'a> {
     id: &'a str,
     columns: &'a [GridColumnDef],
@@ -54,6 +65,7 @@ pub struct FinancialDataGrid<'a> {
     row_selection_only: bool,
     height: Option<f32>,
     surface_theme: Option<GridSurfaceTheme>,
+    text_theme: Option<GridTextTheme>,
 }
 
 impl<'a> FinancialDataGrid<'a> {
@@ -70,6 +82,7 @@ impl<'a> FinancialDataGrid<'a> {
             row_selection_only: false,
             height: None,
             surface_theme: None,
+            text_theme: None,
         }
     }
 }
@@ -86,6 +99,7 @@ pub struct FinancialDataGridBuilder<'a> {
     row_selection_only: bool,
     height: Option<f32>,
     surface_theme: Option<GridSurfaceTheme>,
+    text_theme: Option<GridTextTheme>,
 }
 
 impl<'a> FinancialDataGridBuilder<'a> {
@@ -139,6 +153,11 @@ impl<'a> FinancialDataGridBuilder<'a> {
         self
     }
 
+    pub fn text_theme(mut self, theme: GridTextTheme) -> Self {
+        self.text_theme = Some(theme);
+        self
+    }
+
     pub fn show(self, ui: &mut egui::Ui) -> GridOutput {
         FinancialDataGrid {
             id: self.id,
@@ -154,6 +173,7 @@ impl<'a> FinancialDataGridBuilder<'a> {
             row_selection_only: self.row_selection_only,
             height: self.height,
             surface_theme: self.surface_theme,
+            text_theme: self.text_theme,
         }
         .show(ui)
     }
@@ -188,6 +208,7 @@ mod tests {
             row_selection_only,
             height,
             surface_theme,
+            text_theme,
         } = builder;
         let grid = FinancialDataGrid {
             id,
@@ -201,10 +222,64 @@ mod tests {
             row_selection_only,
             height,
             surface_theme,
+            text_theme,
         };
 
         assert_eq!(grid.height, Some(224.0));
         assert_eq!(grid.surface_theme, None);
+        assert_eq!(grid.text_theme, None);
+    }
+
+    #[test]
+    fn financial_data_grid_builder_accepts_explicit_text_theme() {
+        let columns = demo_columns();
+        let source = InMemoryGridSource::new(demo_rows(2));
+        let mut state = GridState::default();
+        let theme = GridTextTheme {
+            text: egui::Color32::from_rgb(0xaa, 0xaa, 0xaa),
+            positive_text: egui::Color32::from_rgb(0x40, 0xc0, 0x80),
+            negative_text: egui::Color32::from_rgb(0xe0, 0x60, 0x68),
+            error_text: egui::Color32::from_rgb(0xf0, 0xb4, 0x48),
+            agent_text: egui::Color32::from_rgb(0x90, 0xa0, 0xff),
+            grid_line: egui::Color32::from_rgb(0x28, 0x28, 0x30),
+            cell_font_size: 11.0,
+        };
+
+        let builder = FinancialDataGrid::new("text-theme-contract")
+            .columns(&columns)
+            .source(&source)
+            .state(&mut state)
+            .text_theme(theme);
+        let FinancialDataGridBuilder {
+            id,
+            columns,
+            source,
+            state,
+            density,
+            provenance_policy,
+            agent_bridge,
+            status_bar,
+            row_selection_only,
+            height,
+            surface_theme,
+            text_theme,
+        } = builder;
+        let grid = FinancialDataGrid {
+            id,
+            columns: columns.expect("columns"),
+            source: source.expect("source"),
+            state: state.expect("state"),
+            density,
+            provenance_policy,
+            agent_bridge,
+            status_bar,
+            row_selection_only,
+            height,
+            surface_theme,
+            text_theme,
+        };
+
+        assert_eq!(grid.text_theme, Some(theme));
     }
 
     #[test]
