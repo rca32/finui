@@ -8,7 +8,7 @@ use super::menu::show_grid_status_bar;
 use super::paint::paint_row_cells;
 use super::state::{GridFilter, GridPinSide, GridSort, GridSortDirection};
 use super::viewport::{build_column_layout, center_total_width, column_width};
-use crate::FinancialDataGrid;
+use crate::{FinancialDataGrid, GridSurfaceTheme};
 use finui_primitives::{
     ContextMenuItemOptions, ContextMenuOptions, RadixIcon, ThemeMode, paint_radix_icon,
     primitive_context_menu_item, primitive_scroll_thumb_rect, radix_colors, show_context_menu,
@@ -19,7 +19,9 @@ impl<'a> FinancialDataGrid<'a> {
         self.state.normalize_columns(self.columns);
         let row_model_cache_key = build_row_model_cache_key(self.source, self.state);
         let row_model = build_row_model(self.source, self.state, self.columns);
-        let surface_theme = grid_surface_theme_for_ui(ui);
+        let surface_theme = self
+            .surface_theme
+            .unwrap_or_else(|| grid_surface_theme_for_ui(ui));
         debug_assert_eq!(row_model_cache_key.row_count, self.source.row_count());
         let mut actions = Vec::new();
         if self.status_bar {
@@ -892,22 +894,6 @@ fn paint_grid_scrollbar_thumb(ui: &egui::Ui, rect: Rect, theme: GridSurfaceTheme
 }
 
 const GRID_SCROLLBAR_SIZE: f32 = 8.0;
-
-#[derive(Debug, Clone, Copy)]
-struct GridSurfaceTheme {
-    surface_fill: Color32,
-    surface_stroke: Color32,
-    header_fill: Color32,
-    body_fill: Color32,
-    header_text: Color32,
-    muted_text: Color32,
-    accent_text: Color32,
-    selected_row_fill: Color32,
-    row_alt_fill: Color32,
-    scrollbar_track: Color32,
-    scrollbar_stroke: Color32,
-    scrollbar_thumb: Color32,
-}
 
 fn horizontal_scroll_thumb_width(
     body_width: f32,

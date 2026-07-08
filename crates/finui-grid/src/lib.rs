@@ -26,6 +26,22 @@ pub use modules::state::*;
 #[cfg(test)]
 pub use modules::viewport::*;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GridSurfaceTheme {
+    pub surface_fill: egui::Color32,
+    pub surface_stroke: egui::Color32,
+    pub header_fill: egui::Color32,
+    pub body_fill: egui::Color32,
+    pub header_text: egui::Color32,
+    pub muted_text: egui::Color32,
+    pub accent_text: egui::Color32,
+    pub selected_row_fill: egui::Color32,
+    pub row_alt_fill: egui::Color32,
+    pub scrollbar_track: egui::Color32,
+    pub scrollbar_stroke: egui::Color32,
+    pub scrollbar_thumb: egui::Color32,
+}
+
 pub struct FinancialDataGrid<'a> {
     id: &'a str,
     columns: &'a [GridColumnDef],
@@ -37,6 +53,7 @@ pub struct FinancialDataGrid<'a> {
     status_bar: bool,
     row_selection_only: bool,
     height: Option<f32>,
+    surface_theme: Option<GridSurfaceTheme>,
 }
 
 impl<'a> FinancialDataGrid<'a> {
@@ -52,6 +69,7 @@ impl<'a> FinancialDataGrid<'a> {
             status_bar: true,
             row_selection_only: false,
             height: None,
+            surface_theme: None,
         }
     }
 }
@@ -67,6 +85,7 @@ pub struct FinancialDataGridBuilder<'a> {
     status_bar: bool,
     row_selection_only: bool,
     height: Option<f32>,
+    surface_theme: Option<GridSurfaceTheme>,
 }
 
 impl<'a> FinancialDataGridBuilder<'a> {
@@ -115,6 +134,11 @@ impl<'a> FinancialDataGridBuilder<'a> {
         self
     }
 
+    pub fn surface_theme(mut self, theme: GridSurfaceTheme) -> Self {
+        self.surface_theme = Some(theme);
+        self
+    }
+
     pub fn show(self, ui: &mut egui::Ui) -> GridOutput {
         FinancialDataGrid {
             id: self.id,
@@ -129,6 +153,7 @@ impl<'a> FinancialDataGridBuilder<'a> {
             status_bar: self.status_bar,
             row_selection_only: self.row_selection_only,
             height: self.height,
+            surface_theme: self.surface_theme,
         }
         .show(ui)
     }
@@ -162,6 +187,7 @@ mod tests {
             status_bar,
             row_selection_only,
             height,
+            surface_theme,
         } = builder;
         let grid = FinancialDataGrid {
             id,
@@ -174,9 +200,11 @@ mod tests {
             status_bar,
             row_selection_only,
             height,
+            surface_theme,
         };
 
         assert_eq!(grid.height, Some(224.0));
+        assert_eq!(grid.surface_theme, None);
     }
 
     #[test]
