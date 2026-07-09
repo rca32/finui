@@ -80,6 +80,7 @@ pub struct FinancialDataGrid<'a> {
     status_bar: bool,
     row_selection_only: bool,
     height: Option<f32>,
+    theme_mode: Option<finui_primitives::ThemeMode>,
     surface_theme: Option<GridSurfaceTheme>,
     text_theme: Option<GridTextTheme>,
     header_theme: Option<GridHeaderTheme>,
@@ -101,6 +102,7 @@ impl<'a> FinancialDataGrid<'a> {
             status_bar: true,
             row_selection_only: false,
             height: None,
+            theme_mode: None,
             surface_theme: None,
             text_theme: None,
             header_theme: None,
@@ -122,6 +124,7 @@ pub struct FinancialDataGridBuilder<'a> {
     status_bar: bool,
     row_selection_only: bool,
     height: Option<f32>,
+    theme_mode: Option<finui_primitives::ThemeMode>,
     surface_theme: Option<GridSurfaceTheme>,
     text_theme: Option<GridTextTheme>,
     header_theme: Option<GridHeaderTheme>,
@@ -176,6 +179,11 @@ impl<'a> FinancialDataGridBuilder<'a> {
         self
     }
 
+    pub fn theme_mode(mut self, theme_mode: finui_primitives::ThemeMode) -> Self {
+        self.theme_mode = Some(theme_mode);
+        self
+    }
+
     pub fn surface_theme(mut self, theme: GridSurfaceTheme) -> Self {
         self.surface_theme = Some(theme);
         self
@@ -220,6 +228,7 @@ impl<'a> FinancialDataGridBuilder<'a> {
             status_bar: self.status_bar,
             row_selection_only: self.row_selection_only,
             height: self.height,
+            theme_mode: self.theme_mode,
             surface_theme: self.surface_theme,
             text_theme: self.text_theme,
             header_theme: self.header_theme,
@@ -259,6 +268,7 @@ mod tests {
             status_bar,
             row_selection_only,
             height,
+            theme_mode,
             surface_theme,
             text_theme,
             header_theme,
@@ -277,6 +287,7 @@ mod tests {
             status_bar,
             row_selection_only,
             height,
+            theme_mode,
             surface_theme,
             text_theme,
             header_theme,
@@ -286,6 +297,7 @@ mod tests {
         };
 
         assert_eq!(grid.height, Some(224.0));
+        assert_eq!(grid.theme_mode, None);
         assert_eq!(grid.surface_theme, None);
         assert_eq!(grid.text_theme, None);
         assert_eq!(grid.header_theme, None);
@@ -325,6 +337,7 @@ mod tests {
             status_bar,
             row_selection_only,
             height,
+            theme_mode,
             surface_theme,
             text_theme,
             header_theme,
@@ -343,6 +356,7 @@ mod tests {
             status_bar,
             row_selection_only,
             height,
+            theme_mode,
             surface_theme,
             text_theme,
             header_theme,
@@ -352,6 +366,22 @@ mod tests {
         };
 
         assert_eq!(grid.text_theme, Some(theme));
+    }
+
+    #[test]
+    fn financial_data_grid_builder_accepts_explicit_theme_mode() {
+        let columns = demo_columns();
+        let source = InMemoryGridSource::new(demo_rows(2));
+        let mut state = GridState::default();
+
+        let builder = FinancialDataGrid::new("theme-mode-contract")
+            .columns(&columns)
+            .source(&source)
+            .state(&mut state)
+            .theme_mode(finui_primitives::ThemeMode::Light);
+        let FinancialDataGridBuilder { theme_mode, .. } = builder;
+
+        assert_eq!(theme_mode, Some(finui_primitives::ThemeMode::Light));
     }
 
     #[test]

@@ -12,8 +12,9 @@ use crate::{
     FinancialDataGrid, GridHeaderTheme, GridRowInteractionTheme, GridRowTheme, GridSurfaceTheme,
 };
 use finui_primitives::{
-    ContextMenuItemOptions, ContextMenuOptions, RadixIcon, ThemeMode, paint_radix_icon,
-    primitive_context_menu_item, primitive_scroll_thumb_rect, radix_colors, show_context_menu,
+    ContextMenuItemOptions, ContextMenuOptions, PrimitiveTheme, RadixIcon, ThemeMode,
+    paint_radix_icon, primitive_context_menu_item, primitive_scroll_thumb_rect, radix_colors,
+    show_context_menu,
 };
 
 impl<'a> FinancialDataGrid<'a> {
@@ -21,12 +22,14 @@ impl<'a> FinancialDataGrid<'a> {
         self.state.normalize_columns(self.columns);
         let row_model_cache_key = build_row_model_cache_key(self.source, self.state);
         let row_model = build_row_model(self.source, self.state, self.columns);
+        let theme_mode = self.theme_mode.unwrap_or_else(|| theme_mode_for_ui(ui));
+        let primitive_theme = PrimitiveTheme::for_mode(theme_mode);
         let surface_theme = self
             .surface_theme
-            .unwrap_or_else(|| grid_surface_theme_for_ui(ui));
+            .unwrap_or_else(|| grid_surface_theme_for_mode(theme_mode));
         let row_interaction_theme = self
             .row_interaction_theme
-            .unwrap_or_else(|| grid_row_interaction_theme_for_ui(ui));
+            .unwrap_or_else(|| grid_row_interaction_theme_for_mode(theme_mode));
         debug_assert_eq!(row_model_cache_key.row_count, self.source.row_count());
         let mut actions = Vec::new();
         if self.status_bar {
@@ -376,12 +379,13 @@ impl<'a> FinancialDataGrid<'a> {
                         menu_position,
                         190.0,
                     )
-                    .max_height(208.0),
+                    .max_height(208.0)
+                    .theme(primitive_theme),
                     |ui| {
                         if primitive_context_menu_item(
                             ui,
                             "Pin left",
-                            ContextMenuItemOptions::new(170.0),
+                            ContextMenuItemOptions::new(170.0).theme(primitive_theme),
                         )
                         .clicked()
                         {
@@ -390,7 +394,7 @@ impl<'a> FinancialDataGrid<'a> {
                         if primitive_context_menu_item(
                             ui,
                             "Hide column",
-                            ContextMenuItemOptions::new(170.0),
+                            ContextMenuItemOptions::new(170.0).theme(primitive_theme),
                         )
                         .clicked()
                         {
@@ -399,7 +403,7 @@ impl<'a> FinancialDataGrid<'a> {
                         if primitive_context_menu_item(
                             ui,
                             "Filter sample",
-                            ContextMenuItemOptions::new(170.0),
+                            ContextMenuItemOptions::new(170.0).theme(primitive_theme),
                         )
                         .clicked()
                         {
@@ -408,7 +412,7 @@ impl<'a> FinancialDataGrid<'a> {
                         if primitive_context_menu_item(
                             ui,
                             "Clear filters",
-                            ContextMenuItemOptions::new(170.0),
+                            ContextMenuItemOptions::new(170.0).theme(primitive_theme),
                         )
                         .clicked()
                         {
@@ -583,12 +587,13 @@ impl<'a> FinancialDataGrid<'a> {
                         menu_position,
                         176.0,
                     )
-                    .max_height(160.0),
+                    .max_height(160.0)
+                    .theme(primitive_theme),
                     |ui| {
                         if primitive_context_menu_item(
                             ui,
                             "Open row detail",
-                            ContextMenuItemOptions::new(156.0),
+                            ContextMenuItemOptions::new(156.0).theme(primitive_theme),
                         )
                         .clicked()
                         {
@@ -597,7 +602,7 @@ impl<'a> FinancialDataGrid<'a> {
                         if primitive_context_menu_item(
                             ui,
                             "Copy row",
-                            ContextMenuItemOptions::new(156.0),
+                            ContextMenuItemOptions::new(156.0).theme(primitive_theme),
                         )
                         .clicked()
                         {
@@ -656,7 +661,7 @@ impl<'a> FinancialDataGrid<'a> {
                 self.agent_bridge,
                 self.provenance_policy,
                 self.row_selection_only,
-                theme_mode_for_ui(ui),
+                theme_mode,
                 self.text_theme,
                 &mut actions,
                 &mut hovered_cell,
@@ -930,8 +935,8 @@ fn horizontal_scroll_thumb_width(
     raw.clamp(24.0_f32.min(track_width), track_width)
 }
 
-fn grid_surface_theme_for_ui(ui: &egui::Ui) -> GridSurfaceTheme {
-    match theme_mode_for_ui(ui) {
+fn grid_surface_theme_for_mode(mode: ThemeMode) -> GridSurfaceTheme {
+    match mode {
         ThemeMode::Light => GridSurfaceTheme {
             surface_fill: radix_colors::SLATE_2,
             surface_stroke: radix_colors::SLATE_7,
@@ -963,8 +968,8 @@ fn grid_surface_theme_for_ui(ui: &egui::Ui) -> GridSurfaceTheme {
     }
 }
 
-fn grid_row_interaction_theme_for_ui(ui: &egui::Ui) -> GridRowInteractionTheme {
-    match theme_mode_for_ui(ui) {
+fn grid_row_interaction_theme_for_mode(mode: ThemeMode) -> GridRowInteractionTheme {
+    match mode {
         ThemeMode::Light => GridRowInteractionTheme {
             hover_fill: alpha_color(radix_colors::SLATE_4, 120),
         },
