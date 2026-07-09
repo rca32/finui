@@ -262,8 +262,8 @@ pub use popover::{
     primitive_popover_root_output, primitive_popover_trigger, show_popover,
 };
 pub use radix_icon::{
-    RadixIcon, RadixIconAsset, RadixIconVisual, paint_radix_icon, radix_icon_asset,
-    radix_icon_from_visual, radix_icon_tintable_svg, radix_icon_visual,
+    RadixIcon, RadixIconAsset, RadixIconVisual, SvgIconAsset, paint_radix_icon, paint_svg_icon,
+    radix_icon_asset, radix_icon_from_visual, radix_icon_tintable_svg, radix_icon_visual,
 };
 pub use runtime::{PrimitiveRuntimeScenarioOutput, primitive_runtime_scenario_output};
 pub use scroll_area::{

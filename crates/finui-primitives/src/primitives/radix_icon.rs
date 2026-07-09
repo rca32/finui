@@ -1,4 +1,25 @@
+use std::collections::HashMap;
+use std::sync::{LazyLock, RwLock};
+
 use eframe::egui::{self, Color32, Rect};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SvgIconAsset {
+    pub namespace: &'static str,
+    pub filename: &'static str,
+    pub svg: &'static str,
+}
+
+#[derive(Clone, Copy)]
+struct CachedTintableSvg {
+    uri: &'static str,
+    bytes: &'static [u8],
+}
+
+type SvgCacheKey = (&'static str, &'static str);
+
+static TINTABLE_SVG_CACHE: LazyLock<RwLock<HashMap<SvgCacheKey, CachedTintableSvg>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RadixIcon {
@@ -339,16 +360,54 @@ pub fn radix_icon_tintable_svg(asset: RadixIconAsset) -> String {
 }
 
 pub fn paint_radix_icon(ui: &egui::Ui, icon: RadixIcon, rect: Rect, color: Color32) {
-    egui_extras::install_image_loaders(ui.ctx());
     let asset = radix_icon_asset(icon);
-    let svg = radix_icon_tintable_svg(asset);
-    let image = egui::Image::from_bytes(
-        format!("bytes://radix-icons/tintable/{}", asset.filename),
-        svg.into_bytes(),
-    )
-    .tint(color)
-    .fit_to_exact_size(rect.size());
+    paint_svg_icon(
+        ui,
+        SvgIconAsset {
+            namespace: "radix-icons",
+            filename: asset.filename,
+            svg: asset.svg,
+        },
+        rect,
+        color,
+    );
+}
+
+pub fn paint_svg_icon(ui: &egui::Ui, asset: SvgIconAsset, rect: Rect, color: Color32) {
+    egui_extras::install_image_loaders(ui.ctx());
+    let cached = cached_tintable_svg(asset);
+    let image = egui::Image::from_bytes(cached.uri, cached.bytes)
+        .tint(color)
+        .fit_to_exact_size(rect.size());
     image.paint_at(ui, rect);
+}
+
+fn cached_tintable_svg(asset: SvgIconAsset) -> CachedTintableSvg {
+    let key = (asset.namespace, asset.filename);
+    if let Some(cached) = TINTABLE_SVG_CACHE
+        .read()
+        .expect("tintable SVG cache read lock")
+        .get(&key)
+        .copied()
+    {
+        return cached;
+    }
+
+    let mut cache = TINTABLE_SVG_CACHE
+        .write()
+        .expect("tintable SVG cache write lock");
+    *cache.entry(key).or_insert_with(|| CachedTintableSvg {
+        uri: Box::leak(
+            format!("bytes://{}/tintable/{}", asset.namespace, asset.filename).into_boxed_str(),
+        ),
+        bytes: Box::leak(
+            asset
+                .svg
+                .replace("currentColor", "#FFFFFF")
+                .into_bytes()
+                .into_boxed_slice(),
+        ),
+    })
 }
 
 #[cfg(test)]
@@ -399,5 +458,22 @@ mod tests {
         assert!(asset.svg.contains("currentColor"));
         assert!(!svg.contains("currentColor"));
         assert!(svg.contains("#FFFFFF"));
+    }
+
+    #[test]
+    fn generic_svg_icon_sources_are_normalized_and_cached_once() {
+        let asset = SvgIconAsset {
+            namespace: "tests",
+            filename: "check.svg",
+            svg: r#"<svg fill="currentColor"></svg>"#,
+        };
+
+        let first = cached_tintable_svg(asset);
+        let second = cached_tintable_svg(asset);
+
+        assert_eq!(first.uri, "bytes://tests/tintable/check.svg");
+        assert_eq!(first.uri.as_ptr(), second.uri.as_ptr());
+        assert_eq!(first.bytes.as_ptr(), second.bytes.as_ptr());
+        assert_eq!(first.bytes, br##"<svg fill="#FFFFFF"></svg>"##);
     }
 }
