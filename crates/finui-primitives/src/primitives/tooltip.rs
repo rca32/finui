@@ -6,9 +6,9 @@ use super::{
     DropdownMenuAlign, DropdownMenuSide, PopoverArrowSide, PrimitiveLayerAnimationOutput,
     PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme,
     dropdown_menu_align_from_layer_align, dropdown_menu_layer_align, dropdown_menu_layer_side,
-    dropdown_menu_placement_parts, dropdown_menu_side_from_layer_side, popover_arrow_side,
-    primitive_layer_animation_output, primitive_mounted_content_policy, primitive_popover_arrow,
-    show_primitive_layer,
+    dropdown_menu_placement_parts, dropdown_menu_side_from_layer_side, popover_arrow_points,
+    popover_arrow_side, primitive_layer_animation_output, primitive_mounted_content_policy,
+    primitive_popover_arrow, show_primitive_layer,
 };
 use crate::{DismissPolicy, LayerPlacement, LayerResolvedPlacement};
 
@@ -496,6 +496,156 @@ pub struct TooltipOutput {
     pub animation: PrimitiveLayerAnimationOutput,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TooltipPaintOptions {
+    pub id: egui::Id,
+    pub trigger_rect: Rect,
+    pub width: f32,
+    pub offset: f32,
+    pub inner_margin: egui::Margin,
+    pub side: TooltipSide,
+    pub align: TooltipAlign,
+    pub theme: PrimitiveTheme,
+}
+
+impl TooltipPaintOptions {
+    pub fn new(id: impl Hash, trigger_rect: Rect) -> Self {
+        Self {
+            id: egui::Id::new(id),
+            trigger_rect,
+            width: 196.0,
+            offset: 7.0,
+            inner_margin: egui::Margin::symmetric(10, 6),
+            side: TooltipSide::Bottom,
+            align: TooltipAlign::Center,
+            theme: PrimitiveTheme::default(),
+        }
+    }
+
+    pub fn width(mut self, width: f32) -> Self {
+        self.width = width.max(1.0);
+        self
+    }
+
+    pub fn offset(mut self, offset: f32) -> Self {
+        self.offset = offset.max(0.0);
+        self
+    }
+
+    pub fn inner_margin(mut self, inner_margin: egui::Margin) -> Self {
+        self.inner_margin = inner_margin;
+        self
+    }
+
+    pub fn side_align(mut self, side: TooltipSide, align: TooltipAlign) -> Self {
+        self.side = side;
+        self.align = align;
+        self
+    }
+
+    pub fn theme(mut self, theme: PrimitiveTheme) -> Self {
+        self.theme = theme;
+        self
+    }
+}
+
+pub fn tooltip_paint_content_rect(
+    viewport: Rect,
+    trigger_rect: Rect,
+    content_size: Vec2,
+    side: TooltipSide,
+    align: TooltipAlign,
+    offset: f32,
+) -> Rect {
+    let aligned_x = match align {
+        TooltipAlign::Start => trigger_rect.left(),
+        TooltipAlign::Center => trigger_rect.center().x - content_size.x * 0.5,
+        TooltipAlign::End => trigger_rect.right() - content_size.x,
+    };
+    let aligned_y = match align {
+        TooltipAlign::Start => trigger_rect.top(),
+        TooltipAlign::Center => trigger_rect.center().y - content_size.y * 0.5,
+        TooltipAlign::End => trigger_rect.bottom() - content_size.y,
+    };
+    let desired = match side {
+        TooltipSide::Top => egui::pos2(aligned_x, trigger_rect.top() - content_size.y - offset),
+        TooltipSide::Right => egui::pos2(trigger_rect.right() + offset, aligned_y),
+        TooltipSide::Bottom => egui::pos2(aligned_x, trigger_rect.bottom() + offset),
+        TooltipSide::Left => egui::pos2(trigger_rect.left() - content_size.x - offset, aligned_y),
+    };
+    let margin = 4.0;
+    let min_x = viewport.left() + margin;
+    let max_x = (viewport.right() - content_size.x - margin).max(min_x);
+    let min_y = viewport.top() + margin;
+    let max_y = (viewport.bottom() - content_size.y - margin).max(min_y);
+    Rect::from_min_size(
+        egui::pos2(desired.x.clamp(min_x, max_x), desired.y.clamp(min_y, max_y)),
+        content_size,
+    )
+}
+
+pub fn paint_tooltip(
+    ctx: &egui::Context,
+    text: &str,
+    options: TooltipPaintOptions,
+) -> TooltipOutput {
+    let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, options.id));
+    let galley = painter.layout_no_wrap(
+        text.to_owned(),
+        FontId::proportional(12.0),
+        options.theme.text,
+    );
+    let horizontal_margin =
+        f32::from(options.inner_margin.left) + f32::from(options.inner_margin.right);
+    let vertical_margin =
+        f32::from(options.inner_margin.top) + f32::from(options.inner_margin.bottom);
+    let content_size = egui::vec2(
+        options.width.max(galley.size().x + horizontal_margin),
+        galley.size().y + vertical_margin,
+    );
+    let content_rect = tooltip_paint_content_rect(
+        ctx.content_rect(),
+        options.trigger_rect,
+        content_size,
+        options.side,
+        options.align,
+        options.offset,
+    );
+    painter.add(egui::Shape::convex_polygon(
+        popover_arrow_points(options.trigger_rect, content_rect, 5.0).to_vec(),
+        options.theme.content_fill,
+        options.theme.content_stroke,
+    ));
+    painter.rect(
+        content_rect,
+        options.theme.radius,
+        options.theme.content_fill,
+        options.theme.content_stroke,
+        egui::StrokeKind::Inside,
+    );
+    painter.galley(
+        content_rect.min
+            + egui::vec2(
+                f32::from(options.inner_margin.left),
+                f32::from(options.inner_margin.top),
+            ),
+        galley,
+        options.theme.text,
+    );
+    let resolved_placement = LayerResolvedPlacement {
+        side: dropdown_menu_layer_side(options.side),
+        align: dropdown_menu_layer_align(options.align),
+        flipped: false,
+    };
+    TooltipOutput {
+        content_rect,
+        arrow_side: popover_arrow_side(options.trigger_rect, content_rect),
+        side: options.side,
+        align: options.align,
+        animation: primitive_layer_animation_output(true, resolved_placement, 1.0),
+    }
+}
+
 pub fn primitive_tooltip_trigger(
     ui: &mut egui::Ui,
     label: &str,
@@ -651,6 +801,50 @@ pub fn show_tooltip(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tooltip_paint_geometry_supports_bottom_and_left_product_chrome_placements() {
+        let viewport = Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1440.0, 900.0));
+        let topbar_trigger = Rect::from_min_size(egui::pos2(1164.0, 10.0), egui::vec2(24.0, 24.0));
+        let below = tooltip_paint_content_rect(
+            viewport,
+            topbar_trigger,
+            egui::vec2(196.0, 32.0),
+            TooltipSide::Bottom,
+            TooltipAlign::Center,
+            7.0,
+        );
+        assert!(below.top() > topbar_trigger.bottom());
+        assert_eq!(below.center().x, topbar_trigger.center().x);
+
+        let rail_trigger = Rect::from_min_size(egui::pos2(1398.0, 48.0), egui::vec2(40.0, 40.0));
+        let left = tooltip_paint_content_rect(
+            viewport,
+            rail_trigger,
+            egui::vec2(196.0, 32.0),
+            TooltipSide::Left,
+            TooltipAlign::Center,
+            7.0,
+        );
+        assert!(left.right() < rail_trigger.left());
+        assert_eq!(left.center().y, rail_trigger.center().y);
+    }
+
+    #[test]
+    fn tooltip_paint_geometry_clamps_content_inside_the_viewport() {
+        let viewport = Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(320.0, 240.0));
+        let trigger = Rect::from_min_size(egui::pos2(300.0, 220.0), egui::vec2(20.0, 20.0));
+        let content = tooltip_paint_content_rect(
+            viewport,
+            trigger,
+            egui::vec2(196.0, 32.0),
+            TooltipSide::Bottom,
+            TooltipAlign::End,
+            7.0,
+        );
+
+        assert!(viewport.shrink(4.0).contains_rect(content));
+    }
 
     #[test]
     fn tooltip_options_preserve_content_contract() {
