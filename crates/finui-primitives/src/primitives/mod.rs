@@ -2,6 +2,7 @@
 
 mod alert_dialog;
 mod avatar;
+mod button;
 mod context_menu;
 mod dialog;
 mod disclosure;
@@ -50,6 +51,12 @@ pub use avatar::{
     avatar_radius, primitive_avatar, primitive_avatar_fallback, primitive_avatar_fallback_output,
     primitive_avatar_image, primitive_avatar_image_output, primitive_avatar_root,
     primitive_avatar_root_output,
+};
+pub use button::{
+    PrimitiveButtonInteractionState, PrimitiveButtonOptions, PrimitiveButtonOutput,
+    PrimitiveButtonVariant, PrimitiveButtonVisualStyle, paint_primitive_button_focus_ring,
+    primitive_button, primitive_button_focus_visible_next, primitive_button_interaction_at,
+    primitive_button_visual_style,
 };
 pub use context_menu::{
     ContextMenuAlign, ContextMenuContentOptions, ContextMenuContentOutput, ContextMenuDataState,
@@ -318,8 +325,9 @@ pub use status::{
 };
 pub use theme::{
     PrimitiveContentTextColors, PrimitiveMountedContentPolicy, PrimitiveStyleBoundaryOutput,
-    PrimitiveTheme, ThemeMode, primitive_mounted_content_policy,
-    primitive_mounted_content_text_colors, primitive_style_boundary_output, radix_colors,
+    PrimitiveTheme, ThemeMode, primitive_focus_ring_stroke, primitive_mounted_content_policy,
+    primitive_mounted_content_text_colors, primitive_style_boundary_output,
+    primitive_theme_is_dark, radix_colors,
 };
 pub use toast::{
     ToastAction, ToastAnnounceOptions, ToastAnnounceOutput, ToastFocusTargetsOutput, ToastKind,

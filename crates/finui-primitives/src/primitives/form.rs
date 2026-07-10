@@ -3,7 +3,7 @@ use std::hash::Hash;
 use eframe::egui::{self, Color32, FontId, Pos2, Rect, Response, RichText, Stroke, Vec2};
 
 use super::{
-    PrimitiveDirection, PrimitiveTheme, RadixIcon, paint_radix_icon,
+    PrimitiveDirection, PrimitiveTheme, RadixIcon, paint_radix_icon, primitive_focus_ring_stroke,
     primitive_horizontal_arrow_step, radix_colors,
 };
 
@@ -2633,18 +2633,9 @@ fn draw_control_focus_ring(ui: &egui::Ui, rect: Rect, theme: PrimitiveTheme) {
     ui.painter().rect_stroke(
         rect,
         theme.row_radius + 2.0,
-        control_focus_ring_stroke(theme),
+        primitive_focus_ring_stroke(theme),
         egui::StrokeKind::Inside,
     );
-}
-
-fn control_focus_ring_stroke(theme: PrimitiveTheme) -> Stroke {
-    let color = if is_dark_primitive_theme(theme) {
-        Color32::from_rgb(0x8e, 0xc8, 0xff)
-    } else {
-        radix_colors::INDIGO_9
-    };
-    Stroke::new(1.5, color)
 }
 
 #[cfg(test)]
@@ -2891,8 +2882,8 @@ mod tests {
 
     #[test]
     fn form_control_focus_ring_uses_visible_accent_stroke() {
-        let light = control_focus_ring_stroke(PrimitiveTheme::light());
-        let dark = control_focus_ring_stroke(PrimitiveTheme::dark());
+        let light = primitive_focus_ring_stroke(PrimitiveTheme::light());
+        let dark = primitive_focus_ring_stroke(PrimitiveTheme::dark());
 
         assert_eq!(light.width, 1.5);
         assert_eq!(dark.width, 1.5);

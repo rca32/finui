@@ -1,6 +1,9 @@
 use eframe::egui::{self, RichText, Stroke};
 
-use super::{RadixIcon, paint_radix_icon, theme::PrimitiveTheme};
+use super::{
+    PrimitiveButtonOptions, PrimitiveButtonVariant, RadixIcon, paint_radix_icon, primitive_button,
+    theme::PrimitiveTheme,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PrimitiveSettingsRowOptions<'a> {
@@ -943,7 +946,7 @@ pub fn primitive_text_field(ui: &mut egui::Ui, value: &mut String) -> bool {
         .changed()
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PrimitiveActionKind {
     Primary,
     Secondary,
@@ -955,17 +958,24 @@ pub fn primitive_action_button(
     label: &str,
     kind: PrimitiveActionKind,
 ) -> egui::Response {
-    let button = match kind {
-        PrimitiveActionKind::Primary => {
-            egui::Button::new(RichText::new(label).strong().color(egui::Color32::WHITE))
-                .fill(egui::Color32::from_rgb(18, 18, 18))
-        }
-        PrimitiveActionKind::Secondary => egui::Button::new(label),
-        PrimitiveActionKind::Destructive => {
-            egui::Button::new(RichText::new(label).color(egui::Color32::from_rgb(180, 54, 42)))
-        }
+    let variant = match kind {
+        PrimitiveActionKind::Primary => PrimitiveButtonVariant::Solid,
+        PrimitiveActionKind::Secondary => PrimitiveButtonVariant::Outline,
+        PrimitiveActionKind::Destructive => PrimitiveButtonVariant::Destructive,
     };
-    ui.add_sized([96.0, 28.0], button)
+    primitive_button(
+        ui,
+        ("settings-action", label, kind),
+        label,
+        PrimitiveButtonOptions::default()
+            .variant(variant)
+            .theme(if ui.visuals().dark_mode {
+                PrimitiveTheme::dark()
+            } else {
+                PrimitiveTheme::light()
+            }),
+    )
+    .response
 }
 
 pub fn primitive_numeric_input_i64(

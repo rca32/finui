@@ -686,6 +686,11 @@ pub fn primitive_text_overflow_output(
 pub fn primitive_part_anatomy_catalogue_output() -> Vec<PrimitivePartAnatomyOutput> {
     vec![
         PrimitivePartAnatomyOutput {
+            primitive: "button",
+            parts: &["Root"],
+            code_symbols: &["PrimitiveButtonOutput", "PrimitiveButtonOptions"],
+        },
+        PrimitivePartAnatomyOutput {
             primitive: "dialog",
             parts: &[
                 "Root",
@@ -1585,6 +1590,7 @@ mod tests {
             assert!(find("navigation_menu").parts.contains(&part));
         }
         assert!(find("checkbox").parts.contains(&"Indicator"));
+        assert!(find("button").parts.contains(&"Root"));
         assert!(find("radio_group").parts.contains(&"Indicator"));
         assert!(find("slider").parts.contains(&"Thumb"));
         assert!(find("toast").parts.contains(&"Action"));

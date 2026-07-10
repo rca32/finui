@@ -196,6 +196,20 @@ impl PrimitiveTheme {
     }
 }
 
+pub fn primitive_theme_is_dark(theme: PrimitiveTheme) -> bool {
+    let fill = theme.content_fill;
+    u16::from(fill.r()) + u16::from(fill.g()) + u16::from(fill.b()) < 384
+}
+
+pub fn primitive_focus_ring_stroke(theme: PrimitiveTheme) -> Stroke {
+    let color = if primitive_theme_is_dark(theme) {
+        Color32::from_rgb(0x8e, 0xc8, 0xff)
+    } else {
+        radix_colors::INDIGO_9
+    };
+    Stroke::new(1.5, color)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
