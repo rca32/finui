@@ -2,6 +2,7 @@
 
 mod alert_dialog;
 mod avatar;
+mod badge;
 mod button;
 mod context_menu;
 mod dialog;
@@ -51,6 +52,11 @@ pub use avatar::{
     avatar_radius, primitive_avatar, primitive_avatar_fallback, primitive_avatar_fallback_output,
     primitive_avatar_image, primitive_avatar_image_output, primitive_avatar_root,
     primitive_avatar_root_output,
+};
+pub use badge::{
+    BadgeRootOptions, BadgeRootOutput, BadgeTone, BadgeVariant, BadgeVisual, badge_visual,
+    primitive_badge, primitive_badge_at, primitive_badge_root, primitive_badge_root_output,
+    primitive_badge_size,
 };
 pub use button::{
     PrimitiveButtonInteractionState, PrimitiveButtonOptions, PrimitiveButtonOutput,
