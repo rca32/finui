@@ -98,6 +98,8 @@ pub struct TabsTriggerState {
     pub active: bool,
     pub enabled: bool,
     pub hovered: bool,
+    pub pressed: bool,
+    pub focused: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -213,6 +215,8 @@ pub fn primitive_tabs_header_with_options(
                 active: *selected == index,
                 enabled: item.enabled,
                 hovered: response.hovered(),
+                pressed: response.is_pointer_button_down_on(),
+                focused: response.has_focus(),
             },
             options.theme,
         );
@@ -416,23 +420,12 @@ pub fn primitive_tabs_trigger(
     theme: PrimitiveTheme,
 ) {
     let chip_rect = rect.shrink2(Vec2::new(2.0, 3.0));
-    let fill = if state.active {
-        theme.content_fill
-    } else if state.hovered && state.enabled {
-        theme.item_hover_fill
-    } else {
-        Color32::TRANSPARENT
-    };
-    let stroke = if state.active {
-        theme.content_stroke
-    } else {
-        egui::Stroke::NONE
-    };
+    let style = tabs_trigger_visual_style(state, theme);
     ui.painter().rect(
         chip_rect,
         theme.row_radius,
-        fill,
-        stroke,
+        style.fill,
+        style.stroke,
         egui::StrokeKind::Inside,
     );
     if state.active {
@@ -456,6 +449,31 @@ pub fn primitive_tabs_trigger(
             theme.disabled_text
         },
     );
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct TabsTriggerVisualStyle {
+    fill: Color32,
+    stroke: egui::Stroke,
+}
+
+fn tabs_trigger_visual_style(
+    state: TabsTriggerState,
+    theme: PrimitiveTheme,
+) -> TabsTriggerVisualStyle {
+    let fill = if state.pressed && state.enabled {
+        theme.item_selected_fill
+    } else if state.hovered && state.enabled {
+        theme.item_hover_fill
+    } else {
+        Color32::TRANSPARENT
+    };
+    let stroke = if state.focused && state.enabled {
+        egui::Stroke::new(1.0, radix_colors::INDIGO_8)
+    } else {
+        egui::Stroke::NONE
+    };
+    TabsTriggerVisualStyle { fill, stroke }
 }
 
 pub fn tab_rects(bounds: Rect, items: &[TabItem]) -> Vec<Rect> {
@@ -524,6 +542,52 @@ fn tab_label_key(label: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tabs_trigger_state_covers_radix_pointer_and_keyboard_states() {
+        let rest = TabsTriggerState {
+            active: false,
+            enabled: true,
+            hovered: false,
+            pressed: false,
+            focused: false,
+        };
+        let hover = TabsTriggerState {
+            hovered: true,
+            ..rest
+        };
+        let pressed = TabsTriggerState {
+            pressed: true,
+            ..hover
+        };
+        let focused = TabsTriggerState {
+            focused: true,
+            ..rest
+        };
+
+        assert!(!rest.hovered && !rest.pressed && !rest.focused);
+        assert!(hover.hovered && !hover.pressed);
+        assert!(pressed.hovered && pressed.pressed);
+        assert!(focused.focused && !focused.hovered);
+
+        let theme = PrimitiveTheme::light();
+        assert_eq!(
+            tabs_trigger_visual_style(rest, theme).fill,
+            Color32::TRANSPARENT
+        );
+        assert_eq!(
+            tabs_trigger_visual_style(hover, theme).fill,
+            theme.item_hover_fill
+        );
+        assert_eq!(
+            tabs_trigger_visual_style(pressed, theme).fill,
+            theme.item_selected_fill
+        );
+        assert_eq!(
+            tabs_trigger_visual_style(focused, theme).stroke.color,
+            radix_colors::INDIGO_8
+        );
+    }
 
     #[test]
     fn tab_rects_keep_order_and_minimum_width() {
