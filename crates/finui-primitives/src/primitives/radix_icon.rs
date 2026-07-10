@@ -60,6 +60,7 @@ pub enum RadixIcon {
     Link2,
     LinkBreak2,
     LightningBolt,
+    MagnifyingGlass,
     MixerHorizontal,
     Pause,
     PinLeft,
@@ -239,6 +240,10 @@ pub fn radix_icon_asset(icon: RadixIcon) -> RadixIconAsset {
             filename: "lightning-bolt.svg",
             svg: include_str!("../../assets/radix-icons/lightning-bolt.svg"),
         },
+        RadixIcon::MagnifyingGlass => RadixIconAsset {
+            filename: "magnifying-glass.svg",
+            svg: include_str!("../../assets/radix-icons/magnifying-glass.svg"),
+        },
         RadixIcon::MixerHorizontal => RadixIconAsset {
             filename: "mixer-horizontal.svg",
             svg: include_str!("../../assets/radix-icons/mixer-horizontal.svg"),
@@ -341,6 +346,7 @@ pub fn radix_icon_from_visual(visual: &str) -> Option<RadixIcon> {
         "link-2" | "linked" => Some(RadixIcon::Link2),
         "link-break-2" | "unresolved" | "broken-link" => Some(RadixIcon::LinkBreak2),
         "lightning-bolt" | "lightning" => Some(RadixIcon::LightningBolt),
+        "magnifying-glass" | "search" => Some(RadixIcon::MagnifyingGlass),
         "mixer-horizontal" => Some(RadixIcon::MixerHorizontal),
         "pause" => Some(RadixIcon::Pause),
         "pin-left" => Some(RadixIcon::PinLeft),
@@ -453,6 +459,7 @@ mod tests {
             ("camera", RadixIcon::Camera),
             ("gear", RadixIcon::Gear),
             ("lightning-bolt", RadixIcon::LightningBolt),
+            ("magnifying-glass", RadixIcon::MagnifyingGlass),
         ] {
             let icon = radix_icon_from_visual(name).expect(name);
             assert_eq!(icon, expected);
