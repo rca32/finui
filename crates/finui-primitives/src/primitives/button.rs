@@ -130,7 +130,14 @@ pub fn primitive_button_at(
     options: PrimitiveButtonOptions,
 ) -> PrimitiveButtonOutput {
     let output = primitive_button_interaction_at(ui, rect, id_source, label, options);
-    paint_primitive_button(ui, rect, label, &output, options);
+    paint_primitive_button_at(
+        ui,
+        rect,
+        label,
+        output.interaction_state,
+        output.focus_visible,
+        options,
+    );
     output
 }
 
@@ -328,15 +335,20 @@ pub fn paint_primitive_button_focus_ring(
     );
 }
 
-fn paint_primitive_button(
+pub fn paint_primitive_button_at(
     ui: &egui::Ui,
     rect: Rect,
     label: &str,
-    output: &PrimitiveButtonOutput,
+    interaction_state: PrimitiveButtonInteractionState,
+    focus_visible: bool,
     options: PrimitiveButtonOptions,
 ) {
-    let style =
-        primitive_button_visual_style(options.variant, output.interaction_state, options.theme);
+    let interaction_state = if options.enabled {
+        interaction_state
+    } else {
+        PrimitiveButtonInteractionState::Disabled
+    };
+    let style = primitive_button_visual_style(options.variant, interaction_state, options.theme);
     ui.painter().rect(
         rect,
         options.theme.row_radius,
@@ -382,7 +394,7 @@ fn paint_primitive_button(
         FontId::proportional(13.0),
         style.text,
     );
-    if output.focus_visible {
+    if focus_visible && options.enabled {
         paint_primitive_button_focus_ring(
             ui,
             rect,
@@ -515,5 +527,44 @@ mod tests {
 
         assert_eq!(output_rect, rect);
         assert!(!frame.shapes.is_empty());
+    }
+
+    #[test]
+    fn positioned_button_paint_accepts_a_deterministic_visual_state() {
+        let context = egui::Context::default();
+        let rect = Rect::from_min_size(egui::pos2(18.0, 14.0), Vec2::new(144.0, 32.0));
+        let raw_input = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(180.0, 80.0),
+            )),
+            ..Default::default()
+        };
+
+        let frame = context.run_ui(raw_input, |ui| {
+            paint_primitive_button_at(
+                ui,
+                rect,
+                "Continue",
+                PrimitiveButtonInteractionState::Pressed,
+                true,
+                PrimitiveButtonOptions::default()
+                    .size(rect.size())
+                    .variant(PrimitiveButtonVariant::Outline)
+                    .leading_icon(RadixIcon::Play)
+                    .trailing_icon(RadixIcon::ChevronRight),
+            );
+        });
+
+        assert!(!frame.shapes.is_empty());
+        assert_eq!(
+            primitive_button_visual_style(
+                PrimitiveButtonVariant::Outline,
+                PrimitiveButtonInteractionState::Pressed,
+                PrimitiveTheme::default(),
+            )
+            .fill,
+            PrimitiveTheme::default().item_selected_fill
+        );
     }
 }
