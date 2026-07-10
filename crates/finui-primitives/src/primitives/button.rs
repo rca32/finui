@@ -119,6 +119,16 @@ pub fn primitive_button(
     options: PrimitiveButtonOptions,
 ) -> PrimitiveButtonOutput {
     let (rect, _) = ui.allocate_exact_size(options.size, Sense::hover());
+    primitive_button_at(ui, rect, id_source, label, options)
+}
+
+pub fn primitive_button_at(
+    ui: &mut egui::Ui,
+    rect: Rect,
+    id_source: impl Hash,
+    label: &str,
+    options: PrimitiveButtonOptions,
+) -> PrimitiveButtonOutput {
     let output = primitive_button_interaction_at(ui, rect, id_source, label, options);
     paint_primitive_button(ui, rect, label, &output, options);
     output
@@ -473,5 +483,37 @@ mod tests {
             &mut output,
         );
         assert_eq!(output, Some((true, true)));
+    }
+
+    #[test]
+    fn button_at_uses_the_supplied_rect_with_full_button_behavior() {
+        let context = egui::Context::default();
+        let rect = Rect::from_min_size(egui::pos2(18.0, 14.0), Vec2::new(144.0, 32.0));
+        let mut output_rect = Rect::NOTHING;
+        let raw_input = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(180.0, 80.0),
+            )),
+            ..Default::default()
+        };
+
+        let frame = context.run_ui(raw_input, |ui| {
+            let output = primitive_button_at(
+                ui,
+                rect,
+                "positioned-button",
+                "Continue",
+                PrimitiveButtonOptions::default()
+                    .size(rect.size())
+                    .variant(PrimitiveButtonVariant::Outline)
+                    .leading_icon(RadixIcon::Play)
+                    .trailing_icon(RadixIcon::ChevronRight),
+            );
+            output_rect = output.response.rect;
+        });
+
+        assert_eq!(output_rect, rect);
+        assert!(!frame.shapes.is_empty());
     }
 }
