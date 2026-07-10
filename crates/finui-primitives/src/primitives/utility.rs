@@ -696,6 +696,15 @@ pub fn primitive_part_anatomy_catalogue_output() -> Vec<PrimitivePartAnatomyOutp
             code_symbols: &["BadgeRootOutput", "BadgeRootOptions"],
         },
         PrimitivePartAnatomyOutput {
+            primitive: "callout",
+            parts: &["Root", "Icon", "Text"],
+            code_symbols: &[
+                "CalloutRootOutput",
+                "CalloutIconOutput",
+                "CalloutTextOutput",
+            ],
+        },
+        PrimitivePartAnatomyOutput {
             primitive: "dialog",
             parts: &[
                 "Root",

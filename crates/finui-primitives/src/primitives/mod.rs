@@ -4,6 +4,7 @@ mod alert_dialog;
 mod avatar;
 mod badge;
 mod button;
+mod callout;
 mod context_menu;
 mod dialog;
 mod disclosure;
@@ -63,6 +64,11 @@ pub use button::{
     PrimitiveButtonVariant, PrimitiveButtonVisualStyle, paint_primitive_button_focus_ring,
     primitive_button, primitive_button_focus_visible_next, primitive_button_interaction_at,
     primitive_button_visual_style,
+};
+pub use callout::{
+    CalloutIconOutput, CalloutRootOptions, CalloutRootOutput, CalloutTextOutput, CalloutTone,
+    CalloutVariant, CalloutVisual, callout_visual, primitive_callout_at, primitive_callout_icon,
+    primitive_callout_root, primitive_callout_root_output, primitive_callout_text,
 };
 pub use context_menu::{
     ContextMenuAlign, ContextMenuContentOptions, ContextMenuContentOutput, ContextMenuDataState,
