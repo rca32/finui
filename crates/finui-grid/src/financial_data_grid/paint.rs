@@ -2,7 +2,7 @@ use eframe::egui::{self, Align2, Color32, Pos2, Rect, Sense, Stroke, Vec2};
 
 use super::action::{GridAction, GridProvenancePolicy};
 use super::agent::GridAgentBridge;
-use super::cell::GridCellValue;
+use super::cell::{GridCellValue, GridValueKind};
 use super::column::{GridCellAlign, GridColumnDef};
 use super::ids::{GridCellRef, GridRowId};
 use super::provenance::GridCellProvenance;
@@ -273,7 +273,7 @@ pub fn paint_row_cells(
                 align,
                 value,
                 finui_primitives::scaled_proportional_font(ui, paint_theme.cell_font_size),
-                cell_text_color(&cell_value, paint_theme),
+                cell_text_color(&cell_value, column.kind, paint_theme),
             );
         }
         painter.line_segment(
@@ -466,16 +466,22 @@ fn string_between(value: &str, a: &str, b: &str) -> bool {
     }
 }
 
-fn cell_text_color(value: &GridCellValue, theme: GridPaintTheme) -> Color32 {
-    match value {
-        GridCellValue::Decimal(value) | GridCellValue::DeltaBar(value) if *value > 0.0 => {
+fn cell_text_color(value: &GridCellValue, kind: GridValueKind, theme: GridPaintTheme) -> Color32 {
+    match (value, kind) {
+        (GridCellValue::Decimal(value), GridValueKind::Decimal | GridValueKind::Percent)
+        | (GridCellValue::DeltaBar(value), GridValueKind::DeltaBar)
+            if *value > 0.0 =>
+        {
             theme.positive_text
         }
-        GridCellValue::Decimal(value) | GridCellValue::DeltaBar(value) if *value < 0.0 => {
+        (GridCellValue::Decimal(value), GridValueKind::Decimal | GridValueKind::Percent)
+        | (GridCellValue::DeltaBar(value), GridValueKind::DeltaBar)
+            if *value < 0.0 =>
+        {
             theme.negative_text
         }
-        GridCellValue::Error(_) => theme.error_text,
-        GridCellValue::AgentAnnotation(_) => theme.agent_text,
+        (GridCellValue::Error(_), _) => theme.error_text,
+        (GridCellValue::AgentAnnotation(_), _) => theme.agent_text,
         _ => theme.text,
     }
 }
@@ -652,6 +658,28 @@ mod tests {
         assert_eq!(paint.agent_text, theme.agent_text);
         assert_eq!(paint.grid_line, theme.grid_line);
         assert_eq!(paint.cell_font_size, 10.5);
+    }
+
+    #[test]
+    fn financial_cell_text_color_respects_column_semantics() {
+        let theme = grid_paint_theme(ThemeMode::Dark);
+
+        assert_eq!(
+            cell_text_color(&GridCellValue::Decimal(125.5), GridValueKind::Price, theme),
+            theme.text
+        );
+        assert_eq!(
+            cell_text_color(&GridCellValue::Decimal(1.25), GridValueKind::Percent, theme),
+            theme.positive_text
+        );
+        assert_eq!(
+            cell_text_color(
+                &GridCellValue::Decimal(-0.75),
+                GridValueKind::Percent,
+                theme,
+            ),
+            theme.negative_text
+        );
     }
 
     #[test]
