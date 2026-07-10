@@ -395,6 +395,39 @@ pub fn primitive_toolbar(
     ToolbarOutput { clicked, responses }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct ToolbarButtonVisualStyle {
+    fill: egui::Color32,
+    stroke: egui::Stroke,
+    text: egui::Color32,
+}
+
+fn toolbar_button_visual_style(
+    state: ToolbarButtonState,
+    theme: PrimitiveTheme,
+) -> ToolbarButtonVisualStyle {
+    let fill = if !state.enabled {
+        theme.content_fill
+    } else if state.pressed {
+        theme.item_selected_fill
+    } else if state.hovered {
+        theme.item_hover_fill
+    } else {
+        theme.content_fill
+    };
+    let text = if state.enabled {
+        theme.text
+    } else {
+        theme.disabled_text
+    };
+
+    ToolbarButtonVisualStyle {
+        fill,
+        stroke: theme.content_stroke,
+        text,
+    }
+}
+
 pub fn primitive_toolbar_button(
     ui: &egui::Ui,
     rect: Rect,
@@ -402,41 +435,13 @@ pub fn primitive_toolbar_button(
     state: ToolbarButtonState,
     theme: PrimitiveTheme,
 ) {
-    let fill = if !state.enabled {
-        theme.content_fill
-    } else if state.pressed && state.hovered {
-        theme.item_selected_fill
-    } else if state.pressed {
-        theme.item_selected_fill
-    } else if state.hovered && state.enabled {
-        theme.item_hover_fill
-    } else {
-        theme.content_fill
-    };
-    let stroke = if !state.enabled {
-        theme.content_stroke
-    } else if state.pressed && state.hovered {
-        egui::Stroke::new(1.0, theme.text)
-    } else if state.pressed {
-        egui::Stroke::new(1.0, theme.text)
-    } else if state.hovered {
-        theme.content_stroke
-    } else {
-        theme.content_stroke
-    };
-    let text_color = if !state.enabled {
-        theme.disabled_text
-    } else if state.pressed {
-        theme.text
-    } else {
-        theme.text
-    };
+    let style = toolbar_button_visual_style(state, theme);
     ui.painter()
-        .rect_filled(rect.shrink(1.0), theme.row_radius, fill);
+        .rect_filled(rect.shrink(1.0), theme.row_radius, style.fill);
     ui.painter().rect_stroke(
         rect.shrink(1.0),
         theme.row_radius,
-        stroke,
+        style.stroke,
         egui::StrokeKind::Inside,
     );
     ui.painter().text(
@@ -444,7 +449,7 @@ pub fn primitive_toolbar_button(
         Align2::CENTER_CENTER,
         label,
         crate::scaled_proportional_font(ui, 13.0),
-        text_color,
+        style.text,
     );
 }
 
@@ -591,6 +596,24 @@ mod tests {
         assert!(state.pressed);
         assert!(state.enabled);
         assert!(state.hovered);
+    }
+
+    #[test]
+    fn pressed_toolbar_button_uses_selected_fill_without_a_text_colored_border() {
+        let theme = PrimitiveTheme::light();
+        let style = toolbar_button_visual_style(
+            ToolbarButtonState {
+                pressed: true,
+                enabled: true,
+                hovered: false,
+            },
+            theme,
+        );
+
+        assert_eq!(style.fill, theme.item_selected_fill);
+        assert_eq!(style.stroke, theme.content_stroke);
+        assert_ne!(style.stroke.color, theme.text);
+        assert_eq!(style.text, theme.text);
     }
 
     #[test]
