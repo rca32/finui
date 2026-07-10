@@ -6,6 +6,7 @@ mod badge;
 mod button;
 mod callout;
 mod context_menu;
+mod data_list;
 mod dialog;
 mod disclosure;
 mod focus;
@@ -91,6 +92,14 @@ pub use context_menu::{
     primitive_context_menu_root_output, primitive_context_menu_separator,
     primitive_context_menu_sub_content_output, primitive_context_menu_sub_trigger_output,
     primitive_context_menu_trigger, show_context_menu,
+};
+pub use data_list::{
+    DataListItem, DataListItemOutput, DataListLabelOutput, DataListOrientation,
+    DataListRootOptions, DataListRootOutput, DataListSize, DataListValueIconOutput,
+    DataListValueOutput, DataListValueTone, DataListVariant, DataListVisual, data_list_visual,
+    primitive_data_list_at, primitive_data_list_height, primitive_data_list_item,
+    primitive_data_list_label, primitive_data_list_root, primitive_data_list_root_output,
+    primitive_data_list_value,
 };
 pub use dialog::{
     DialogAnnounceOptions, DialogAnnounceOutput, DialogAnnounceRole, DialogCloseOptions,

@@ -705,6 +705,16 @@ pub fn primitive_part_anatomy_catalogue_output() -> Vec<PrimitivePartAnatomyOutp
             ],
         },
         PrimitivePartAnatomyOutput {
+            primitive: "data_list",
+            parts: &["Root", "Item", "Label", "Value"],
+            code_symbols: &[
+                "DataListRootOutput",
+                "DataListItemOutput",
+                "DataListLabelOutput",
+                "DataListValueOutput",
+            ],
+        },
+        PrimitivePartAnatomyOutput {
             primitive: "dialog",
             parts: &[
                 "Root",
