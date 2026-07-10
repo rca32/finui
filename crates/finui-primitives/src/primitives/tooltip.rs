@@ -500,7 +500,7 @@ pub struct TooltipOutput {
 pub struct TooltipPaintOptions {
     pub id: egui::Id,
     pub trigger_rect: Rect,
-    pub width: f32,
+    pub max_width: f32,
     pub offset: f32,
     pub inner_margin: egui::Margin,
     pub side: TooltipSide,
@@ -513,7 +513,7 @@ impl TooltipPaintOptions {
         Self {
             id: egui::Id::new(id),
             trigger_rect,
-            width: 196.0,
+            max_width: 196.0,
             offset: 7.0,
             inner_margin: egui::Margin::symmetric(10, 6),
             side: TooltipSide::Bottom,
@@ -522,8 +522,8 @@ impl TooltipPaintOptions {
         }
     }
 
-    pub fn width(mut self, width: f32) -> Self {
-        self.width = width.max(1.0);
+    pub fn max_width(mut self, max_width: f32) -> Self {
+        self.max_width = max_width.max(1.0);
         self
     }
 
@@ -590,17 +590,18 @@ pub fn paint_tooltip(
     options: TooltipPaintOptions,
 ) -> TooltipOutput {
     let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, options.id));
-    let galley = painter.layout_no_wrap(
-        text.to_owned(),
-        FontId::proportional(12.0),
-        options.theme.text,
-    );
     let horizontal_margin =
         f32::from(options.inner_margin.left) + f32::from(options.inner_margin.right);
     let vertical_margin =
         f32::from(options.inner_margin.top) + f32::from(options.inner_margin.bottom);
+    let galley = painter.layout(
+        text.to_owned(),
+        FontId::proportional(12.0),
+        options.theme.text,
+        (options.max_width - horizontal_margin).max(1.0),
+    );
     let content_size = egui::vec2(
-        options.width.max(galley.size().x + horizontal_margin),
+        (galley.size().x + horizontal_margin).min(options.max_width),
         galley.size().y + vertical_margin,
     );
     let content_rect = tooltip_paint_content_rect(
@@ -828,6 +829,13 @@ mod tests {
         );
         assert!(left.right() < rail_trigger.left());
         assert_eq!(left.center().y, rail_trigger.center().y);
+
+        let options = TooltipPaintOptions::new("product-tooltip", topbar_trigger)
+            .max_width(168.0)
+            .side_align(TooltipSide::Bottom, TooltipAlign::Center);
+        assert_eq!(options.max_width, 168.0);
+        assert_eq!(options.side, TooltipSide::Bottom);
+        assert_eq!(options.align, TooltipAlign::Center);
     }
 
     #[test]
