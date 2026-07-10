@@ -27,6 +27,7 @@ pub enum RadixIcon {
     ActivityLog,
     BarChart,
     BorderSplit,
+    Camera,
     CaretDown,
     CaretSort,
     CaretUp,
@@ -54,9 +55,11 @@ pub enum RadixIcon {
     ExclamationTriangle,
     FileText,
     Filter,
+    Gear,
     InfoCircled,
     Link2,
     LinkBreak2,
+    LightningBolt,
     MixerHorizontal,
     Pause,
     PinLeft,
@@ -103,6 +106,10 @@ pub fn radix_icon_asset(icon: RadixIcon) -> RadixIconAsset {
         RadixIcon::BorderSplit => RadixIconAsset {
             filename: "border-split.svg",
             svg: include_str!("../../assets/radix-icons/border-split.svg"),
+        },
+        RadixIcon::Camera => RadixIconAsset {
+            filename: "camera.svg",
+            svg: include_str!("../../assets/radix-icons/camera.svg"),
         },
         RadixIcon::CaretDown => RadixIconAsset {
             filename: "caret-down.svg",
@@ -212,6 +219,10 @@ pub fn radix_icon_asset(icon: RadixIcon) -> RadixIconAsset {
             filename: "filter.svg",
             svg: include_str!("../../assets/radix-icons/filter.svg"),
         },
+        RadixIcon::Gear => RadixIconAsset {
+            filename: "gear.svg",
+            svg: include_str!("../../assets/radix-icons/gear.svg"),
+        },
         RadixIcon::InfoCircled => RadixIconAsset {
             filename: "info-circled.svg",
             svg: include_str!("../../assets/radix-icons/info-circled.svg"),
@@ -223,6 +234,10 @@ pub fn radix_icon_asset(icon: RadixIcon) -> RadixIconAsset {
         RadixIcon::LinkBreak2 => RadixIconAsset {
             filename: "link-break-2.svg",
             svg: include_str!("../../assets/radix-icons/link-break-2.svg"),
+        },
+        RadixIcon::LightningBolt => RadixIconAsset {
+            filename: "lightning-bolt.svg",
+            svg: include_str!("../../assets/radix-icons/lightning-bolt.svg"),
         },
         RadixIcon::MixerHorizontal => RadixIconAsset {
             filename: "mixer-horizontal.svg",
@@ -293,6 +308,7 @@ pub fn radix_icon_from_visual(visual: &str) -> Option<RadixIcon> {
         "activity-log" => Some(RadixIcon::ActivityLog),
         "bar-chart" | "chart" => Some(RadixIcon::BarChart),
         "border-split" | "split" => Some(RadixIcon::BorderSplit),
+        "camera" | "snapshot" => Some(RadixIcon::Camera),
         "caret-down" => Some(RadixIcon::CaretDown),
         "caret-sort" => Some(RadixIcon::CaretSort),
         "caret-up" => Some(RadixIcon::CaretUp),
@@ -320,9 +336,11 @@ pub fn radix_icon_from_visual(visual: &str) -> Option<RadixIcon> {
         "exclamation-triangle" | "warning" => Some(RadixIcon::ExclamationTriangle),
         "file-text" | "news" => Some(RadixIcon::FileText),
         "filter" => Some(RadixIcon::Filter),
+        "gear" | "settings" => Some(RadixIcon::Gear),
         "info" | "i" => Some(RadixIcon::InfoCircled),
         "link-2" | "linked" => Some(RadixIcon::Link2),
         "link-break-2" | "unresolved" | "broken-link" => Some(RadixIcon::LinkBreak2),
+        "lightning-bolt" | "lightning" => Some(RadixIcon::LightningBolt),
         "mixer-horizontal" => Some(RadixIcon::MixerHorizontal),
         "pause" => Some(RadixIcon::Pause),
         "pin-left" => Some(RadixIcon::PinLeft),
@@ -432,6 +450,9 @@ mod tests {
             ("reset", RadixIcon::Reset),
             ("border-split", RadixIcon::BorderSplit),
             ("stack", RadixIcon::Stack),
+            ("camera", RadixIcon::Camera),
+            ("gear", RadixIcon::Gear),
+            ("lightning-bolt", RadixIcon::LightningBolt),
         ] {
             let icon = radix_icon_from_visual(name).expect(name);
             assert_eq!(icon, expected);
