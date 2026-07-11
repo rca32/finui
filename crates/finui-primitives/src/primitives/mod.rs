@@ -377,12 +377,15 @@ pub use toggle::{
 pub use toolbar::{
     ToolbarActionOutput, ToolbarButtonOutput, ToolbarButtonSpec, ToolbarButtonState,
     ToolbarItemKind, ToolbarItemSpec, ToolbarLinkOutput, ToolbarOrientation, ToolbarOutput,
-    ToolbarRootOptions, ToolbarRootOutput, ToolbarSeparatorOutput, ToolbarToggleGroupMode,
+    ToolbarRootBorder, ToolbarRootOptions, ToolbarRootOutput, ToolbarRootSurfaceOptions,
+    ToolbarRootSurfaceOutput, ToolbarRootVisual, ToolbarSeparatorOutput, ToolbarToggleGroupMode,
     ToolbarToggleGroupOutput, ToolbarToggleItemOutput, primitive_toolbar, primitive_toolbar_button,
-    primitive_toolbar_button_output, primitive_toolbar_link_output, primitive_toolbar_root_output,
-    primitive_toolbar_separator, primitive_toolbar_separator_output,
-    primitive_toolbar_toggle_group_output, primitive_toolbar_toggle_item,
-    primitive_toolbar_toggle_item_output, toolbar_apply_action, toolbar_item_rects,
+    primitive_toolbar_button_output, primitive_toolbar_link_output, primitive_toolbar_root,
+    primitive_toolbar_root_at, primitive_toolbar_root_output,
+    primitive_toolbar_root_surface_output, primitive_toolbar_separator,
+    primitive_toolbar_separator_output, primitive_toolbar_toggle_group_output,
+    primitive_toolbar_toggle_item, primitive_toolbar_toggle_item_output, toolbar_apply_action,
+    toolbar_item_rects,
 };
 pub use tooltip::{
     TooltipAlign, TooltipContentOptions, TooltipContentOutput, TooltipDataState, TooltipDelayEvent,

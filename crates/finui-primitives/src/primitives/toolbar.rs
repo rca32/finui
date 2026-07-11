@@ -1,4 +1,4 @@
-use eframe::egui::{self, Align2, FontId, Rect, Response, Sense, Vec2, pos2};
+use eframe::egui::{self, Align2, Color32, FontId, Rect, Response, Sense, Stroke, Vec2, pos2};
 
 use super::{PrimitiveDirection, PrimitiveTheme, radix_colors};
 
@@ -225,6 +225,80 @@ pub struct ToolbarRootOutput {
     pub role: &'static str,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolbarRootBorder {
+    None,
+    Outline,
+    Bottom,
+}
+
+impl ToolbarRootBorder {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Outline => "outline",
+            Self::Bottom => "bottom",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ToolbarRootSurfaceOptions {
+    pub root: ToolbarRootOptions,
+    pub theme: PrimitiveTheme,
+    pub border: ToolbarRootBorder,
+    pub radius: f32,
+}
+
+impl Default for ToolbarRootSurfaceOptions {
+    fn default() -> Self {
+        let theme = PrimitiveTheme::default();
+        Self {
+            root: ToolbarRootOptions::default(),
+            theme,
+            border: ToolbarRootBorder::Outline,
+            radius: theme.radius as f32,
+        }
+    }
+}
+
+impl ToolbarRootSurfaceOptions {
+    pub fn root(mut self, root: ToolbarRootOptions) -> Self {
+        self.root = root;
+        self
+    }
+
+    pub fn theme(mut self, theme: PrimitiveTheme) -> Self {
+        self.theme = theme;
+        self
+    }
+
+    pub fn border(mut self, border: ToolbarRootBorder) -> Self {
+        self.border = border;
+        self
+    }
+
+    pub fn radius(mut self, radius: f32) -> Self {
+        self.radius = radius.max(0.0);
+        self
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ToolbarRootVisual {
+    pub fill: Color32,
+    pub stroke: Stroke,
+    pub radius: f32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ToolbarRootSurfaceOutput {
+    pub rect: Rect,
+    pub root: ToolbarRootOutput,
+    pub border: ToolbarRootBorder,
+    pub visual: ToolbarRootVisual,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolbarButtonOutput {
     pub data_orientation: &'static str,
@@ -273,6 +347,54 @@ pub fn primitive_toolbar_root_output(options: ToolbarRootOptions) -> ToolbarRoot
         loop_focus: options.loop_focus,
         data_orientation: options.orientation.as_str(),
         role: "toolbar",
+    }
+}
+
+pub fn primitive_toolbar_root_at(
+    ui: &egui::Ui,
+    rect: Rect,
+    options: ToolbarRootSurfaceOptions,
+) -> ToolbarRootSurfaceOutput {
+    let output = primitive_toolbar_root_surface_output(rect, options);
+    primitive_toolbar_root(ui, &output);
+    output
+}
+
+pub fn primitive_toolbar_root_surface_output(
+    rect: Rect,
+    options: ToolbarRootSurfaceOptions,
+) -> ToolbarRootSurfaceOutput {
+    ToolbarRootSurfaceOutput {
+        rect,
+        root: primitive_toolbar_root_output(options.root),
+        border: options.border,
+        visual: ToolbarRootVisual {
+            fill: options.theme.content_fill,
+            stroke: options.theme.content_stroke,
+            radius: options.radius,
+        },
+    }
+}
+
+pub fn primitive_toolbar_root(ui: &egui::Ui, output: &ToolbarRootSurfaceOutput) {
+    ui.painter()
+        .rect_filled(output.rect, output.visual.radius, output.visual.fill);
+    match output.border {
+        ToolbarRootBorder::None => {}
+        ToolbarRootBorder::Outline => {
+            ui.painter().rect_stroke(
+                output.rect,
+                output.visual.radius,
+                output.visual.stroke,
+                egui::StrokeKind::Inside,
+            );
+        }
+        ToolbarRootBorder::Bottom => {
+            ui.painter().line_segment(
+                [output.rect.left_bottom(), output.rect.right_bottom()],
+                output.visual.stroke,
+            );
+        }
     }
 }
 
@@ -664,6 +786,51 @@ mod tests {
         assert!(!output.loop_focus);
         assert_eq!(output.data_orientation, "vertical");
         assert_eq!(output.role, "toolbar");
+    }
+
+    #[test]
+    fn toolbar_root_surface_output_composes_geometry_semantics_and_theme() {
+        let rect = Rect::from_min_size(pos2(12.0, 18.0), Vec2::new(320.0, 44.0));
+        let output = primitive_toolbar_root_surface_output(
+            rect,
+            ToolbarRootSurfaceOptions::default()
+                .root(
+                    ToolbarRootOptions::default()
+                        .orientation(ToolbarOrientation::Vertical)
+                        .loop_focus(false),
+                )
+                .theme(PrimitiveTheme::dark())
+                .border(ToolbarRootBorder::Bottom)
+                .radius(0.0),
+        );
+
+        assert_eq!(output.rect, rect);
+        assert_eq!(output.root.orientation, ToolbarOrientation::Vertical);
+        assert_eq!(output.root.data_orientation, "vertical");
+        assert_eq!(output.root.role, "toolbar");
+        assert!(!output.root.loop_focus);
+        assert_eq!(output.border, ToolbarRootBorder::Bottom);
+        assert_eq!(output.border.as_str(), "bottom");
+        assert_eq!(output.visual.fill, PrimitiveTheme::dark().content_fill);
+        assert_eq!(output.visual.stroke, PrimitiveTheme::dark().content_stroke);
+        assert_eq!(output.visual.radius, 0.0);
+    }
+
+    #[test]
+    fn toolbar_root_surface_uses_distinct_light_and_dark_tokens() {
+        let rect = Rect::from_min_size(egui::Pos2::ZERO, Vec2::new(240.0, 40.0));
+        let light = primitive_toolbar_root_surface_output(
+            rect,
+            ToolbarRootSurfaceOptions::default().theme(PrimitiveTheme::light()),
+        );
+        let dark = primitive_toolbar_root_surface_output(
+            rect,
+            ToolbarRootSurfaceOptions::default().theme(PrimitiveTheme::dark()),
+        );
+
+        assert_ne!(light.visual.fill, dark.visual.fill);
+        assert_ne!(light.visual.stroke, dark.visual.stroke);
+        assert_eq!(light.root, dark.root);
     }
 
     #[test]
