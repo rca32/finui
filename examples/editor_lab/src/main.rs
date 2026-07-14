@@ -14,7 +14,8 @@ use finui_timeline::{
 };
 use finui_workbench::{
     CommandScopeOutput, PaneConstraints, PanelId, PanelTab, SplitAxis,
-    WORKBENCH_LAYOUT_SCHEMA_VERSION, WorkbenchNode, WorkbenchState, show_workbench,
+    WORKBENCH_LAYOUT_SCHEMA_VERSION, WorkbenchNode, WorkbenchState,
+    keyboard_transport_actions_from_pressed, show_workbench,
 };
 use gpu_preview::{GpuPreview, RecreateReason};
 use serde_json::json;
@@ -27,12 +28,15 @@ const AGENT_PANEL: &str = "agent";
 
 fn main() -> eframe::Result {
     let smoke = SmokeConfig::from_env();
+    let smoke_window_visible = smoke
+        .as_ref()
+        .is_some_and(|config| config.screenshot_path.is_some());
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1280.0, 800.0])
             .with_min_inner_size([960.0, 600.0])
-            .with_visible(smoke.is_none()),
+            .with_visible(smoke.is_none() || smoke_window_visible),
         ..eframe::NativeOptions::default()
     };
 
@@ -64,6 +68,9 @@ struct EditorLabApp {
     smoke: Option<SmokeConfig>,
     app_frame: u64,
     smoke_finished: bool,
+    screenshot_requested: bool,
+    screenshot_size: Option<[usize; 2]>,
+    smoke_pixels_per_point: f32,
 }
 
 impl EditorLabApp {
@@ -92,7 +99,7 @@ impl EditorLabApp {
             media_interaction: MediaSurfaceInteractionState::default(),
             last_timeline_receipt: None,
             last_media_receipt: None,
-            persistence_status: "layout schema v1".to_owned(),
+            persistence_status: format!("layout schema v{WORKBENCH_LAYOUT_SCHEMA_VERSION}"),
             last_divider_count: 0,
             last_region_count: 0,
             last_panel_tab_count: 0,
@@ -101,6 +108,9 @@ impl EditorLabApp {
             smoke,
             app_frame: 0,
             smoke_finished: false,
+            screenshot_requested: false,
+            screenshot_size: None,
+            smoke_pixels_per_point: cc.egui_ctx.pixels_per_point(),
         }
     }
 
@@ -123,9 +133,22 @@ impl EditorLabApp {
         let Some(smoke) = self.smoke.as_ref() else {
             return;
         };
-        if self.smoke_finished || self.app_frame < smoke.frames {
+        if self.smoke_finished
+            || self.app_frame < smoke.frames
+            || (smoke.screenshot_path.is_some() && self.screenshot_size.is_none())
+        {
             return;
         }
+
+        let keyboard = keyboard_transport_actions_from_pressed(
+            &[
+                egui::Key::Space,
+                egui::Key::ArrowLeft,
+                egui::Key::ArrowRight,
+            ],
+            true,
+            false,
+        );
 
         let workbench_receipt = json!({
             "active_panels_rendered": self.last_rendered_panel_count,
@@ -137,16 +160,23 @@ impl EditorLabApp {
             "schema_version": WORKBENCH_LAYOUT_SCHEMA_VERSION,
             "timeline": self.last_timeline_receipt.as_ref(),
             "media_surface": self.last_media_receipt.as_ref(),
+            "keyboard_transport": keyboard.receipt,
+            "theme": smoke.theme.label(),
+            "dpi_percent": smoke.dpi_percent,
+            "pixels_per_point": self.smoke_pixels_per_point,
+            "screenshot_path": smoke.screenshot_path,
+            "screenshot_size": self.screenshot_size,
         });
         let result = self
             .preview
-            .as_ref()
+            .as_mut()
             .ok_or_else(|| {
                 self.startup_error
                     .clone()
                     .unwrap_or_else(|| "GPU preview did not start".to_owned())
             })
             .and_then(|preview| {
+                preview.shutdown();
                 preview.write_smoke_receipt(&smoke.receipt_path, workbench_receipt)
             });
 
@@ -156,11 +186,70 @@ impl EditorLabApp {
         self.smoke_finished = true;
         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
     }
+
+    fn capture_smoke_screenshot(&mut self, ctx: &egui::Context) {
+        let Some(smoke) = self.smoke.as_ref() else {
+            return;
+        };
+        let Some(path) = smoke.screenshot_path.as_ref() else {
+            return;
+        };
+
+        let screenshot = ctx.input(|input| {
+            input.events.iter().find_map(|event| match event {
+                egui::Event::Screenshot { image, .. } => Some(image.clone()),
+                _ => None,
+            })
+        });
+        if let Some(screenshot) = screenshot {
+            if let Some(parent) = path.parent()
+                && let Err(error) = std::fs::create_dir_all(parent)
+            {
+                eprintln!("editor_lab screenshot directory failed: {error}");
+                self.smoke_finished = true;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                return;
+            }
+            let rgba = screenshot
+                .pixels
+                .iter()
+                .flat_map(egui::Color32::to_srgba_unmultiplied)
+                .collect::<Vec<_>>();
+            if let Err(error) = image::save_buffer(
+                path,
+                &rgba,
+                screenshot.size[0] as u32,
+                screenshot.size[1] as u32,
+                image::ColorType::Rgba8,
+            ) {
+                eprintln!("editor_lab screenshot write failed: {error}");
+                self.smoke_finished = true;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                return;
+            }
+            self.screenshot_size = Some(screenshot.size);
+        }
+
+        if !self.screenshot_requested && self.app_frame >= smoke.frames.saturating_sub(3) {
+            self.screenshot_requested = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
+        }
+    }
 }
 
 impl eframe::App for EditorLabApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.app_frame += 1;
+        if let Some(smoke) = self.smoke.as_ref() {
+            let native_pixels_per_point = ui.ctx().native_pixels_per_point().unwrap_or(1.0);
+            ui.ctx()
+                .set_zoom_factor(smoke.target_pixels_per_point() / native_pixels_per_point);
+            ui.ctx().set_visuals(match smoke.theme {
+                SmokeTheme::Light => egui::Visuals::light(),
+                SmokeTheme::Dark => egui::Visuals::dark(),
+            });
+        }
+        self.smoke_pixels_per_point = ui.ctx().pixels_per_point();
         let mode = if ui.visuals().dark_mode {
             ThemeMode::Dark
         } else {
@@ -255,6 +344,7 @@ impl eframe::App for EditorLabApp {
         }
 
         ui.ctx().request_repaint_after(Duration::from_millis(16));
+        self.capture_smoke_screenshot(ui.ctx());
         self.finish_smoke_if_ready(ui.ctx());
     }
 }
@@ -557,11 +647,29 @@ fn command_scope_label(scope: &CommandScopeOutput) -> String {
     }
 }
 
+#[derive(Clone, Copy)]
+enum SmokeTheme {
+    Light,
+    Dark,
+}
+
+impl SmokeTheme {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Light => "light",
+            Self::Dark => "dark",
+        }
+    }
+}
+
 #[derive(Clone)]
 struct SmokeConfig {
     frames: u64,
     recreate_frame: u64,
     receipt_path: PathBuf,
+    screenshot_path: Option<PathBuf>,
+    dpi_percent: u16,
+    theme: SmokeTheme,
 }
 
 impl SmokeConfig {
@@ -574,11 +682,33 @@ impl SmokeConfig {
         let receipt_path = std::env::var_os("FINUI_EDITOR_LAB_SMOKE_RECEIPT")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(".tmp/editor-lab-smoke.json"));
+        let screenshot_path =
+            std::env::var_os("FINUI_EDITOR_LAB_SMOKE_SCREENSHOT").map(PathBuf::from);
+        let dpi_percent = std::env::var("FINUI_EDITOR_LAB_SMOKE_DPI_PERCENT")
+            .ok()
+            .and_then(|value| value.parse::<u16>().ok())
+            .filter(|value| matches!(value, 100 | 125 | 150 | 200))
+            .unwrap_or(100);
+        let theme = match std::env::var("FINUI_EDITOR_LAB_SMOKE_THEME")
+            .unwrap_or_else(|_| "dark".to_owned())
+            .to_ascii_lowercase()
+            .as_str()
+        {
+            "light" => SmokeTheme::Light,
+            _ => SmokeTheme::Dark,
+        };
 
         Some(Self {
             frames,
             recreate_frame: (frames / 3).max(2),
             receipt_path,
+            screenshot_path,
+            dpi_percent,
+            theme,
         })
+    }
+
+    fn target_pixels_per_point(&self) -> f32 {
+        f32::from(self.dpi_percent) / 100.0
     }
 }

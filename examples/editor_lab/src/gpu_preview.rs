@@ -37,6 +37,7 @@ pub struct PreviewStats {
     pub render_passes: u64,
     pub texture_registrations: u64,
     pub texture_releases: u64,
+    pub retained_textures: usize,
     pub cpu_pixel_readbacks: u64,
     pub cpu_pixel_upload_bytes: u64,
     pub last_recreate_reason: RecreateReason,
@@ -233,6 +234,7 @@ impl GpuPreview {
             render_passes: self.render_passes,
             texture_registrations: self.texture_registrations,
             texture_releases: self.texture_releases,
+            retained_textures: usize::from(self.active.is_some()) + self.retired.len(),
             cpu_pixel_readbacks: 0,
             cpu_pixel_upload_bytes: 0,
             last_recreate_reason: self.last_recreate_reason,
@@ -265,6 +267,7 @@ impl GpuPreview {
             "render_passes": stats.render_passes,
             "texture_registrations": stats.texture_registrations,
             "texture_releases": stats.texture_releases,
+            "retained_textures": stats.retained_textures,
             "texture_size": stats.texture_size,
             "workbench": workbench,
         });
@@ -331,17 +334,23 @@ impl GpuPreview {
             }
         });
     }
+
+    pub fn shutdown(&mut self) {
+        let mut renderer = self.render_state.renderer.write();
+        if let Some(active) = self.active.take() {
+            renderer.free_texture(&active.egui_id);
+            self.texture_releases += 1;
+        }
+        for retired in self.retired.drain(..) {
+            renderer.free_texture(&retired.egui_id);
+            self.texture_releases += 1;
+        }
+    }
 }
 
 impl Drop for GpuPreview {
     fn drop(&mut self) {
-        let mut renderer = self.render_state.renderer.write();
-        if let Some(active) = self.active.take() {
-            renderer.free_texture(&active.egui_id);
-        }
-        for retired in self.retired.drain(..) {
-            renderer.free_texture(&retired.egui_id);
-        }
+        self.shutdown();
     }
 }
 

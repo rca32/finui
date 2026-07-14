@@ -509,6 +509,7 @@ dependencies = [
  "finui-primitives",
  "finui-timeline",
  "finui-workbench",
+ "image",
  "serde_json",
 ]
 

@@ -39,9 +39,9 @@ logical points at every scale, which yields 8, 12, and 16 physical pixels at
 
 ## Persistence
 
-`WorkbenchState` serializes a versioned split/tab tree with active tabs, split
-fractions, constraints, and focused panel. `to_json_pretty` and `from_json`
-provide the persistence boundary. Restore validates:
+With the opt-in `experimental` feature, `WorkbenchState` serializes a versioned
+split/tab tree with active tabs, split fractions, constraints, and focused panel.
+`to_json_pretty` and `from_json` provide the persistence boundary. Restore validates:
 
 - schema version
 - unique split, region, and panel IDs
@@ -49,7 +49,16 @@ provide the persistence boundary. Restore validates:
 - non-empty tab regions and valid active tabs
 - a focused panel that exists in the tree
 
-The schema version is currently `1`. Round-trip equality is an acceptance test.
+The schema version is currently `2`. Schema 1 migrates to schema 2; missing,
+unsupported, and future versions return distinct errors. Round-trip equality and
+v1 migration are acceptance tests.
+
+## Keyboard transport
+
+The default `preview` feature exposes renderer-neutral keyboard transport actions.
+Space emits Play/Pause and Left/Right emit exact one-frame steps only when the
+caller marks the transport surface focused. FinUI returns typed actions and never
+mutates playback state.
 
 ## Editor Lab Layout
 

@@ -2,7 +2,9 @@ use std::{collections::HashSet, error::Error, fmt};
 
 use serde::{Deserialize, Serialize};
 
-pub const WORKBENCH_LAYOUT_SCHEMA_VERSION: u32 = 1;
+pub const WORKBENCH_LAYOUT_SCHEMA_VERSION: u32 = 2;
+#[cfg(feature = "experimental")]
+const OLDEST_MIGRATABLE_WORKBENCH_LAYOUT_SCHEMA_VERSION: u32 = 1;
 
 macro_rules! string_id {
     ($name:ident) => {
@@ -293,12 +295,44 @@ impl WorkbenchState {
             })
     }
 
+    #[cfg(feature = "experimental")]
     pub fn to_json_pretty(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
     }
 
+    #[cfg(feature = "experimental")]
     pub fn from_json(json: &str) -> Result<Self, LayoutRestoreError> {
-        let state: Self = serde_json::from_str(json).map_err(LayoutRestoreError::Json)?;
+        let mut value: serde_json::Value =
+            serde_json::from_str(json).map_err(LayoutRestoreError::Json)?;
+        let object = value
+            .as_object_mut()
+            .ok_or(LayoutRestoreError::InvalidEnvelope(
+                "workbench layout must be a JSON object",
+            ))?;
+        let raw_version = object
+            .get("schema_version")
+            .ok_or(LayoutRestoreError::MissingSchemaVersion)?
+            .as_u64()
+            .ok_or(LayoutRestoreError::InvalidEnvelope(
+                "schema_version must be an unsigned integer",
+            ))?;
+        let version = u32::try_from(raw_version).map_err(|_| {
+            LayoutRestoreError::InvalidEnvelope("schema_version exceeds the supported range")
+        })?;
+        match version {
+            WORKBENCH_LAYOUT_SCHEMA_VERSION => {}
+            OLDEST_MIGRATABLE_WORKBENCH_LAYOUT_SCHEMA_VERSION => {
+                object.insert(
+                    "schema_version".to_owned(),
+                    serde_json::Value::from(WORKBENCH_LAYOUT_SCHEMA_VERSION),
+                );
+            }
+            version if version > WORKBENCH_LAYOUT_SCHEMA_VERSION => {
+                return Err(LayoutRestoreError::FutureSchemaVersion(version));
+            }
+            version => return Err(LayoutRestoreError::UnsupportedSchemaVersion(version)),
+        }
+        let state: Self = serde_json::from_value(value).map_err(LayoutRestoreError::Json)?;
         state.validate().map_err(LayoutRestoreError::Invalid)?;
         Ok(state)
     }
@@ -397,26 +431,51 @@ impl fmt::Display for LayoutValidationError {
 
 impl Error for LayoutValidationError {}
 
+#[cfg(feature = "experimental")]
 #[derive(Debug)]
 pub enum LayoutRestoreError {
     Json(serde_json::Error),
+    MissingSchemaVersion,
+    InvalidEnvelope(&'static str),
+    UnsupportedSchemaVersion(u32),
+    FutureSchemaVersion(u32),
     Invalid(LayoutValidationError),
 }
 
+#[cfg(feature = "experimental")]
 impl fmt::Display for LayoutRestoreError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Json(error) => write!(formatter, "invalid workbench JSON: {error}"),
+            Self::MissingSchemaVersion => {
+                formatter.write_str("workbench schema_version is missing")
+            }
+            Self::InvalidEnvelope(message) => formatter.write_str(message),
+            Self::UnsupportedSchemaVersion(version) => {
+                write!(
+                    formatter,
+                    "workbench schema version {version} cannot be migrated"
+                )
+            }
+            Self::FutureSchemaVersion(version) => write!(
+                formatter,
+                "workbench schema version {version} is newer than supported version {WORKBENCH_LAYOUT_SCHEMA_VERSION}"
+            ),
             Self::Invalid(error) => error.fmt(formatter),
         }
     }
 }
 
+#[cfg(feature = "experimental")]
 impl Error for LayoutRestoreError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Json(error) => Some(error),
             Self::Invalid(error) => Some(error),
+            Self::MissingSchemaVersion
+            | Self::InvalidEnvelope(_)
+            | Self::UnsupportedSchemaVersion(_)
+            | Self::FutureSchemaVersion(_) => None,
         }
     }
 }
@@ -509,13 +568,14 @@ mod tests {
         .with_focused_panel("preview")
     }
 
+    #[cfg(feature = "experimental")]
     #[test]
     fn layout_state_json_round_trips() {
         let state = sample_state();
         let json = state.to_json_pretty().unwrap();
         let restored = WorkbenchState::from_json(&json).unwrap();
         assert_eq!(restored, state);
-        assert!(json.contains("\"schema_version\": 1"));
+        assert!(json.contains("\"schema_version\": 2"));
     }
 
     #[test]
@@ -549,6 +609,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "experimental")]
     #[test]
     fn invalid_active_panel_is_rejected_on_restore() {
         let mut state = sample_state();
@@ -561,5 +622,39 @@ mod tests {
         *active = PanelId::from("missing");
         let json = state.to_json_pretty().unwrap();
         assert!(WorkbenchState::from_json(&json).is_err());
+    }
+
+    #[cfg(feature = "experimental")]
+    #[test]
+    fn schema_one_layout_migrates_to_schema_two() {
+        let json = sample_state()
+            .to_json_pretty()
+            .unwrap()
+            .replace("\"schema_version\": 2", "\"schema_version\": 1");
+        let restored = WorkbenchState::from_json(&json).unwrap();
+        assert_eq!(restored.schema_version, WORKBENCH_LAYOUT_SCHEMA_VERSION);
+        restored.validate().unwrap();
+    }
+
+    #[cfg(feature = "experimental")]
+    #[test]
+    fn missing_and_future_schema_versions_are_explicit_errors() {
+        let missing = sample_state()
+            .to_json_pretty()
+            .unwrap()
+            .replace("  \"schema_version\": 2,\n", "");
+        assert!(matches!(
+            WorkbenchState::from_json(&missing),
+            Err(LayoutRestoreError::MissingSchemaVersion)
+        ));
+
+        let future = sample_state()
+            .to_json_pretty()
+            .unwrap()
+            .replace("\"schema_version\": 2", "\"schema_version\": 99");
+        assert!(matches!(
+            WorkbenchState::from_json(&future),
+            Err(LayoutRestoreError::FutureSchemaVersion(99))
+        ));
     }
 }

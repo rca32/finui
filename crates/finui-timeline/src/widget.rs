@@ -24,6 +24,9 @@ pub struct TimelineUxReceipt {
     pub visible_track_range: [usize; 2],
     pub visible_tick_range: [i64; 2],
     pub drag_phase: String,
+    pub accessibility_label: String,
+    pub focus_order_clip_ids: Vec<String>,
+    pub keyboard_selection_enabled: bool,
 }
 
 pub fn timeline_receipt_json(receipt: &TimelineUxReceipt) -> String {
@@ -38,7 +41,10 @@ pub fn show_timeline(
     interaction: &TimelineInteractionState,
 ) -> TimelineOutput {
     let rect = ui.available_rect_before_wrap();
-    ui.allocate_rect(rect, Sense::hover());
+    let root_response = ui.allocate_rect(rect, Sense::hover());
+    root_response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Other, true, "Timeline editor")
+    });
     let geometry = cache.geometry(viewport, rect, playhead_tick);
     let painter = ui.painter().clone();
     let visuals = ui.visuals().clone();
@@ -71,6 +77,9 @@ pub fn show_timeline(
         ui.make_persistent_id("finui-timeline-ruler"),
         Sense::click(),
     );
+    ruler_response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, true, "Timeline ruler")
+    });
     if ruler_response.clicked()
         && let Some(pointer) = ruler_response.interact_pointer_pos()
     {
@@ -105,7 +114,21 @@ pub fn show_timeline(
                 ui.make_persistent_id(("finui-timeline-clip", clip.clip_id.as_str())),
                 Sense::click_and_drag(),
             );
+            response.widget_info(|| {
+                egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &clip.label)
+            });
             if response.clicked() {
+                response.request_focus();
+                actions.push(TimelineAction::SelectClip {
+                    clip_id: clip.clip_id.clone(),
+                    additive: ui.input(|input| input.modifiers.command),
+                });
+            }
+            if response.has_focus()
+                && ui.input(|input| {
+                    input.key_pressed(egui::Key::Enter) || input.key_pressed(egui::Key::Space)
+                })
+            {
                 actions.push(TimelineAction::SelectClip {
                     clip_id: clip.clip_id.clone(),
                     additive: ui.input(|input| input.modifiers.command),
@@ -178,6 +201,9 @@ pub fn show_timeline(
         } else {
             "idle".to_owned()
         },
+        accessibility_label: "Timeline editor".to_owned(),
+        focus_order_clip_ids: clip_ids(&geometry),
+        keyboard_selection_enabled: true,
     };
 
     TimelineOutput {

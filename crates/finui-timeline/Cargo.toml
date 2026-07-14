@@ -8,6 +8,11 @@ license.workspace = true
 repository.workspace = true
 documentation.workspace = true
 
+[features]
+default = ["preview"]
+preview = []
+experimental = ["preview"]
+
 [dependencies]
 egui.workspace = true
 serde.workspace = true
