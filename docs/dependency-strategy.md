@@ -34,3 +34,8 @@ and rejects `eframe`, `glow`, `wgpu`, `egui-wgpu`, or `egui_glow`. Both the quic
 and full check paths run this gate. `scripts/check-backend-selection.ps1` also
 proves that the existing labs resolve `egui_glow` without `egui-wgpu`, while
 `editor_lab` resolves `egui-wgpu` without `egui_glow`.
+
+The editor's GPU-native presentation path is separately guarded by
+`scripts/check-editor-texture-path.ps1`. See
+[`editor-texture-bridge.md`](editor-texture-bridge.md) for texture ownership,
+deferred release, resize, device-replacement, and no-readback rules.

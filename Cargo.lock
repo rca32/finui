@@ -506,6 +506,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "finui-primitives",
+ "serde_json",
 ]
 
 [[package]]

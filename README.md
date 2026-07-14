@@ -54,7 +54,10 @@ cargo run -p editor_lab
 
 The existing grid and primitive labs select the `glow` application backend.
 `editor_lab` selects `wgpu`. Reusable `finui-*` crates depend only on `egui` and
-do not pull in either renderer.
+do not pull in either renderer. The editor lab renders an animated GPU-native
+texture and presents it through egui without CPU pixel readback; its ownership,
+resize, device-loss, and verification boundaries are documented in
+[`docs/editor-texture-bridge.md`](docs/editor-texture-bridge.md).
 
 ## Screenshot
 

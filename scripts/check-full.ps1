@@ -8,6 +8,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "cargo fmt failed" }
     & "$PSScriptRoot/check-library-boundary.ps1"
     & "$PSScriptRoot/check-backend-selection.ps1"
+    & "$PSScriptRoot/check-editor-texture-path.ps1"
     cargo check --workspace --all-targets
     if ($LASTEXITCODE -ne 0) { throw "workspace check failed" }
     cargo check -p finui-grid --no-default-features
