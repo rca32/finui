@@ -1,4 +1,4 @@
-use eframe::egui::{self, Align2, Color32, Pos2, Rect, Sense, Stroke, Vec2};
+use egui::{self, Align2, Color32, Pos2, Rect, Sense, Stroke, Vec2};
 
 use super::action::{GridAction, GridProvenancePolicy};
 use super::agent::GridAgentBridge;

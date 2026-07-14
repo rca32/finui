@@ -1,7 +1,5 @@
 use std::time::{Duration, Instant};
 
-use eframe::egui;
-
 use super::action::{GridDensity, GridOutput, GridProvenancePolicy};
 use super::agent::{GridAgentBridge, GridAgentCommand, GridEvidenceTarget, GridSnapshot};
 use super::analytics::{

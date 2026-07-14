@@ -1,4 +1,4 @@
-use eframe::egui::{Rect, pos2, vec2};
+use egui::{Rect, pos2, vec2};
 use finui_primitives::{
     ContextMenuItem, HoverCardRootOptions, RovingFocusAction, RovingFocusKey,
     ScrollAreaRootOptions, context_menu_keyboard_open_output, context_menu_roving_focus_output,

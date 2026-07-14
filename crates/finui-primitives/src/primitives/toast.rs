@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use eframe::egui::{self, Align2, Color32, FontId, Response, Sense, Stroke, Vec2};
+use egui::{self, Align2, Color32, FontId, Response, Sense, Stroke, Vec2};
 
 use super::{PrimitiveTheme, RadixIcon, paint_radix_icon, radix_colors};
 

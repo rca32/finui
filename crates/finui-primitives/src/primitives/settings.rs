@@ -1,4 +1,4 @@
-use eframe::egui::{self, RichText, Stroke};
+use egui::{self, RichText, Stroke};
 
 use super::{
     PrimitiveButtonOptions, PrimitiveButtonVariant, RadixIcon, paint_radix_icon, primitive_button,

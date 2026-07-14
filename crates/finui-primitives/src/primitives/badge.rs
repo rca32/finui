@@ -1,4 +1,4 @@
-use eframe::egui::{self, Color32, Rect, Response, Stroke, Vec2};
+use egui::{self, Color32, Rect, Response, Stroke, Vec2};
 
 use super::{PrimitiveTheme, RadixIcon, paint_radix_icon, primitive_theme_is_dark, radix_colors};
 

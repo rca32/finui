@@ -1,4 +1,4 @@
-use eframe::egui::{self, Align2, Color32, FontId, Rect, Response, Sense, Stroke, Vec2, pos2};
+use egui::{self, Align2, Color32, FontId, Rect, Response, Sense, Stroke, Vec2, pos2};
 
 use super::{PrimitiveApiStability, PrimitiveTheme, radix_colors};
 

@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use eframe::egui::{self, Align2, FontId, Pos2, Rect, Response, Sense, Stroke, Vec2};
+use egui::{self, Align2, FontId, Pos2, Rect, Response, Sense, Stroke, Vec2};
 
 use super::{
     DropdownMenuAlign, DropdownMenuDataState, DropdownMenuDirection, DropdownMenuOutput,

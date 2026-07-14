@@ -1,4 +1,4 @@
-use eframe::egui::{self, Align2, Color32, Pos2, Rect, Sense, Stroke, StrokeKind, Vec2};
+use egui::{self, Align2, Color32, Pos2, Rect, Sense, Stroke, StrokeKind, Vec2};
 
 use super::action::{GridAction, GridOutput};
 use super::core::{build_row_model, build_row_model_cache_key};

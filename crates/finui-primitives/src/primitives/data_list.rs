@@ -1,4 +1,4 @@
-use eframe::egui::{self, Color32, Rect, Vec2};
+use egui::{self, Color32, Rect, Vec2};
 
 use super::{BadgeTone, BadgeVariant, PrimitiveTheme, RadixIcon, badge_visual};
 

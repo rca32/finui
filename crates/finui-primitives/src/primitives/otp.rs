@@ -1,4 +1,4 @@
-use eframe::egui::{self, Align2, FontId, Rect, Sense, Stroke, Vec2, pos2};
+use egui::{self, Align2, FontId, Rect, Sense, Stroke, Vec2, pos2};
 
 use super::{PrimitiveApiStability, PrimitiveDirection, PrimitiveTheme, radix_colors};
 

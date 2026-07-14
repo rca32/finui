@@ -1,4 +1,4 @@
-use eframe::egui::{self, Color32, Stroke};
+use egui::{self, Color32, Stroke};
 
 use super::{
     DataListItemOutput, DataListLabelOutput, DataListRootOutput, DataListValueOutput,

@@ -3,7 +3,7 @@ mod layer;
 mod overlay;
 mod primitives;
 
-use eframe::egui::{self, FontId};
+use egui::{self, FontId};
 
 pub use dialog::{CommandDialogOptions, CommandDialogOutput, show_command_dialog};
 pub use layer::{
@@ -24,7 +24,7 @@ pub fn scaled_monospace_font(_ui: &egui::Ui, size: f32) -> FontId {
 }
 
 mod config {
-    use eframe::egui::Color32;
+    use egui::Color32;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct TvTheme {

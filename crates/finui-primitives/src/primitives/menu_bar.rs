@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use eframe::egui::{self, Align2, FontId, Pos2, Rect, Response, Sense, Vec2};
+use egui::{self, Align2, FontId, Pos2, Rect, Response, Sense, Vec2};
 
 use super::{
     DropdownMenuAlign, DropdownMenuDataState, DropdownMenuDirection, DropdownMenuSide,
@@ -298,7 +298,7 @@ pub fn menubar_apply_open(
 }
 
 pub fn navigation_menu_panel_rect(trigger: Rect, width: f32, height: f32) -> Rect {
-    Rect::from_min_size(trigger.left_bottom(), eframe::egui::vec2(width, height))
+    Rect::from_min_size(trigger.left_bottom(), egui::vec2(width, height))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

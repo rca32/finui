@@ -5,5 +5,5 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-eframe.workspace = true
+eframe = { workspace = true, features = ["glow"] }
 finui-grid = { path = "../../crates/finui-grid" }

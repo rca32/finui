@@ -1,4 +1,4 @@
-use eframe::egui::{self, Event, Key, Modifiers, PointerButton, Pos2, RawInput, Rect, Vec2};
+use egui::{self, Event, Key, Modifiers, PointerButton, Pos2, RawInput, Rect, Vec2};
 
 use crate::{DismissPolicy, dismiss_event_for_interaction};
 

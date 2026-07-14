@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use eframe::egui::{self, FontId, Rect, Response, Vec2};
+use egui::{self, FontId, Rect, Response, Vec2};
 
 use super::{PrimitiveTheme, RadixIcon, paint_radix_icon, radix_colors};
 

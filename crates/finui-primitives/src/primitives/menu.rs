@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use eframe::egui::{self, Align2, Color32, FontId, Pos2, Rect, Response, Sense, Stroke, Vec2};
+use egui::{self, Align2, Color32, FontId, Pos2, Rect, Response, Sense, Stroke, Vec2};
 
 use super::{
     PrimitiveLayerAnimationOutput, PrimitiveLayerOptions, PrimitiveLayerOutput, PrimitiveTheme,

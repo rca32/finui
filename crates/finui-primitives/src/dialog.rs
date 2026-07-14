@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use eframe::egui::{self, Color32, Stroke, Vec2};
+use egui::{self, Color32, Stroke, Vec2};
 
 use super::{AnchoredLayerOptions, DismissPolicy, LayerPlacement, modal_backdrop};
 use crate::config::{TV_LIGHT, tv_theme_for_dark_mode};

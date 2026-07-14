@@ -1,4 +1,4 @@
-use eframe::egui::{self, Align2, FontId, Rect, Response, Sense, Vec2};
+use egui::{self, Align2, FontId, Rect, Response, Sense, Vec2};
 
 use super::{PrimitiveTheme, paint_radix_icon, radix_icon_visual};
 

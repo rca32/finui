@@ -1,5 +1,3 @@
-use eframe::egui;
-
 use super::state::GridState;
 use finui_primitives::{ThemeMode, radix_colors};
 

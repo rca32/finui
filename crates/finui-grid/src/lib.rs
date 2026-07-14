@@ -1,8 +1,6 @@
 #[path = "financial_data_grid/mod.rs"]
 mod modules;
 
-use eframe::egui;
-
 pub use modules::action::*;
 pub use modules::agent::*;
 #[cfg(test)]

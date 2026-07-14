@@ -1,4 +1,4 @@
-use eframe::egui::{self, Color32, FontId, Rect, Response, RichText, Vec2};
+use egui::{self, Color32, FontId, Rect, Response, RichText, Vec2};
 
 use super::{PrimitiveTheme, radix_colors};
 

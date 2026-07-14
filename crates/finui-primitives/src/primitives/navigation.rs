@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use eframe::egui::{self, Color32, FontId, Rect, Response, Vec2};
+use egui::{self, Color32, FontId, Rect, Response, Vec2};
 
 use super::{
     PrimitiveDirection, PrimitiveTheme, RovingFocusState, primitive_horizontal_arrow_step,

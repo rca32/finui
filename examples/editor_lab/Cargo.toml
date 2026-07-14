@@ -1,9 +1,9 @@
 [package]
-name = "primitives_lab"
+name = "editor_lab"
 version = "0.1.0"
 edition.workspace = true
 publish = false
 
 [dependencies]
-eframe = { workspace = true, features = ["glow"] }
+eframe = { workspace = true, features = ["wgpu"] }
 finui-primitives = { path = "../../crates/finui-primitives" }

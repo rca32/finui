@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use eframe::egui::{self, Color32, Pos2, Rect, Stroke, Vec2};
+use egui::{self, Color32, Pos2, Rect, Stroke, Vec2};
 
 use crate::config::{TV_LIGHT, tv_theme_for_dark_mode};
 

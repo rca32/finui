@@ -1,4 +1,4 @@
-use eframe::egui::{Color32, Stroke};
+use egui::{Color32, Stroke};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ThemeMode {
@@ -123,7 +123,7 @@ pub fn primitive_mounted_content_text_colors(
 }
 
 pub mod radix_colors {
-    use eframe::egui::Color32;
+    use egui::Color32;
 
     pub const SLATE_1: Color32 = Color32::from_rgb(0xfc, 0xfc, 0xfd);
     pub const SLATE_2: Color32 = Color32::from_rgb(0xf9, 0xf9, 0xfb);

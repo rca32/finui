@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{LazyLock, RwLock};
 
-use eframe::egui::{self, Color32, Rect};
+use egui::{self, Color32, Rect};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SvgIconAsset {

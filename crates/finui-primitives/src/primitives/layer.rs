@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use eframe::egui::{self, Rect};
+use egui::{self, Rect};
 
 use super::theme::PrimitiveTheme;
 use crate::{

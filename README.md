@@ -22,6 +22,7 @@ crates/
   finui-primitives/
   finui-grid/
 examples/
+  editor_lab/
   grid_lab/
   primitives_lab/
 docs/
@@ -48,7 +49,12 @@ powershell -ExecutionPolicy Bypass -File scripts/check-full.ps1
 ```powershell
 cargo run -p grid_lab
 cargo run -p primitives_lab
+cargo run -p editor_lab
 ```
+
+The existing grid and primitive labs select the `glow` application backend.
+`editor_lab` selects `wgpu`. Reusable `finui-*` crates depend only on `egui` and
+do not pull in either renderer.
 
 ## Screenshot
 

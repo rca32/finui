@@ -1,4 +1,4 @@
-use eframe::egui::{self, Color32};
+use egui::{self, Color32};
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

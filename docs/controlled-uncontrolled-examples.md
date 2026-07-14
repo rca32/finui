@@ -11,7 +11,7 @@ use finui_primitives::{
     PrimitiveSwitchOptions, primitive_switch, switch_apply_checked, SwitchRootOptions,
 };
 
-fn show_switch(ui: &mut eframe::egui::Ui, enabled: &mut bool) {
+fn show_switch(ui: &mut egui::Ui, enabled: &mut bool) {
     let output = primitive_switch(
         ui,
         "notifications-switch",
