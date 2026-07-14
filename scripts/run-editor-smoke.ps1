@@ -38,6 +38,15 @@ try {
     if ($receipt.cpu_pixel_readbacks -ne 0 -or $receipt.cpu_pixel_upload_bytes -ne 0) {
         throw "editor_lab reported a CPU pixel transfer"
     }
+    if ($receipt.workbench.schema_version -ne 1) {
+        throw "editor_lab reported an unsupported workbench schema"
+    }
+    if ($receipt.workbench.divider_count -lt 3 -or $receipt.workbench.region_count -lt 4) {
+        throw "editor_lab did not render the complete split workbench"
+    }
+    if ($receipt.workbench.panel_tab_count -lt 5 -or $receipt.workbench.active_panels_rendered -lt 4) {
+        throw "editor_lab did not render the required editor panel set"
+    }
     if ($ExpectedPlatform -and $receipt.platform -ne $ExpectedPlatform) {
         throw "editor_lab ran on $($receipt.platform); expected $ExpectedPlatform"
     }

@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/finui-grid",
     "crates/finui-primitives",
+    "crates/finui-workbench",
     "examples/editor_lab",
     "examples/grid_lab",
     "examples/primitives_lab",

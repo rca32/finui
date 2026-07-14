@@ -9,6 +9,8 @@ The first release candidates are:
 - `finui-grid`: an agent-testable financial data grid with typed cells, row sources,
   provenance metadata, sorting, filtering, virtual sources, export helpers, and demo
   fixtures.
+- `finui-workbench`: a Preview split-pane and tab shell with caller-owned layout,
+  persistence, constraints, focus routing, and typed actions.
 
 ## Status
 
@@ -21,6 +23,7 @@ Use git dependencies while the surface is stabilizing.
 crates/
   finui-primitives/
   finui-grid/
+  finui-workbench/
 examples/
   editor_lab/
   grid_lab/
@@ -58,6 +61,9 @@ do not pull in either renderer. The editor lab renders an animated GPU-native
 texture and presents it through egui without CPU pixel readback; its ownership,
 resize, device-loss, and verification boundaries are documented in
 [`docs/editor-texture-bridge.md`](docs/editor-texture-bridge.md).
+
+The same lab composes Media, Preview, Inspector, Timeline, and Agent panels with
+the [`finui-workbench` Preview API](docs/workbench-preview-api.md).
 
 ## Screenshot
 

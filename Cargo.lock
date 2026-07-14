@@ -506,6 +506,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "finui-primitives",
+ "finui-workbench",
  "serde_json",
 ]
 
@@ -770,6 +771,15 @@ version = "0.1.0"
 dependencies = [
  "egui",
  "egui_extras",
+]
+
+[[package]]
+name = "finui-workbench"
+version = "0.1.0"
+dependencies = [
+ "egui",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

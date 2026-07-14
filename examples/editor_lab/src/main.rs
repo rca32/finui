@@ -4,7 +4,18 @@ use std::{path::PathBuf, time::Duration};
 
 use eframe::egui;
 use finui_primitives::{PrimitiveTheme, ThemeMode};
+use finui_workbench::{
+    CommandScopeOutput, PaneConstraints, PanelId, PanelTab, SplitAxis,
+    WORKBENCH_LAYOUT_SCHEMA_VERSION, WorkbenchNode, WorkbenchState, show_workbench,
+};
 use gpu_preview::{GpuPreview, RecreateReason};
+use serde_json::json;
+
+const MEDIA_PANEL: &str = "media";
+const PREVIEW_PANEL: &str = "preview";
+const INSPECTOR_PANEL: &str = "inspector";
+const TIMELINE_PANEL: &str = "timeline";
+const AGENT_PANEL: &str = "agent";
 
 fn main() -> eframe::Result {
     let smoke = SmokeConfig::from_env();
@@ -27,6 +38,13 @@ fn main() -> eframe::Result {
 struct EditorLabApp {
     preview: Option<GpuPreview>,
     startup_error: Option<String>,
+    workbench: WorkbenchState,
+    persistence_status: String,
+    last_divider_count: usize,
+    last_region_count: usize,
+    last_panel_tab_count: usize,
+    last_rendered_panel_count: usize,
+    last_command_scope: CommandScopeOutput,
     smoke: Option<SmokeConfig>,
     app_frame: u64,
     smoke_finished: bool,
@@ -41,13 +59,37 @@ impl EditorLabApp {
                 Some("editor_lab requires eframe's wgpu renderer".to_owned()),
             ),
         };
+        let workbench = default_editor_workbench();
+        let last_command_scope = workbench.command_scope();
 
         Self {
             preview,
             startup_error,
+            workbench,
+            persistence_status: "layout schema v1".to_owned(),
+            last_divider_count: 0,
+            last_region_count: 0,
+            last_panel_tab_count: 0,
+            last_rendered_panel_count: 0,
+            last_command_scope,
             smoke,
             app_frame: 0,
             smoke_finished: false,
+        }
+    }
+
+    fn round_trip_layout(&mut self) {
+        let result = self
+            .workbench
+            .to_json_pretty()
+            .map_err(|error| error.to_string())
+            .and_then(|json| WorkbenchState::from_json(&json).map_err(|error| error.to_string()));
+        match result {
+            Ok(restored) => {
+                self.workbench = restored;
+                self.persistence_status = "layout JSON round-trip: PASS".to_owned();
+            }
+            Err(error) => self.persistence_status = format!("layout restore failed: {error}"),
         }
     }
 
@@ -59,6 +101,15 @@ impl EditorLabApp {
             return;
         }
 
+        let workbench_receipt = json!({
+            "active_panels_rendered": self.last_rendered_panel_count,
+            "command_scope": command_scope_label(&self.last_command_scope),
+            "divider_count": self.last_divider_count,
+            "focused_panel": self.workbench.focused_panel.as_ref().map(PanelId::as_str),
+            "panel_tab_count": self.last_panel_tab_count,
+            "region_count": self.last_region_count,
+            "schema_version": WORKBENCH_LAYOUT_SCHEMA_VERSION,
+        });
         let result = self
             .preview
             .as_ref()
@@ -67,7 +118,9 @@ impl EditorLabApp {
                     .clone()
                     .unwrap_or_else(|| "GPU preview did not start".to_owned())
             })
-            .and_then(|preview| preview.write_smoke_receipt(&smoke.receipt_path));
+            .and_then(|preview| {
+                preview.write_smoke_receipt(&smoke.receipt_path, workbench_receipt)
+            });
 
         if let Err(error) = result {
             eprintln!("editor_lab smoke receipt failed: {error}");
@@ -87,21 +140,35 @@ impl eframe::App for EditorLabApp {
         };
         let theme = PrimitiveTheme::for_mode(mode);
 
-        ui.heading("Finui Editor Lab");
-        ui.label("wgpu application runtime");
-        ui.colored_label(theme.text, "GPU-native texture bridge");
-
         let mut recreate_requested = false;
+        let mut round_trip_requested = false;
+        let mut reset_requested = false;
         ui.horizontal(|ui| {
-            if ui.button("Recreate GPU texture").clicked() {
+            ui.heading("Finui Editor Lab");
+            ui.separator();
+            ui.label("wgpu + caller-owned workbench");
+            if ui.small_button("Recreate texture").clicked() {
                 recreate_requested = true;
             }
-            ui.label("Resize the window to exercise deferred texture retirement.");
+            if ui.small_button("Round-trip layout").clicked() {
+                round_trip_requested = true;
+            }
+            if ui.small_button("Reset layout").clicked() {
+                reset_requested = true;
+            }
+            ui.separator();
+            ui.small(command_scope_label(&self.workbench.command_scope()));
+            ui.small(&self.persistence_status);
         });
+        ui.separator();
 
-        let width = ui.available_width().clamp(320.0, 1600.0);
-        let display_size = egui::vec2(width, width * 9.0 / 16.0);
-
+        if round_trip_requested {
+            self.round_trip_layout();
+        }
+        if reset_requested {
+            self.workbench = default_editor_workbench();
+            self.persistence_status = "layout reset".to_owned();
+        }
         if let Some(preview) = self.preview.as_mut() {
             if recreate_requested {
                 preview.force_recreate(RecreateReason::Manual);
@@ -113,42 +180,297 @@ impl eframe::App for EditorLabApp {
             {
                 preview.force_recreate(RecreateReason::DeviceRecoverySimulation);
             }
+        }
 
-            let elapsed_seconds = ui.input(|input| input.time) as f32;
-            let pixels_per_point = ui.ctx().pixels_per_point();
-            let requested_pixels = [
-                (display_size.x * pixels_per_point).round() as u32,
-                (display_size.y * pixels_per_point).round() as u32,
-            ];
-            let texture_id = preview.render(requested_pixels, elapsed_seconds);
-
-            ui.add(
-                egui::Image::new((texture_id, display_size))
-                    .fit_to_exact_size(display_size)
-                    .corner_radius(6.0),
+        let elapsed_seconds = ui.input(|input| input.time) as f32;
+        let pixels_per_point = ui.ctx().pixels_per_point();
+        let preview = &mut self.preview;
+        let startup_error = self.startup_error.as_deref();
+        let mut rendered_panel_count = 0;
+        let output = show_workbench(ui, &self.workbench, |panel_ui, panel_id| {
+            rendered_panel_count += 1;
+            show_editor_panel(
+                panel_ui,
+                panel_id,
+                preview,
+                startup_error,
+                theme,
+                elapsed_seconds,
+                pixels_per_point,
             );
+        });
 
-            let stats = preview.stats();
-            ui.monospace(format!(
-                "{}x{} px | generation {} | {} GPU frames | {} retired",
-                stats.texture_size[0],
-                stats.texture_size[1],
-                stats.generation,
-                stats.render_passes,
-                stats.texture_releases
-            ));
-            ui.small(format!(
-                "{} | CPU pixel readbacks: {} | CPU pixel uploads: {} bytes",
-                preview.adapter_summary(),
-                stats.cpu_pixel_readbacks,
-                stats.cpu_pixel_upload_bytes
-            ));
-        } else if let Some(error) = self.startup_error.as_ref() {
-            ui.colored_label(theme.text, error);
+        match output {
+            Ok(output) => {
+                self.workbench.apply_all(&output.actions);
+                self.last_divider_count = output.geometry.dividers.len();
+                self.last_region_count = output.geometry.tab_regions.len();
+                self.last_panel_tab_count = output
+                    .geometry
+                    .tab_regions
+                    .iter()
+                    .map(|region| region.tabs.len())
+                    .sum();
+                self.last_rendered_panel_count = rendered_panel_count;
+                self.last_command_scope = output.command_scope;
+            }
+            Err(error) => {
+                ui.colored_label(theme.text, format!("Invalid workbench layout: {error}"));
+            }
         }
 
         ui.ctx().request_repaint_after(Duration::from_millis(16));
         self.finish_smoke_if_ready(ui.ctx());
+    }
+}
+
+fn default_editor_workbench() -> WorkbenchState {
+    let media = WorkbenchNode::tabs(
+        "media-region",
+        vec![PanelTab::new(MEDIA_PANEL, "Media")],
+        MEDIA_PANEL,
+    );
+    let preview = WorkbenchNode::tabs(
+        "preview-region",
+        vec![PanelTab::new(PREVIEW_PANEL, "Preview")],
+        PREVIEW_PANEL,
+    );
+    let inspector_agent = WorkbenchNode::tabs(
+        "detail-region",
+        vec![
+            PanelTab::new(INSPECTOR_PANEL, "Inspector"),
+            PanelTab::new(AGENT_PANEL, "Agent"),
+        ],
+        INSPECTOR_PANEL,
+    );
+    let timeline = WorkbenchNode::tabs(
+        "timeline-region",
+        vec![PanelTab::new(TIMELINE_PANEL, "Timeline")],
+        TIMELINE_PANEL,
+    );
+    let preview_and_detail = WorkbenchNode::split(
+        "preview-detail-split",
+        SplitAxis::Horizontal,
+        0.72,
+        PaneConstraints::minimum(360.0),
+        PaneConstraints::bounded(220.0, 420.0),
+        preview,
+        inspector_agent,
+    );
+    let main_row = WorkbenchNode::split(
+        "media-main-split",
+        SplitAxis::Horizontal,
+        0.20,
+        PaneConstraints::bounded(180.0, 320.0),
+        PaneConstraints::minimum(580.0),
+        media,
+        preview_and_detail,
+    );
+    let root = WorkbenchNode::split(
+        "main-timeline-split",
+        SplitAxis::Vertical,
+        0.68,
+        PaneConstraints::minimum(300.0),
+        PaneConstraints::bounded(160.0, 360.0),
+        main_row,
+        timeline,
+    );
+    WorkbenchState::new(root).with_focused_panel(PREVIEW_PANEL)
+}
+
+fn show_editor_panel(
+    ui: &mut egui::Ui,
+    panel_id: &PanelId,
+    preview: &mut Option<GpuPreview>,
+    startup_error: Option<&str>,
+    theme: PrimitiveTheme,
+    elapsed_seconds: f32,
+    pixels_per_point: f32,
+) {
+    match panel_id.as_str() {
+        MEDIA_PANEL => show_media_panel(ui),
+        PREVIEW_PANEL => show_preview_panel(
+            ui,
+            preview,
+            startup_error,
+            theme,
+            elapsed_seconds,
+            pixels_per_point,
+        ),
+        INSPECTOR_PANEL => show_inspector_panel(ui),
+        TIMELINE_PANEL => show_timeline_panel(ui, theme),
+        AGENT_PANEL => show_agent_panel(ui),
+        unknown => {
+            ui.label(format!("Unknown panel: {unknown}"));
+        }
+    }
+}
+
+fn show_media_panel(ui: &mut egui::Ui) {
+    ui.small("PROJECT MEDIA");
+    ui.weak("Search media…");
+    ui.separator();
+    for (name, kind) in [
+        ("av-a.mp4", "10s · H.264"),
+        ("av-b.mp4", "10s · H.264"),
+        ("still.png", "RGBA image"),
+    ] {
+        ui.strong(name);
+        ui.small(kind);
+        ui.add_space(6.0);
+    }
+}
+
+fn show_preview_panel(
+    ui: &mut egui::Ui,
+    preview: &mut Option<GpuPreview>,
+    startup_error: Option<&str>,
+    theme: PrimitiveTheme,
+    elapsed_seconds: f32,
+    pixels_per_point: f32,
+) {
+    let available = ui.available_size();
+    let max_image = egui::vec2(available.x.max(16.0), (available.y - 38.0).max(16.0));
+    let display_size = fit_16_by_9(max_image);
+
+    if let Some(preview) = preview.as_mut() {
+        let requested_pixels = [
+            (display_size.x * pixels_per_point).round() as u32,
+            (display_size.y * pixels_per_point).round() as u32,
+        ];
+        let texture_id = preview.render(requested_pixels, elapsed_seconds);
+        ui.centered_and_justified(|ui| {
+            ui.add(
+                egui::Image::new((texture_id, display_size))
+                    .fit_to_exact_size(display_size)
+                    .corner_radius(4.0),
+            );
+        });
+        let stats = preview.stats();
+        ui.small(format!(
+            "{} · {}x{} · gen {} · readbacks {}",
+            preview.adapter_summary(),
+            stats.texture_size[0],
+            stats.texture_size[1],
+            stats.generation,
+            stats.cpu_pixel_readbacks
+        ));
+    } else {
+        ui.colored_label(
+            theme.text,
+            startup_error.unwrap_or("GPU preview unavailable"),
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use eframe::egui::{Rect, pos2, vec2};
+    use finui_workbench::{CommandScopeOutput, PanelId, RegionId, calculate_workbench_geometry};
+
+    use super::{PREVIEW_PANEL, default_editor_workbench, fit_16_by_9};
+
+    #[test]
+    fn editor_shell_contains_required_panels_regions_and_dividers() {
+        let state = default_editor_workbench();
+        let geometry = calculate_workbench_geometry(
+            &state,
+            Rect::from_min_size(pos2(0.0, 0.0), vec2(1280.0, 720.0)),
+            1.0,
+        )
+        .unwrap();
+        let panel_ids: Vec<_> = geometry
+            .tab_regions
+            .iter()
+            .flat_map(|region| region.tabs.iter().map(|tab| tab.id.as_str()))
+            .collect();
+
+        assert_eq!(geometry.dividers.len(), 3);
+        assert_eq!(geometry.tab_regions.len(), 4);
+        assert_eq!(
+            panel_ids,
+            ["media", "preview", "inspector", "agent", "timeline"]
+        );
+        assert_eq!(
+            state.command_scope(),
+            CommandScopeOutput::Panel {
+                region_id: RegionId::from("preview-region"),
+                panel_id: PanelId::from(PREVIEW_PANEL),
+            }
+        );
+    }
+
+    #[test]
+    fn preview_aspect_fit_stays_inside_panel() {
+        assert_eq!(fit_16_by_9(vec2(1600.0, 900.0)), vec2(1600.0, 900.0));
+        let fitted = fit_16_by_9(vec2(800.0, 300.0));
+        assert!((fitted.x - 533.3333).abs() < 0.001);
+        assert_eq!(fitted.y, 300.0);
+    }
+}
+
+fn fit_16_by_9(bounds: egui::Vec2) -> egui::Vec2 {
+    let mut width = bounds.x;
+    let mut height = width * 9.0 / 16.0;
+    if height > bounds.y {
+        height = bounds.y;
+        width = height * 16.0 / 9.0;
+    }
+    egui::vec2(width.max(16.0), height.max(16.0))
+}
+
+fn show_inspector_panel(ui: &mut egui::Ui) {
+    ui.small("CLIP INSPECTOR");
+    egui::Grid::new("editor-inspector-grid")
+        .num_columns(2)
+        .spacing([10.0, 8.0])
+        .show(ui, |ui| {
+            for (label, value) in [
+                ("Position", "0, 0"),
+                ("Scale", "100%"),
+                ("Rotation", "0°"),
+                ("Opacity", "100%"),
+                ("Speed", "1.0x"),
+            ] {
+                ui.label(label);
+                ui.monospace(value);
+                ui.end_row();
+            }
+        });
+}
+
+fn show_timeline_panel(ui: &mut egui::Ui, theme: PrimitiveTheme) {
+    ui.horizontal(|ui| {
+        ui.small("00:00:00:00");
+        ui.separator();
+        ui.small("00:00:10:00");
+    });
+    for (track, clips) in [
+        ("V2", "        [ av-b.mp4 ]"),
+        ("V1", "[ av-a.mp4              ]"),
+        ("A1", "[ audio waveform         ]"),
+    ] {
+        ui.horizontal(|ui| {
+            ui.monospace(track);
+            ui.colored_label(theme.item_selected_fill, clips);
+        });
+    }
+}
+
+fn show_agent_panel(ui: &mut egui::Ui) {
+    ui.small("AGENT CONTEXT");
+    ui.monospace("selection: clip-av-a");
+    ui.monospace("transport: paused");
+    ui.monospace("commands: panel-scoped");
+}
+
+fn command_scope_label(scope: &CommandScopeOutput) -> String {
+    match scope {
+        CommandScopeOutput::Global => "scope: global".to_owned(),
+        CommandScopeOutput::Panel {
+            region_id,
+            panel_id,
+        } => format!("scope: {region_id}/{panel_id}"),
     }
 }
 

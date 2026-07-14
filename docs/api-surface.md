@@ -45,6 +45,19 @@ Internal row-model, viewport, persistence, and export helpers may become narrowe
 before the first published version. Prefer building through `FinancialDataGrid`
 unless a helper is explicitly documented.
 
+## `finui-workbench` Preview API
+
+The workbench crate currently exposes a Preview API centered on:
+
+- `WorkbenchState` and serializable `WorkbenchNode` split/tab trees
+- `PaneConstraints` and pure `calculate_workbench_geometry`
+- caller-applied `WorkbenchAction` outputs
+- `FocusRoute` and `CommandScopeOutput`
+- `show_workbench` for renderer-neutral egui application shells
+
+The state schema and behavior are exercised by `editor_lab`, but can change
+before promotion to the stable surface. See `docs/workbench-preview-api.md`.
+
 ## Fixtures
 
 `fixtures` keeps demo payload adapters out of the core grid contract. Disable it

@@ -244,7 +244,11 @@ impl GpuPreview {
         }
     }
 
-    pub fn write_smoke_receipt(&self, path: &Path) -> Result<(), String> {
+    pub fn write_smoke_receipt(
+        &self,
+        path: &Path,
+        workbench: serde_json::Value,
+    ) -> Result<(), String> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|error| error.to_string())?;
         }
@@ -267,6 +271,7 @@ impl GpuPreview {
             "texture_registrations": stats.texture_registrations,
             "texture_releases": stats.texture_releases,
             "texture_size": stats.texture_size,
+            "workbench": workbench,
         });
         let contents = serde_json::to_string_pretty(&receipt).map_err(|error| error.to_string())?;
         fs::write(path, format!("{contents}\n")).map_err(|error| error.to_string())

@@ -17,6 +17,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "finui-primitives tests failed" }
     cargo test -p finui-grid --lib
     if ($LASTEXITCODE -ne 0) { throw "finui-grid tests failed" }
+    cargo test -p finui-workbench --lib
+    if ($LASTEXITCODE -ne 0) { throw "finui-workbench tests failed" }
 }
 finally {
     Pop-Location

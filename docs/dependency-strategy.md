@@ -39,3 +39,7 @@ The editor's GPU-native presentation path is separately guarded by
 `scripts/check-editor-texture-path.ps1`. See
 [`editor-texture-bridge.md`](editor-texture-bridge.md) for texture ownership,
 deferred release, resize, device-replacement, and no-readback rules.
+
+`finui-workbench` follows the same library boundary as the other `finui-*`
+crates: it uses direct `egui` APIs and keeps eframe and renderer selection in
+`editor_lab`.
