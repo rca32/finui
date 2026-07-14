@@ -7,6 +7,42 @@ pub enum TimelineDragKind {
     TrimEnd,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TimelineSnapKind {
+    #[default]
+    Frame,
+    Grid,
+    ClipEdge,
+    Bypassed,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct TimelineModifiers {
+    pub bypass_snap: bool,
+    pub grid_only: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TimelineSnapPolicy {
+    pub grid_ticks: i64,
+    pub threshold_points: f64,
+}
+
+impl Default for TimelineSnapPolicy {
+    fn default() -> Self {
+        Self {
+            grid_ticks: 10,
+            threshold_points: 4.0,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TimelineSnapResult {
+    pub delta_ticks: i64,
+    pub kind: TimelineSnapKind,
+}
+
 impl From<TimelineHitZone> for TimelineDragKind {
     fn from(value: TimelineHitZone) -> Self {
         match value {
@@ -24,7 +60,9 @@ pub struct TimelineDragSession {
     pub origin_pointer_tick: i64,
     pub origin_start_tick: i64,
     pub origin_duration_ticks: i64,
+    pub raw_delta_ticks: i64,
     pub delta_ticks: i64,
+    pub snap_kind: TimelineSnapKind,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -46,12 +84,16 @@ pub enum TimelineAction {
     UpdateDrag {
         clip_id: ClipId,
         kind: TimelineDragKind,
+        raw_delta_ticks: i64,
         delta_ticks: i64,
+        snap_kind: TimelineSnapKind,
     },
     CommitDrag {
         clip_id: ClipId,
         kind: TimelineDragKind,
+        raw_delta_ticks: i64,
         delta_ticks: i64,
+        snap_kind: TimelineSnapKind,
     },
     CancelDrag {
         clip_id: ClipId,
@@ -81,14 +123,18 @@ impl TimelineInteractionState {
                     origin_pointer_tick: *pointer_tick,
                     origin_start_tick: *origin_start_tick,
                     origin_duration_ticks: *origin_duration_ticks,
+                    raw_delta_ticks: 0,
                     delta_ticks: 0,
+                    snap_kind: TimelineSnapKind::Frame,
                 });
                 true
             }
             TimelineAction::UpdateDrag {
                 clip_id,
                 kind,
+                raw_delta_ticks,
                 delta_ticks,
+                snap_kind,
             } => {
                 let Some(drag) = self.drag.as_mut() else {
                     return false;
@@ -96,7 +142,9 @@ impl TimelineInteractionState {
                 if drag.clip_id != *clip_id || drag.kind != *kind {
                     return false;
                 }
+                drag.raw_delta_ticks = *raw_delta_ticks;
                 drag.delta_ticks = *delta_ticks;
+                drag.snap_kind = *snap_kind;
                 true
             }
             TimelineAction::CommitDrag { clip_id, kind, .. }
@@ -149,13 +197,22 @@ mod tests {
             assert!(state.apply(&TimelineAction::UpdateDrag {
                 clip_id: ClipId::from("clip-a"),
                 kind,
+                raw_delta_ticks: 27,
                 delta_ticks: 25,
+                snap_kind: TimelineSnapKind::Grid,
             }));
+            assert_eq!(state.drag.as_ref().unwrap().raw_delta_ticks, 27);
             assert_eq!(state.drag.as_ref().unwrap().delta_ticks, 25);
+            assert_eq!(
+                state.drag.as_ref().unwrap().snap_kind,
+                TimelineSnapKind::Grid
+            );
             assert!(state.apply(&TimelineAction::CommitDrag {
                 clip_id: ClipId::from("clip-a"),
                 kind,
+                raw_delta_ticks: 27,
                 delta_ticks: 25,
+                snap_kind: TimelineSnapKind::Grid,
             }));
             assert!(state.drag.is_none());
         }

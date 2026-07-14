@@ -117,4 +117,41 @@ impl TimelineViewport {
             track_height_points: 34.0,
         }
     }
+
+    pub fn zoom_around(&mut self, anchor_tick: i64, scale: f64) {
+        let previous = self.ticks_per_point.max(f64::EPSILON);
+        let next = (previous * scale).clamp(0.01, 1_000_000.0);
+        let anchor_points = (anchor_tick.saturating_sub(self.start_tick)) as f64 / previous;
+        self.start_tick = anchor_tick
+            .saturating_sub((anchor_points * next).round() as i64)
+            .max(0);
+        self.ticks_per_point = next;
+    }
+
+    pub fn scroll_ticks(&mut self, delta_ticks: i64) {
+        self.start_tick = self.start_tick.saturating_add(delta_ticks).max(0);
+    }
+
+    pub fn scroll_tracks(&mut self, delta_points: f32) {
+        self.vertical_scroll_points = (self.vertical_scroll_points + delta_points).max(0.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TimelineViewport;
+
+    #[test]
+    fn zoom_and_scroll_preserve_pointer_tick_and_clamp_navigation() {
+        let mut viewport = TimelineViewport::new(100, 2.0);
+        viewport.zoom_around(300, 0.5);
+        assert_eq!(viewport.start_tick, 200);
+        assert_eq!(viewport.ticks_per_point, 1.0);
+        viewport.scroll_ticks(-500);
+        assert_eq!(viewport.start_tick, 0);
+        viewport.scroll_tracks(68.0);
+        assert_eq!(viewport.vertical_scroll_points, 68.0);
+        viewport.scroll_tracks(-100.0);
+        assert_eq!(viewport.vertical_scroll_points, 0.0);
+    }
 }

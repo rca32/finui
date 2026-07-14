@@ -1,6 +1,10 @@
 use egui::{Pos2, Rect, pos2};
 
-use crate::{ClipId, TimelineClip, TimelineSnapshot, TimelineViewport, TrackId};
+use crate::{
+    ClipId, TimelineClip, TimelineDragKind, TimelineDragSession, TimelineModifiers,
+    TimelineSnapKind, TimelineSnapPolicy, TimelineSnapResult, TimelineSnapshot, TimelineViewport,
+    TrackId,
+};
 
 pub const RULER_HEIGHT_POINTS: f32 = 24.0;
 const TRIM_HIT_POINTS: f32 = 6.0;
@@ -14,9 +18,16 @@ struct IndexedTrack {
 }
 
 #[derive(Clone, Debug)]
+struct SnapEdge {
+    tick: i64,
+    clip_id: ClipId,
+}
+
+#[derive(Clone, Debug)]
 pub struct TimelineGeometryCache {
     revision: u64,
     tracks: Vec<IndexedTrack>,
+    snap_edges: Vec<SnapEdge>,
     total_clip_count: usize,
 }
 
@@ -45,9 +56,28 @@ impl TimelineGeometryCache {
                 }
             })
             .collect();
+        let mut snap_edges = snapshot
+            .tracks
+            .iter()
+            .flat_map(|track| &track.clips)
+            .flat_map(|clip| {
+                [
+                    SnapEdge {
+                        tick: clip.start_tick,
+                        clip_id: clip.id.clone(),
+                    },
+                    SnapEdge {
+                        tick: clip.end_tick(),
+                        clip_id: clip.id.clone(),
+                    },
+                ]
+            })
+            .collect::<Vec<_>>();
+        snap_edges.sort_by_key(|edge| edge.tick);
         Self {
             revision: snapshot.revision,
             tracks,
+            snap_edges,
             total_clip_count: snapshot.total_clip_count(),
         }
     }
@@ -58,6 +88,85 @@ impl TimelineGeometryCache {
 
     pub fn total_clip_count(&self) -> usize {
         self.total_clip_count
+    }
+
+    pub fn snap_drag_delta(
+        &self,
+        drag: &TimelineDragSession,
+        raw_delta_ticks: i64,
+        viewport: TimelineViewport,
+        policy: TimelineSnapPolicy,
+        modifiers: TimelineModifiers,
+    ) -> TimelineSnapResult {
+        if modifiers.bypass_snap {
+            return TimelineSnapResult {
+                delta_ticks: raw_delta_ticks,
+                kind: TimelineSnapKind::Bypassed,
+            };
+        }
+        let threshold_ticks = (policy.threshold_points.max(0.0)
+            * viewport.ticks_per_point.max(f64::EPSILON))
+        .ceil() as i64;
+        let targets = match drag.kind {
+            TimelineDragKind::Move => vec![
+                drag.origin_start_tick.saturating_add(raw_delta_ticks),
+                drag.origin_start_tick
+                    .saturating_add(drag.origin_duration_ticks)
+                    .saturating_add(raw_delta_ticks),
+            ],
+            TimelineDragKind::TrimStart => {
+                vec![drag.origin_start_tick.saturating_add(raw_delta_ticks)]
+            }
+            TimelineDragKind::TrimEnd => vec![
+                drag.origin_start_tick
+                    .saturating_add(drag.origin_duration_ticks)
+                    .saturating_add(raw_delta_ticks),
+            ],
+        };
+        let mut best: Option<(i64, TimelineSnapKind)> = None;
+        let grid_ticks = policy.grid_ticks.max(1);
+        for target in &targets {
+            let lower = target.div_euclid(grid_ticks).saturating_mul(grid_ticks);
+            for grid in [lower, lower.saturating_add(grid_ticks)] {
+                consider_snap(
+                    &mut best,
+                    grid.saturating_sub(*target),
+                    threshold_ticks,
+                    TimelineSnapKind::Grid,
+                );
+            }
+        }
+        if !modifiers.grid_only {
+            for target in targets {
+                let first = self
+                    .snap_edges
+                    .partition_point(|edge| edge.tick < target.saturating_sub(threshold_ticks));
+                for edge in &self.snap_edges[first..] {
+                    if edge.tick > target.saturating_add(threshold_ticks) {
+                        break;
+                    }
+                    if edge.clip_id == drag.clip_id {
+                        continue;
+                    }
+                    consider_snap(
+                        &mut best,
+                        edge.tick.saturating_sub(target),
+                        threshold_ticks,
+                        TimelineSnapKind::ClipEdge,
+                    );
+                }
+            }
+        }
+        best.map_or(
+            TimelineSnapResult {
+                delta_ticks: raw_delta_ticks,
+                kind: TimelineSnapKind::Frame,
+            },
+            |(adjustment, kind)| TimelineSnapResult {
+                delta_ticks: raw_delta_ticks.saturating_add(adjustment),
+                kind,
+            },
+        )
     }
 
     /// Queries O(visible_tracks * log(clips_per_track) + candidate_clips).
@@ -144,6 +253,26 @@ impl TimelineGeometryCache {
             candidate_clip_count,
             total_clip_count: self.total_clip_count,
         }
+    }
+}
+
+fn consider_snap(
+    best: &mut Option<(i64, TimelineSnapKind)>,
+    adjustment: i64,
+    threshold_ticks: i64,
+    kind: TimelineSnapKind,
+) {
+    if adjustment.unsigned_abs() > threshold_ticks.max(0) as u64 {
+        return;
+    }
+    let replace = best.as_ref().is_none_or(|(current, current_kind)| {
+        adjustment.unsigned_abs() < current.unsigned_abs()
+            || (adjustment.unsigned_abs() == current.unsigned_abs()
+                && kind == TimelineSnapKind::ClipEdge
+                && *current_kind != TimelineSnapKind::ClipEdge)
+    });
+    if replace {
+        *best = Some((adjustment, kind));
     }
 }
 
@@ -245,7 +374,10 @@ fn nice_step(minimum: i64) -> i64 {
 mod tests {
     use egui::{Rect, pos2, vec2};
 
-    use crate::{TimelineClip, TimelineSnapshot, TimelineTrack, TimelineViewport};
+    use crate::{
+        TimelineClip, TimelineDragKind, TimelineDragSession, TimelineModifiers, TimelineSnapKind,
+        TimelineSnapPolicy, TimelineSnapshot, TimelineTrack, TimelineViewport,
+    };
 
     use super::{TimelineGeometryCache, TimelineHitZone};
 
@@ -353,6 +485,92 @@ mod tests {
                 .visible_clips
                 .iter()
                 .all(|clip| clip.clip_id.as_str() != "clip-0-0")
+        );
+    }
+
+    #[test]
+    fn drag_delta_snaps_to_grid_and_other_clip_edges_with_modifier_policy() {
+        let snapshot = TimelineSnapshot {
+            revision: 1,
+            tracks: vec![TimelineTrack::new(
+                "v1",
+                "V1",
+                vec![
+                    TimelineClip::new("moving", "Moving", 10, 20),
+                    TimelineClip::new("neighbor", "Neighbor", 50, 20),
+                ],
+            )],
+        };
+        let cache = TimelineGeometryCache::build(&snapshot);
+        let drag = TimelineDragSession {
+            clip_id: "moving".into(),
+            kind: TimelineDragKind::Move,
+            origin_pointer_tick: 10,
+            origin_start_tick: 10,
+            origin_duration_ticks: 20,
+            raw_delta_ticks: 0,
+            delta_ticks: 0,
+            snap_kind: TimelineSnapKind::Frame,
+        };
+        let policy = TimelineSnapPolicy {
+            grid_ticks: 10,
+            threshold_points: 4.0,
+        };
+        let viewport = TimelineViewport::new(0, 1.0);
+
+        let edge = cache.snap_drag_delta(&drag, 18, viewport, policy, TimelineModifiers::default());
+        assert_eq!(edge.delta_ticks, 20);
+        assert_eq!(edge.kind, TimelineSnapKind::ClipEdge);
+
+        let grid_only = cache.snap_drag_delta(
+            &drag,
+            18,
+            viewport,
+            policy,
+            TimelineModifiers {
+                bypass_snap: false,
+                grid_only: true,
+            },
+        );
+        assert_eq!(grid_only.delta_ticks, 20);
+        assert_eq!(grid_only.kind, TimelineSnapKind::Grid);
+
+        let bypassed = cache.snap_drag_delta(
+            &drag,
+            18,
+            viewport,
+            policy,
+            TimelineModifiers {
+                bypass_snap: true,
+                grid_only: false,
+            },
+        );
+        assert_eq!(bypassed.delta_ticks, 18);
+        assert_eq!(bypassed.kind, TimelineSnapKind::Bypassed);
+    }
+
+    #[test]
+    fn ten_thousand_clip_pointer_frame_p95_is_below_budget() {
+        let cache = TimelineGeometryCache::build(&fixture(100, 100));
+        let viewport = TimelineViewport {
+            start_tick: 4_800,
+            ticks_per_point: 2.0,
+            vertical_scroll_points: 34.0 * 40.0,
+            track_height_points: 34.0,
+        };
+        let rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(1_400.0, 900.0));
+        let mut samples = Vec::with_capacity(240);
+        for sample in 0..240 {
+            let started = std::time::Instant::now();
+            let geometry = cache.geometry(viewport, rect, 4_800 + sample);
+            let _ = geometry.hit_test(pos2((sample % 1_400) as f32, 120.0));
+            samples.push(started.elapsed());
+        }
+        samples.sort_unstable();
+        let p95 = samples[samples.len() * 95 / 100];
+        assert!(
+            p95 < std::time::Duration::from_micros(16_700),
+            "10k pointer frame p95 {p95:?} exceeded 16.7ms"
         );
     }
 }

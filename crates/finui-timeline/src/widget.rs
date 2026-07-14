@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     TimelineAction, TimelineDragKind, TimelineGeometry, TimelineGeometryCache,
-    TimelineInteractionState, TimelineViewport,
+    TimelineInteractionState, TimelineModifiers, TimelineSnapKind, TimelineSnapPolicy,
+    TimelineViewport,
 };
 
 #[derive(Clone, Debug)]
@@ -24,6 +25,9 @@ pub struct TimelineUxReceipt {
     pub visible_track_range: [usize; 2],
     pub visible_tick_range: [i64; 2],
     pub drag_phase: String,
+    pub drag_raw_delta_ticks: i64,
+    pub drag_delta_ticks: i64,
+    pub snap_kind: String,
     pub accessibility_label: String,
     pub focus_order_clip_ids: Vec<String>,
     pub keyboard_selection_enabled: bool,
@@ -39,6 +43,24 @@ pub fn show_timeline(
     viewport: TimelineViewport,
     playhead_tick: i64,
     interaction: &TimelineInteractionState,
+) -> TimelineOutput {
+    show_timeline_with_policy(
+        ui,
+        cache,
+        viewport,
+        playhead_tick,
+        interaction,
+        TimelineSnapPolicy::default(),
+    )
+}
+
+pub fn show_timeline_with_policy(
+    ui: &mut Ui,
+    cache: &TimelineGeometryCache,
+    viewport: TimelineViewport,
+    playhead_tick: i64,
+    interaction: &TimelineInteractionState,
+    snap_policy: TimelineSnapPolicy,
 ) -> TimelineOutput {
     let rect = ui.available_rect_before_wrap();
     let root_response = ui.allocate_rect(rect, Sense::hover());
@@ -88,20 +110,25 @@ pub fn show_timeline(
         });
     }
     for clip in &geometry.visible_clips {
+        let clip_rect = preview_clip_rect(clip, interaction, viewport);
+        let clip_rect = clip_rect.intersect(geometry.content_rect);
+        if !clip_rect.is_positive() {
+            continue;
+        }
         let fill = if clip.selected {
             visuals.selection.bg_fill
         } else {
             Color32::from_rgb(45, 103, 126)
         };
-        painter.rect_filled(clip.rect, 3.0, fill);
+        painter.rect_filled(clip_rect, 3.0, fill);
         painter.rect_stroke(
-            clip.rect,
+            clip_rect,
             3.0,
             Stroke::new(1.0, visuals.widgets.noninteractive.bg_stroke.color),
             StrokeKind::Inside,
         );
         painter.text(
-            pos2(clip.rect.min.x + 6.0, clip.rect.center().y),
+            pos2(clip_rect.min.x + 6.0, clip_rect.center().y),
             Align2::LEFT_CENTER,
             &clip.label,
             FontId::proportional(11.0),
@@ -110,7 +137,7 @@ pub fn show_timeline(
 
         if interaction.drag.is_none() {
             let response = ui.interact(
-                clip.rect,
+                clip_rect,
                 ui.make_persistent_id(("finui-timeline-clip", clip.clip_id.as_str())),
                 Sense::click_and_drag(),
             );
@@ -160,14 +187,25 @@ pub fn show_timeline(
             actions.push(TimelineAction::CommitDrag {
                 clip_id: drag.clip_id.clone(),
                 kind: drag.kind,
+                raw_delta_ticks: drag.raw_delta_ticks,
                 delta_ticks: drag.delta_ticks,
+                snap_kind: drag.snap_kind,
             });
         } else if let Some(pointer) = ui.input(|input| input.pointer.interact_pos()) {
             let tick = pointer_tick(rect, viewport, pointer.x);
+            let modifiers = ui.input(|input| TimelineModifiers {
+                bypass_snap: input.modifiers.alt,
+                grid_only: input.modifiers.shift,
+            });
+            let raw_delta_ticks = tick - drag.origin_pointer_tick;
+            let snapped =
+                cache.snap_drag_delta(drag, raw_delta_ticks, viewport, snap_policy, modifiers);
             actions.push(TimelineAction::UpdateDrag {
                 clip_id: drag.clip_id.clone(),
                 kind: drag.kind,
-                delta_ticks: tick - drag.origin_pointer_tick,
+                raw_delta_ticks,
+                delta_ticks: snapped.delta_ticks,
+                snap_kind: snapped.kind,
             });
         }
     }
@@ -201,6 +239,17 @@ pub fn show_timeline(
         } else {
             "idle".to_owned()
         },
+        drag_raw_delta_ticks: interaction
+            .drag
+            .as_ref()
+            .map_or(0, |drag| drag.raw_delta_ticks),
+        drag_delta_ticks: interaction.drag.as_ref().map_or(0, |drag| drag.delta_ticks),
+        snap_kind: interaction
+            .drag
+            .as_ref()
+            .map_or(TimelineSnapKind::Frame, |drag| drag.snap_kind)
+            .as_str()
+            .to_owned(),
         accessibility_label: "Timeline editor".to_owned(),
         focus_order_clip_ids: clip_ids(&geometry),
         keyboard_selection_enabled: true,
@@ -210,6 +259,50 @@ pub fn show_timeline(
         actions,
         geometry,
         receipt,
+    }
+}
+
+fn preview_clip_rect(
+    clip: &crate::TimelineClipGeometry,
+    interaction: &TimelineInteractionState,
+    viewport: TimelineViewport,
+) -> Rect {
+    let Some(drag) = interaction
+        .drag
+        .as_ref()
+        .filter(|drag| drag.clip_id == clip.clip_id)
+    else {
+        return clip.rect;
+    };
+    let delta_points =
+        (drag.delta_ticks as f64 / viewport.ticks_per_point.max(f64::EPSILON)) as f32;
+    match drag.kind {
+        TimelineDragKind::Move => clip.rect.translate(egui::vec2(delta_points, 0.0)),
+        TimelineDragKind::TrimStart => Rect::from_min_max(
+            pos2(
+                (clip.rect.min.x + delta_points).min(clip.rect.max.x - 1.0),
+                clip.rect.min.y,
+            ),
+            clip.rect.max,
+        ),
+        TimelineDragKind::TrimEnd => Rect::from_min_max(
+            clip.rect.min,
+            pos2(
+                (clip.rect.max.x + delta_points).max(clip.rect.min.x + 1.0),
+                clip.rect.max.y,
+            ),
+        ),
+    }
+}
+
+impl TimelineSnapKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Frame => "frame",
+            Self::Grid => "grid",
+            Self::ClipEdge => "clip-edge",
+            Self::Bypassed => "bypassed",
+        }
     }
 }
 
@@ -229,7 +322,10 @@ fn clip_ids(geometry: &TimelineGeometry) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{TimelineClip, TimelineSnapshot, TimelineTrack, TimelineViewport};
+    use crate::{
+        TimelineClip, TimelineDragKind, TimelineDragSession, TimelineInteractionState,
+        TimelineSnapKind, TimelineSnapshot, TimelineTrack, TimelineViewport,
+    };
 
     use super::*;
 
@@ -263,5 +359,42 @@ mod tests {
             );
             assert!(timeline_receipt_json(&output.receipt).contains("\"primitive\": \"timeline\""));
         });
+    }
+
+    #[test]
+    fn active_drag_renders_preview_geometry_without_mutating_cached_geometry() {
+        let snapshot = TimelineSnapshot {
+            revision: 1,
+            tracks: vec![TimelineTrack::new(
+                "v1",
+                "V1",
+                vec![TimelineClip::new("moving", "Moving", 100, 50)],
+            )],
+        };
+        let cache = TimelineGeometryCache::build(&snapshot);
+        let viewport = TimelineViewport::new(90, 1.0);
+        let geometry = cache.geometry(
+            viewport,
+            egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400.0, 100.0)),
+            0,
+        );
+        let original = geometry.visible_clips[0].rect;
+        let interaction = TimelineInteractionState {
+            drag: Some(TimelineDragSession {
+                clip_id: "moving".into(),
+                kind: TimelineDragKind::Move,
+                origin_pointer_tick: 100,
+                origin_start_tick: 100,
+                origin_duration_ticks: 50,
+                raw_delta_ticks: 20,
+                delta_ticks: 20,
+                snap_kind: TimelineSnapKind::Grid,
+            }),
+        };
+
+        let preview = preview_clip_rect(&geometry.visible_clips[0], &interaction, viewport);
+        assert_eq!(preview.min.x, original.min.x + 20.0);
+        assert_eq!(geometry.visible_clips[0].rect, original);
+        assert_eq!(snapshot.tracks[0].clips[0].start_tick, 100);
     }
 }

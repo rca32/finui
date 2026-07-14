@@ -533,6 +533,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "experimental")]
     fn product_window_states_have_stable_accessibility_receipts() {
         let context = egui::Context::default();
         let states = [
