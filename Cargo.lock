@@ -505,7 +505,9 @@ name = "editor_lab"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "finui-media-surface",
  "finui-primitives",
+ "finui-timeline",
  "finui-workbench",
  "serde_json",
 ]
@@ -766,11 +768,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "finui-media-surface"
+version = "0.1.0"
+dependencies = [
+ "egui",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "finui-primitives"
 version = "0.1.0"
 dependencies = [
  "egui",
  "egui_extras",
+]
+
+[[package]]
+name = "finui-timeline"
+version = "0.1.0"
+dependencies = [
+ "egui",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

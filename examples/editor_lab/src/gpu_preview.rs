@@ -167,11 +167,6 @@ impl GpuPreview {
         }
     }
 
-    pub fn adapter_summary(&self) -> String {
-        let info = self.render_state.adapter.get_info();
-        format!("{} ({:?}, {:?})", info.name, info.backend, info.device_type)
-    }
-
     pub fn force_recreate(&mut self, reason: RecreateReason) {
         if let Some(size) = self.active.as_ref().map(|texture| texture.size) {
             self.recreate_texture(size, reason);

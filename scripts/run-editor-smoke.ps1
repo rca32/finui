@@ -47,6 +47,21 @@ try {
     if ($receipt.workbench.panel_tab_count -lt 5 -or $receipt.workbench.active_panels_rendered -lt 4) {
         throw "editor_lab did not render the required editor panel set"
     }
+    if ($receipt.workbench.timeline.total_clip_count -ne 10000) {
+        throw "editor_lab did not load the 10,000 clip timeline fixture"
+    }
+    if ($receipt.workbench.timeline.candidate_clip_count -ge $receipt.workbench.timeline.total_clip_count) {
+        throw "editor_lab timeline did not cull offscreen clips"
+    }
+    if ($receipt.workbench.timeline.painted_clip_ids.Count -eq 0 -or
+        $receipt.workbench.timeline.painted_clip_ids.Count -ne $receipt.workbench.timeline.hit_test_clip_ids.Count) {
+        throw "editor_lab timeline paint and hit-test sets do not match"
+    }
+    if ($receipt.workbench.media_surface.overlay_handle_count -ne 4 -or
+        $receipt.workbench.media_surface.source_size[0] -le 0 -or
+        $receipt.workbench.media_surface.source_size[1] -le 0) {
+        throw "editor_lab media surface did not expose the external texture overlay"
+    }
     if ($ExpectedPlatform -and $receipt.platform -ne $ExpectedPlatform) {
         throw "editor_lab ran on $($receipt.platform); expected $ExpectedPlatform"
     }

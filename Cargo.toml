@@ -2,7 +2,9 @@
 resolver = "2"
 members = [
     "crates/finui-grid",
+    "crates/finui-media-surface",
     "crates/finui-primitives",
+    "crates/finui-timeline",
     "crates/finui-workbench",
     "examples/editor_lab",
     "examples/grid_lab",

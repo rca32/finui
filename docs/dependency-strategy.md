@@ -43,3 +43,7 @@ deferred release, resize, device-replacement, and no-readback rules.
 `finui-workbench` follows the same library boundary as the other `finui-*`
 crates: it uses direct `egui` APIs and keeps eframe and renderer selection in
 `editor_lab`.
+
+`finui-timeline` and `finui-media-surface` follow this boundary too. The media
+surface accepts egui's opaque texture ID; wgpu texture creation, registration,
+and device lifecycle remain application-runtime responsibilities.

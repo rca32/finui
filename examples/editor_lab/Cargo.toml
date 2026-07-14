@@ -6,6 +6,8 @@ publish = false
 
 [dependencies]
 eframe = { workspace = true, features = ["wgpu"] }
+finui-media-surface = { path = "../../crates/finui-media-surface" }
 finui-primitives = { path = "../../crates/finui-primitives" }
+finui-timeline = { path = "../../crates/finui-timeline" }
 finui-workbench = { path = "../../crates/finui-workbench" }
 serde_json.workspace = true

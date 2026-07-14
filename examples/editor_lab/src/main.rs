@@ -3,7 +3,15 @@ mod gpu_preview;
 use std::{path::PathBuf, time::Duration};
 
 use eframe::egui;
+use finui_media_surface::{
+    MediaSurfaceAction, MediaSurfaceInteractionState, MediaSurfaceSnapshot, MediaSurfaceUxReceipt,
+    MediaTransform, MediaTransformKind, show_media_surface,
+};
 use finui_primitives::{PrimitiveTheme, ThemeMode};
+use finui_timeline::{
+    TimelineClip, TimelineGeometryCache, TimelineInteractionState, TimelineSnapshot, TimelineTrack,
+    TimelineUxReceipt, TimelineViewport, show_timeline,
+};
 use finui_workbench::{
     CommandScopeOutput, PaneConstraints, PanelId, PanelTab, SplitAxis,
     WORKBENCH_LAYOUT_SCHEMA_VERSION, WorkbenchNode, WorkbenchState, show_workbench,
@@ -39,6 +47,14 @@ struct EditorLabApp {
     preview: Option<GpuPreview>,
     startup_error: Option<String>,
     workbench: WorkbenchState,
+    timeline_cache: TimelineGeometryCache,
+    timeline_viewport: TimelineViewport,
+    timeline_interaction: TimelineInteractionState,
+    timeline_playhead_tick: i64,
+    media_transform: MediaTransform,
+    media_interaction: MediaSurfaceInteractionState,
+    last_timeline_receipt: Option<TimelineUxReceipt>,
+    last_media_receipt: Option<MediaSurfaceUxReceipt>,
     persistence_status: String,
     last_divider_count: usize,
     last_region_count: usize,
@@ -60,12 +76,22 @@ impl EditorLabApp {
             ),
         };
         let workbench = default_editor_workbench();
+        let timeline_fixture = default_timeline_fixture();
+        let timeline_cache = TimelineGeometryCache::build(&timeline_fixture);
         let last_command_scope = workbench.command_scope();
 
         Self {
             preview,
             startup_error,
             workbench,
+            timeline_cache,
+            timeline_viewport: TimelineViewport::new(0, 2.0),
+            timeline_interaction: TimelineInteractionState::default(),
+            timeline_playhead_tick: 240,
+            media_transform: MediaTransform::default(),
+            media_interaction: MediaSurfaceInteractionState::default(),
+            last_timeline_receipt: None,
+            last_media_receipt: None,
             persistence_status: "layout schema v1".to_owned(),
             last_divider_count: 0,
             last_region_count: 0,
@@ -109,6 +135,8 @@ impl EditorLabApp {
             "panel_tab_count": self.last_panel_tab_count,
             "region_count": self.last_region_count,
             "schema_version": WORKBENCH_LAYOUT_SCHEMA_VERSION,
+            "timeline": self.last_timeline_receipt.as_ref(),
+            "media_surface": self.last_media_receipt.as_ref(),
         });
         let result = self
             .preview
@@ -184,21 +212,28 @@ impl eframe::App for EditorLabApp {
 
         let elapsed_seconds = ui.input(|input| input.time) as f32;
         let pixels_per_point = ui.ctx().pixels_per_point();
-        let preview = &mut self.preview;
-        let startup_error = self.startup_error.as_deref();
-        let mut rendered_panel_count = 0;
-        let output = show_workbench(ui, &self.workbench, |panel_ui, panel_id| {
-            rendered_panel_count += 1;
-            show_editor_panel(
-                panel_ui,
-                panel_id,
-                preview,
-                startup_error,
+        let (output, rendered_panel_count) = {
+            let mut runtime = EditorPanelRuntime {
+                preview: &mut self.preview,
+                startup_error: self.startup_error.as_deref(),
                 theme,
                 elapsed_seconds,
                 pixels_per_point,
-            );
-        });
+                timeline_cache: &self.timeline_cache,
+                timeline_viewport: self.timeline_viewport,
+                timeline_interaction: &mut self.timeline_interaction,
+                timeline_playhead_tick: self.timeline_playhead_tick,
+                media_transform: &mut self.media_transform,
+                media_interaction: &mut self.media_interaction,
+                last_timeline_receipt: &mut self.last_timeline_receipt,
+                last_media_receipt: &mut self.last_media_receipt,
+                rendered_panel_count: 0,
+            };
+            let output = show_workbench(ui, &self.workbench, |panel_ui, panel_id| {
+                runtime.show(panel_ui, panel_id);
+            });
+            (output, runtime.rendered_panel_count)
+        };
 
         match output {
             Ok(output) => {
@@ -278,31 +313,132 @@ fn default_editor_workbench() -> WorkbenchState {
     WorkbenchState::new(root).with_focused_panel(PREVIEW_PANEL)
 }
 
-fn show_editor_panel(
-    ui: &mut egui::Ui,
-    panel_id: &PanelId,
-    preview: &mut Option<GpuPreview>,
-    startup_error: Option<&str>,
+fn default_timeline_fixture() -> TimelineSnapshot {
+    TimelineSnapshot {
+        revision: 1,
+        tracks: (0..100)
+            .map(|track_index| {
+                TimelineTrack::new(
+                    format!("track-{track_index}"),
+                    format!("Track {track_index:03}"),
+                    (0..100)
+                        .map(|clip_index| {
+                            let mut clip = TimelineClip::new(
+                                format!("clip-{track_index}-{clip_index}"),
+                                format!("C{clip_index:02}"),
+                                clip_index as i64 * 120,
+                                100,
+                            );
+                            clip.selected = track_index == 0 && clip_index == 0;
+                            clip
+                        })
+                        .collect(),
+                )
+            })
+            .collect(),
+    }
+}
+
+struct EditorPanelRuntime<'a> {
+    preview: &'a mut Option<GpuPreview>,
+    startup_error: Option<&'a str>,
     theme: PrimitiveTheme,
     elapsed_seconds: f32,
     pixels_per_point: f32,
-) {
-    match panel_id.as_str() {
-        MEDIA_PANEL => show_media_panel(ui),
-        PREVIEW_PANEL => show_preview_panel(
-            ui,
-            preview,
-            startup_error,
-            theme,
-            elapsed_seconds,
-            pixels_per_point,
-        ),
-        INSPECTOR_PANEL => show_inspector_panel(ui),
-        TIMELINE_PANEL => show_timeline_panel(ui, theme),
-        AGENT_PANEL => show_agent_panel(ui),
-        unknown => {
-            ui.label(format!("Unknown panel: {unknown}"));
+    timeline_cache: &'a TimelineGeometryCache,
+    timeline_viewport: TimelineViewport,
+    timeline_interaction: &'a mut TimelineInteractionState,
+    timeline_playhead_tick: i64,
+    media_transform: &'a mut MediaTransform,
+    media_interaction: &'a mut MediaSurfaceInteractionState,
+    last_timeline_receipt: &'a mut Option<TimelineUxReceipt>,
+    last_media_receipt: &'a mut Option<MediaSurfaceUxReceipt>,
+    rendered_panel_count: usize,
+}
+
+impl EditorPanelRuntime<'_> {
+    fn show(&mut self, ui: &mut egui::Ui, panel_id: &PanelId) {
+        self.rendered_panel_count += 1;
+        match panel_id.as_str() {
+            MEDIA_PANEL => show_media_panel(ui),
+            PREVIEW_PANEL => self.show_preview(ui),
+            INSPECTOR_PANEL => show_inspector_panel(ui),
+            TIMELINE_PANEL => self.show_timeline(ui),
+            AGENT_PANEL => show_agent_panel(ui),
+            unknown => {
+                ui.label(format!("Unknown panel: {unknown}"));
+            }
         }
+    }
+
+    fn show_preview(&mut self, ui: &mut egui::Ui) {
+        let available = ui.available_size();
+        let render_size = fit_16_by_9(available);
+
+        let Some(preview) = self.preview.as_mut() else {
+            ui.colored_label(
+                self.theme.text,
+                self.startup_error.unwrap_or("GPU preview unavailable"),
+            );
+            return;
+        };
+        let requested_pixels = [
+            (render_size.x * self.pixels_per_point).round() as u32,
+            (render_size.y * self.pixels_per_point).round() as u32,
+        ];
+        let texture_id = preview.render(requested_pixels, self.elapsed_seconds);
+        let stats = preview.stats();
+        let output = show_media_surface(
+            ui,
+            &MediaSurfaceSnapshot {
+                texture_id,
+                source_size: stats.texture_size,
+                transform: *self.media_transform,
+                selected: true,
+            },
+            self.media_interaction,
+        );
+        apply_media_actions(
+            self.media_transform,
+            self.media_interaction,
+            &output.actions,
+        );
+        *self.last_media_receipt = Some(output.receipt);
+    }
+
+    fn show_timeline(&mut self, ui: &mut egui::Ui) {
+        let output = show_timeline(
+            ui,
+            self.timeline_cache,
+            self.timeline_viewport,
+            self.timeline_playhead_tick,
+            self.timeline_interaction,
+        );
+        self.timeline_interaction.apply_all(&output.actions);
+        *self.last_timeline_receipt = Some(output.receipt);
+    }
+}
+
+fn apply_media_actions(
+    transform: &mut MediaTransform,
+    interaction: &mut MediaSurfaceInteractionState,
+    actions: &[MediaSurfaceAction],
+) {
+    for action in actions {
+        if let MediaSurfaceAction::CommitTransform {
+            kind,
+            delta_points,
+            scale_multiplier,
+        } = action
+        {
+            match kind {
+                MediaTransformKind::Move => transform.offset_points += *delta_points,
+                MediaTransformKind::Scale => {
+                    transform.scale = (transform.scale * scale_multiplier).max(0.01);
+                }
+            }
+        }
+        interaction.apply(action);
     }
 }
 
@@ -321,54 +457,12 @@ fn show_media_panel(ui: &mut egui::Ui) {
     }
 }
 
-fn show_preview_panel(
-    ui: &mut egui::Ui,
-    preview: &mut Option<GpuPreview>,
-    startup_error: Option<&str>,
-    theme: PrimitiveTheme,
-    elapsed_seconds: f32,
-    pixels_per_point: f32,
-) {
-    let available = ui.available_size();
-    let max_image = egui::vec2(available.x.max(16.0), (available.y - 38.0).max(16.0));
-    let display_size = fit_16_by_9(max_image);
-
-    if let Some(preview) = preview.as_mut() {
-        let requested_pixels = [
-            (display_size.x * pixels_per_point).round() as u32,
-            (display_size.y * pixels_per_point).round() as u32,
-        ];
-        let texture_id = preview.render(requested_pixels, elapsed_seconds);
-        ui.centered_and_justified(|ui| {
-            ui.add(
-                egui::Image::new((texture_id, display_size))
-                    .fit_to_exact_size(display_size)
-                    .corner_radius(4.0),
-            );
-        });
-        let stats = preview.stats();
-        ui.small(format!(
-            "{} · {}x{} · gen {} · readbacks {}",
-            preview.adapter_summary(),
-            stats.texture_size[0],
-            stats.texture_size[1],
-            stats.generation,
-            stats.cpu_pixel_readbacks
-        ));
-    } else {
-        ui.colored_label(
-            theme.text,
-            startup_error.unwrap_or("GPU preview unavailable"),
-        );
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use eframe::egui::{Rect, pos2, vec2};
     use finui_workbench::{CommandScopeOutput, PanelId, RegionId, calculate_workbench_geometry};
 
-    use super::{PREVIEW_PANEL, default_editor_workbench, fit_16_by_9};
+    use super::{PREVIEW_PANEL, default_editor_workbench, default_timeline_fixture, fit_16_by_9};
 
     #[test]
     fn editor_shell_contains_required_panels_regions_and_dividers() {
@@ -407,6 +501,13 @@ mod tests {
         assert!((fitted.x - 533.3333).abs() < 0.001);
         assert_eq!(fitted.y, 300.0);
     }
+
+    #[test]
+    fn editor_timeline_fixture_contains_ten_thousand_clips() {
+        let fixture = default_timeline_fixture();
+        assert_eq!(fixture.tracks.len(), 100);
+        assert_eq!(fixture.total_clip_count(), 10_000);
+    }
 }
 
 fn fit_16_by_9(bounds: egui::Vec2) -> egui::Vec2 {
@@ -437,24 +538,6 @@ fn show_inspector_panel(ui: &mut egui::Ui) {
                 ui.end_row();
             }
         });
-}
-
-fn show_timeline_panel(ui: &mut egui::Ui, theme: PrimitiveTheme) {
-    ui.horizontal(|ui| {
-        ui.small("00:00:00:00");
-        ui.separator();
-        ui.small("00:00:10:00");
-    });
-    for (track, clips) in [
-        ("V2", "        [ av-b.mp4 ]"),
-        ("V1", "[ av-a.mp4              ]"),
-        ("A1", "[ audio waveform         ]"),
-    ] {
-        ui.horizontal(|ui| {
-            ui.monospace(track);
-            ui.colored_label(theme.item_selected_fill, clips);
-        });
-    }
 }
 
 fn show_agent_panel(ui: &mut egui::Ui) {

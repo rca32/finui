@@ -68,3 +68,7 @@ transfer counters to the receipt, and closes the application.
 Run `cargo run -p editor_lab` without smoke variables for the visible animated
 preview. Each target platform must run both the visible check and the smoke
 script; a successful build on one platform is not runtime evidence for another.
+
+The registered texture is presented through `finui-media-surface` in the editor
+lab. The surface receives only the opaque egui texture ID and source dimensions;
+the wgpu resource remains owned by this bridge.

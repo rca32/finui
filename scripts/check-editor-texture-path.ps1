@@ -4,8 +4,10 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $previewPath = Join-Path $repoRoot "examples/editor_lab/src/gpu_preview.rs"
 $mainPath = Join-Path $repoRoot "examples/editor_lab/src/main.rs"
+$surfacePath = Join-Path $repoRoot "crates/finui-media-surface/src/lib.rs"
 $previewSource = Get-Content -Raw $previewPath
 $mainSource = Get-Content -Raw $mainPath
+$surfaceSource = Get-Content -Raw $surfacePath
 
 $requiredPreviewTokens = @(
     "TextureUsages::RENDER_ATTACHMENT",
@@ -21,8 +23,12 @@ foreach ($token in $requiredPreviewTokens) {
     }
 }
 
-if (-not $mainSource.Contains("egui::Image::new")) {
-    throw "editor_lab does not paint the registered native texture"
+if (-not $mainSource.Contains("show_media_surface")) {
+    throw "editor_lab does not pass the registered native texture to finui-media-surface"
+}
+
+if (-not $surfaceSource.Contains("painter.image")) {
+    throw "finui-media-surface does not paint the registered native texture"
 }
 
 $forbiddenPixelTransferTokens = @(
@@ -36,14 +42,18 @@ $forbiddenPixelTransferTokens = @(
 )
 
 foreach ($token in $forbiddenPixelTransferTokens) {
-    if ($previewSource.Contains($token) -or $mainSource.Contains($token)) {
+    if (
+        $previewSource.Contains($token) -or
+        $mainSource.Contains($token) -or
+        $surfaceSource.Contains($token)
+    ) {
         throw "editor texture path contains a CPU pixel transfer token: $token"
     }
 }
 
 [pscustomobject]@{
     status = "PASS"
-    bridge = "wgpu render attachment -> egui native texture"
+    bridge = "wgpu render attachment -> egui native texture -> finui media surface"
     cpu_pixel_readback = $false
     cpu_pixel_upload = $false
 } | ConvertTo-Json -Depth 3

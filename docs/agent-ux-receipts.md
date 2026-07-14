@@ -42,3 +42,13 @@ assert!(json.contains("\"open_layers\""));
 
 - `ux_receipt_output_collects_state_focus_selection_and_open_layers`
 - `ux_receipt_json_snapshot_is_stable_and_agent_readable`
+
+## Editor Preview Receipts
+
+`finui-timeline::TimelineUxReceipt` reports total and candidate clip counts,
+visible tick/track ranges, identical paint and hit-test clip IDs, visible
+selection, and drag phase. `finui-media-surface::MediaSurfaceUxReceipt` reports
+the opaque texture ID, source size, fitted surface rectangle, selection,
+overlay-handle count, and transform phase. These receipts allow editor agents
+to inspect virtualization and external-texture presentation without reading
+pixels.

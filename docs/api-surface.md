@@ -58,6 +58,19 @@ The workbench crate currently exposes a Preview API centered on:
 The state schema and behavior are exercised by `editor_lab`, but can change
 before promotion to the stable surface. See `docs/workbench-preview-api.md`.
 
+## `finui-timeline` Preview API
+
+The timeline crate exposes integer-tick snapshots, a revision-keyed geometry
+cache, viewport geometry, hit targets, transactional drag actions, and an
+agent-readable UX receipt. Paint and hit-test share the same culled clip list.
+
+## `finui-media-surface` Preview API
+
+The media surface crate accepts an external `egui::TextureId`, computes
+aspect-fit and transform-overlay geometry, and emits begin/update/commit/cancel
+actions without mutating the caller's transform. See
+`docs/timeline-media-surface-preview-api.md` for both Preview contracts.
+
 ## Fixtures
 
 `fixtures` keeps demo payload adapters out of the core grid contract. Disable it

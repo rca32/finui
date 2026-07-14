@@ -9,6 +9,10 @@ The first release candidates are:
 - `finui-grid`: an agent-testable financial data grid with typed cells, row sources,
   provenance metadata, sorting, filtering, virtual sources, export helpers, and demo
   fixtures.
+- `finui-timeline`: a Preview integer-tick timeline with indexed viewport culling,
+  clip geometry, transactional drag actions, and UX receipts.
+- `finui-media-surface`: a Preview external-texture surface with aspect-fit geometry,
+  transform overlays, typed actions, and UX receipts.
 - `finui-workbench`: a Preview split-pane and tab shell with caller-owned layout,
   persistence, constraints, focus routing, and typed actions.
 
@@ -23,6 +27,8 @@ Use git dependencies while the surface is stabilizing.
 crates/
   finui-primitives/
   finui-grid/
+  finui-timeline/
+  finui-media-surface/
   finui-workbench/
 examples/
   editor_lab/
@@ -64,6 +70,9 @@ resize, device-loss, and verification boundaries are documented in
 
 The same lab composes Media, Preview, Inspector, Timeline, and Agent panels with
 the [`finui-workbench` Preview API](docs/workbench-preview-api.md).
+Its Timeline and Preview panels exercise the
+[`finui-timeline` and `finui-media-surface` Preview APIs](docs/timeline-media-surface-preview-api.md)
+against a 10,000-clip fixture and the GPU-native texture bridge.
 
 ## Screenshot
 
