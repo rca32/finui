@@ -17,11 +17,15 @@ pub use geometry::{
 #[cfg(feature = "preview")]
 pub use interaction::{
     TimelineAction, TimelineDragKind, TimelineDragSession, TimelineInteractionState,
+    TimelineModifiers, TimelineSnapKind, TimelineSnapPolicy, TimelineSnapResult,
 };
 #[cfg(feature = "preview")]
 pub use model::{ClipId, TimelineClip, TimelineSnapshot, TimelineTrack, TimelineViewport, TrackId};
 #[cfg(feature = "preview")]
-pub use widget::{TimelineOutput, TimelineUxReceipt, show_timeline, timeline_receipt_json};
+pub use widget::{
+    TimelineOutput, TimelineUxReceipt, show_timeline, show_timeline_with_policy,
+    timeline_receipt_json,
+};
 
 pub const TIMELINE_API_STABILITY: &str = "preview";
 

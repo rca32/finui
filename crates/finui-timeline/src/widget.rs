@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     TimelineAction, TimelineDragKind, TimelineGeometry, TimelineGeometryCache,
-    TimelineInteractionState, TimelineViewport,
+    TimelineInteractionState, TimelineModifiers, TimelineSnapKind, TimelineSnapPolicy,
+    TimelineViewport,
 };
 
 #[derive(Clone, Debug)]
@@ -24,6 +25,9 @@ pub struct TimelineUxReceipt {
     pub visible_track_range: [usize; 2],
     pub visible_tick_range: [i64; 2],
     pub drag_phase: String,
+    pub drag_raw_delta_ticks: i64,
+    pub drag_delta_ticks: i64,
+    pub snap_kind: String,
     pub accessibility_label: String,
     pub focus_order_clip_ids: Vec<String>,
     pub keyboard_selection_enabled: bool,
@@ -39,6 +43,24 @@ pub fn show_timeline(
     viewport: TimelineViewport,
     playhead_tick: i64,
     interaction: &TimelineInteractionState,
+) -> TimelineOutput {
+    show_timeline_with_policy(
+        ui,
+        cache,
+        viewport,
+        playhead_tick,
+        interaction,
+        TimelineSnapPolicy::default(),
+    )
+}
+
+pub fn show_timeline_with_policy(
+    ui: &mut Ui,
+    cache: &TimelineGeometryCache,
+    viewport: TimelineViewport,
+    playhead_tick: i64,
+    interaction: &TimelineInteractionState,
+    snap_policy: TimelineSnapPolicy,
 ) -> TimelineOutput {
     let rect = ui.available_rect_before_wrap();
     let root_response = ui.allocate_rect(rect, Sense::hover());
@@ -160,14 +182,25 @@ pub fn show_timeline(
             actions.push(TimelineAction::CommitDrag {
                 clip_id: drag.clip_id.clone(),
                 kind: drag.kind,
+                raw_delta_ticks: drag.raw_delta_ticks,
                 delta_ticks: drag.delta_ticks,
+                snap_kind: drag.snap_kind,
             });
         } else if let Some(pointer) = ui.input(|input| input.pointer.interact_pos()) {
             let tick = pointer_tick(rect, viewport, pointer.x);
+            let modifiers = ui.input(|input| TimelineModifiers {
+                bypass_snap: input.modifiers.alt,
+                grid_only: input.modifiers.shift,
+            });
+            let raw_delta_ticks = tick - drag.origin_pointer_tick;
+            let snapped =
+                cache.snap_drag_delta(drag, raw_delta_ticks, viewport, snap_policy, modifiers);
             actions.push(TimelineAction::UpdateDrag {
                 clip_id: drag.clip_id.clone(),
                 kind: drag.kind,
-                delta_ticks: tick - drag.origin_pointer_tick,
+                raw_delta_ticks,
+                delta_ticks: snapped.delta_ticks,
+                snap_kind: snapped.kind,
             });
         }
     }
@@ -201,6 +234,17 @@ pub fn show_timeline(
         } else {
             "idle".to_owned()
         },
+        drag_raw_delta_ticks: interaction
+            .drag
+            .as_ref()
+            .map_or(0, |drag| drag.raw_delta_ticks),
+        drag_delta_ticks: interaction.drag.as_ref().map_or(0, |drag| drag.delta_ticks),
+        snap_kind: interaction
+            .drag
+            .as_ref()
+            .map_or(TimelineSnapKind::Frame, |drag| drag.snap_kind)
+            .as_str()
+            .to_owned(),
         accessibility_label: "Timeline editor".to_owned(),
         focus_order_clip_ids: clip_ids(&geometry),
         keyboard_selection_enabled: true,
@@ -210,6 +254,17 @@ pub fn show_timeline(
         actions,
         geometry,
         receipt,
+    }
+}
+
+impl TimelineSnapKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Frame => "frame",
+            Self::Grid => "grid",
+            Self::ClipEdge => "clip-edge",
+            Self::Bypassed => "bypassed",
+        }
     }
 }
 
