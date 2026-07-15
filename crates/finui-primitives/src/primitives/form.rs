@@ -1981,6 +1981,88 @@ pub fn primitive_slider(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CommittedSliderAction {
+    Begin { value: f32 },
+    Update { value: f32 },
+    Commit { value: f32 },
+    Cancel,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct CommittedSliderInteractionState {
+    pub preview_value: Option<f32>,
+}
+
+impl CommittedSliderInteractionState {
+    pub fn apply(&mut self, action: CommittedSliderAction) -> Option<f32> {
+        match action {
+            CommittedSliderAction::Begin { value } | CommittedSliderAction::Update { value } => {
+                self.preview_value = Some(value);
+                None
+            }
+            CommittedSliderAction::Commit { value } => {
+                self.preview_value = None;
+                Some(value)
+            }
+            CommittedSliderAction::Cancel => {
+                self.preview_value = None;
+                None
+            }
+        }
+    }
+}
+
+pub struct PrimitiveCommittedSliderOutput {
+    pub response: Response,
+    pub preview_value: f32,
+    pub actions: Vec<CommittedSliderAction>,
+}
+
+/// Shows a caller-owned transactional slider.
+///
+/// Intermediate pointer motion is reported as `Update`; only `Commit` should
+/// mutate an application model or create undo history.
+pub fn primitive_committed_slider(
+    ui: &mut egui::Ui,
+    id_source: impl Hash,
+    authoritative_value: f32,
+    interaction: &CommittedSliderInteractionState,
+    options: PrimitiveSliderOptions,
+) -> PrimitiveCommittedSliderOutput {
+    let mut preview_value = interaction.preview_value.unwrap_or(authoritative_value);
+    let control = ui
+        .push_id(id_source, |ui| {
+            primitive_slider(ui, &mut preview_value, options)
+        })
+        .inner;
+    let mut actions = Vec::new();
+    if control.response.drag_started() {
+        actions.push(CommittedSliderAction::Begin {
+            value: authoritative_value,
+        });
+    }
+    if control.changed {
+        actions.push(CommittedSliderAction::Update {
+            value: preview_value,
+        });
+    }
+    if control.response.drag_stopped() || control.response.clicked() {
+        actions.push(CommittedSliderAction::Commit {
+            value: preview_value,
+        });
+    } else if interaction.preview_value.is_some()
+        && ui.input(|input| input.key_pressed(egui::Key::Escape))
+    {
+        actions.push(CommittedSliderAction::Cancel);
+    }
+    PrimitiveCommittedSliderOutput {
+        response: control.response,
+        preview_value,
+        actions,
+    }
+}
+
 pub fn slider_value_fraction(value: f32, min: f32, max: f32) -> f32 {
     let span = max - min;
     if span.abs() <= f32::EPSILON {
@@ -2912,6 +2994,30 @@ mod tests {
             10.0,
             PrimitiveSliderOptions::new(0.0, 10.0).step(0.5)
         ));
+    }
+
+    #[test]
+    fn committed_slider_updates_preview_without_committing_until_release() {
+        let mut state = CommittedSliderInteractionState::default();
+        assert_eq!(
+            state.apply(CommittedSliderAction::Begin { value: 0.5 }),
+            None
+        );
+        assert_eq!(
+            state.apply(CommittedSliderAction::Update { value: 0.7 }),
+            None
+        );
+        assert_eq!(state.preview_value, Some(0.7));
+        assert_eq!(
+            state.apply(CommittedSliderAction::Commit { value: 0.7 }),
+            Some(0.7)
+        );
+        assert_eq!(state.preview_value, None);
+
+        state.apply(CommittedSliderAction::Begin { value: 0.7 });
+        state.apply(CommittedSliderAction::Update { value: 0.2 });
+        assert_eq!(state.apply(CommittedSliderAction::Cancel), None);
+        assert_eq!(state.preview_value, None);
     }
 
     #[test]
