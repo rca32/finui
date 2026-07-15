@@ -1,4 +1,7 @@
-use std::hash::Hash;
+use std::{
+    hash::Hash,
+    sync::atomic::{AtomicU64, Ordering},
+};
 
 use egui::{self, Color32, FontId, Pos2, Rect, Response, RichText, Stroke, Vec2};
 
@@ -1982,33 +1985,67 @@ pub fn primitive_slider(
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CommittedSliderInteractionId(pub u64);
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CommittedSliderAction {
-    Begin { value: f32 },
-    Update { value: f32 },
-    Commit { value: f32 },
-    Cancel,
+    Begin {
+        interaction_id: CommittedSliderInteractionId,
+        value: f32,
+    },
+    Update {
+        interaction_id: CommittedSliderInteractionId,
+        value: f32,
+    },
+    Commit {
+        interaction_id: CommittedSliderInteractionId,
+        value: f32,
+    },
+    Cancel {
+        interaction_id: CommittedSliderInteractionId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct CommittedSliderInteractionState {
     pub preview_value: Option<f32>,
+    pub active_interaction_id: Option<CommittedSliderInteractionId>,
 }
 
 impl CommittedSliderInteractionState {
     pub fn apply(&mut self, action: CommittedSliderAction) -> Option<f32> {
         match action {
-            CommittedSliderAction::Begin { value } | CommittedSliderAction::Update { value } => {
+            CommittedSliderAction::Begin {
+                interaction_id,
+                value,
+            } if self.active_interaction_id.is_none() => {
+                self.active_interaction_id = Some(interaction_id);
                 self.preview_value = Some(value);
                 None
             }
-            CommittedSliderAction::Commit { value } => {
+            CommittedSliderAction::Update {
+                interaction_id,
+                value,
+            } if self.active_interaction_id == Some(interaction_id) => {
+                self.preview_value = Some(value);
+                None
+            }
+            CommittedSliderAction::Commit {
+                interaction_id,
+                value,
+            } if self.active_interaction_id == Some(interaction_id) => {
+                self.active_interaction_id = None;
                 self.preview_value = None;
                 Some(value)
             }
-            CommittedSliderAction::Cancel => {
+            CommittedSliderAction::Cancel { interaction_id }
+                if self.active_interaction_id == Some(interaction_id) =>
+            {
+                self.active_interaction_id = None;
                 self.preview_value = None;
                 None
             }
+            _ => None,
         }
     }
 }
@@ -2030,6 +2067,8 @@ pub fn primitive_committed_slider(
     interaction: &CommittedSliderInteractionState,
     options: PrimitiveSliderOptions,
 ) -> PrimitiveCommittedSliderOutput {
+    static NEXT_INTERACTION_ID: AtomicU64 = AtomicU64::new(1);
+
     let mut preview_value = interaction.preview_value.unwrap_or(authoritative_value);
     let control = ui
         .push_id(id_source, |ui| {
@@ -2037,24 +2076,35 @@ pub fn primitive_committed_slider(
         })
         .inner;
     let mut actions = Vec::new();
-    if control.response.drag_started() {
+    let starts_without_active = interaction.active_interaction_id.is_none()
+        && (control.response.drag_started()
+            || control.changed
+            || control.response.drag_stopped()
+            || control.response.clicked());
+    let interaction_id = interaction.active_interaction_id.unwrap_or_else(|| {
+        CommittedSliderInteractionId(NEXT_INTERACTION_ID.fetch_add(1, Ordering::Relaxed))
+    });
+    if starts_without_active {
         actions.push(CommittedSliderAction::Begin {
+            interaction_id,
             value: authoritative_value,
         });
     }
     if control.changed {
         actions.push(CommittedSliderAction::Update {
+            interaction_id,
             value: preview_value,
         });
     }
     if control.response.drag_stopped() || control.response.clicked() {
         actions.push(CommittedSliderAction::Commit {
+            interaction_id,
             value: preview_value,
         });
-    } else if interaction.preview_value.is_some()
+    } else if interaction.active_interaction_id.is_some()
         && ui.input(|input| input.key_pressed(egui::Key::Escape))
     {
-        actions.push(CommittedSliderAction::Cancel);
+        actions.push(CommittedSliderAction::Cancel { interaction_id });
     }
     PrimitiveCommittedSliderOutput {
         response: control.response,
@@ -2999,25 +3049,81 @@ mod tests {
     #[test]
     fn committed_slider_updates_preview_without_committing_until_release() {
         let mut state = CommittedSliderInteractionState::default();
+        let first = CommittedSliderInteractionId(41);
         assert_eq!(
-            state.apply(CommittedSliderAction::Begin { value: 0.5 }),
+            state.apply(CommittedSliderAction::Begin {
+                interaction_id: first,
+                value: 0.5,
+            }),
             None
         );
         assert_eq!(
-            state.apply(CommittedSliderAction::Update { value: 0.7 }),
+            state.apply(CommittedSliderAction::Update {
+                interaction_id: first,
+                value: 0.7,
+            }),
             None
         );
         assert_eq!(state.preview_value, Some(0.7));
         assert_eq!(
-            state.apply(CommittedSliderAction::Commit { value: 0.7 }),
+            state.apply(CommittedSliderAction::Commit {
+                interaction_id: first,
+                value: 0.7,
+            }),
             Some(0.7)
         );
         assert_eq!(state.preview_value, None);
 
-        state.apply(CommittedSliderAction::Begin { value: 0.7 });
-        state.apply(CommittedSliderAction::Update { value: 0.2 });
-        assert_eq!(state.apply(CommittedSliderAction::Cancel), None);
+        let second = CommittedSliderInteractionId(42);
+        state.apply(CommittedSliderAction::Begin {
+            interaction_id: second,
+            value: 0.7,
+        });
+        state.apply(CommittedSliderAction::Update {
+            interaction_id: second,
+            value: 0.2,
+        });
+        assert_eq!(
+            state.apply(CommittedSliderAction::Cancel {
+                interaction_id: second,
+            }),
+            None
+        );
         assert_eq!(state.preview_value, None);
+    }
+
+    #[test]
+    fn committed_slider_rejects_stale_or_interleaved_interaction_ids() {
+        let mut state = CommittedSliderInteractionState::default();
+        let active = CommittedSliderInteractionId(7);
+        let stale = CommittedSliderInteractionId(6);
+        state.apply(CommittedSliderAction::Begin {
+            interaction_id: active,
+            value: 0.5,
+        });
+
+        state.apply(CommittedSliderAction::Update {
+            interaction_id: stale,
+            value: 0.9,
+        });
+        assert_eq!(state.preview_value, Some(0.5));
+        assert_eq!(
+            state.apply(CommittedSliderAction::Commit {
+                interaction_id: stale,
+                value: 0.9,
+            }),
+            None
+        );
+        assert_eq!(state.active_interaction_id, Some(active));
+
+        assert_eq!(
+            state.apply(CommittedSliderAction::Commit {
+                interaction_id: active,
+                value: 0.6,
+            }),
+            Some(0.6)
+        );
+        assert_eq!(state.active_interaction_id, None);
     }
 
     #[test]

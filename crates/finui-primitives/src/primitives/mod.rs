@@ -134,9 +134,9 @@ pub use focus::{
 };
 pub use form::{
     CheckboxIndicatorOptions, CheckboxIndicatorOutput, CheckboxRootOptions, CheckboxRootOutput,
-    CheckboxState, CommittedSliderAction, CommittedSliderInteractionState,
-    PrimitiveCheckboxOptions, PrimitiveCommittedSliderOutput, PrimitiveControlOutput,
-    PrimitiveFormAssociationOptions, PrimitiveFormAssociationOutput,
+    CheckboxState, CommittedSliderAction, CommittedSliderInteractionId,
+    CommittedSliderInteractionState, PrimitiveCheckboxOptions, PrimitiveCommittedSliderOutput,
+    PrimitiveControlOutput, PrimitiveFormAssociationOptions, PrimitiveFormAssociationOutput,
     PrimitiveFormAsyncValidationState, PrimitiveFormControlOptions, PrimitiveFormControlOutput,
     PrimitiveFormFieldOptions, PrimitiveFormFieldOutput, PrimitiveFormFieldPartOptions,
     PrimitiveFormLabelOptions, PrimitiveFormLabelOutput, PrimitiveFormMessageKind,
