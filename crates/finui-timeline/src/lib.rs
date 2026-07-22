@@ -1,6 +1,8 @@
 //! Feature-gated virtualized timeline with caller-owned state and typed actions.
 
 #[cfg(feature = "preview")]
+mod edit_overlay;
+#[cfg(feature = "preview")]
 mod geometry;
 #[cfg(feature = "preview")]
 mod interaction;
@@ -9,6 +11,12 @@ mod model;
 #[cfg(feature = "preview")]
 mod widget;
 
+#[cfg(feature = "preview")]
+pub use edit_overlay::{
+    TimelineOverlayAccessibility, TimelineOverlayAction, TimelineOverlayActionPhase,
+    TimelineOverlayBehaviorOutput, TimelineOverlayGeometry, TimelineOverlayGeometryInput,
+    TimelineOverlayInteractionInput, TimelineOverlayTarget, show_timeline_edit_overlay_behavior,
+};
 #[cfg(feature = "preview")]
 pub use geometry::{
     RULER_HEIGHT_POINTS, TimelineClipGeometry, TimelineGeometry, TimelineGeometryCache,
@@ -39,6 +47,7 @@ pub const TIMELINE_PREVIEW_API: &[&str] = &[
     "TimelineUxReceipt",
     "timeline_receipt_json",
     "show_timeline",
+    "show_timeline_edit_overlay_behavior",
 ];
 
 pub const TIMELINE_EXPERIMENTAL_API: &[&str] = &["TimelinePerformanceReceipt"];
