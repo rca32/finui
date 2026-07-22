@@ -23,8 +23,8 @@ pub use interaction::{
 pub use model::{ClipId, TimelineClip, TimelineSnapshot, TimelineTrack, TimelineViewport, TrackId};
 #[cfg(feature = "preview")]
 pub use widget::{
-    TimelineOutput, TimelineUxReceipt, show_timeline, show_timeline_with_policy,
-    timeline_receipt_json,
+    TimelineClipAccessibility, TimelineOutput, TimelineUxReceipt, show_timeline,
+    show_timeline_with_clip_accessibility, show_timeline_with_policy, timeline_receipt_json,
 };
 
 pub const TIMELINE_API_STABILITY: &str = "preview";
