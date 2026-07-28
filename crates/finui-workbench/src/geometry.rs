@@ -56,10 +56,29 @@ pub struct WorkbenchGeometry {
     pub tab_regions: Vec<TabRegionGeometry>,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct WorkbenchOptions {
+    pub hide_single_tab_bar: bool,
+}
+
 pub fn calculate_workbench_geometry(
     state: &WorkbenchState,
     root_rect: Rect,
     pixels_per_point: f32,
+) -> Result<WorkbenchGeometry, LayoutValidationError> {
+    calculate_workbench_geometry_with_options(
+        state,
+        root_rect,
+        pixels_per_point,
+        WorkbenchOptions::default(),
+    )
+}
+
+pub fn calculate_workbench_geometry_with_options(
+    state: &WorkbenchState,
+    root_rect: Rect,
+    pixels_per_point: f32,
+    options: WorkbenchOptions,
 ) -> Result<WorkbenchGeometry, LayoutValidationError> {
     state.validate()?;
     let pixels_per_point = if pixels_per_point.is_finite() && pixels_per_point > 0.0 {
@@ -73,11 +92,16 @@ pub fn calculate_workbench_geometry(
         dividers: Vec::new(),
         tab_regions: Vec::new(),
     };
-    layout_node(&state.root, root_rect, &mut geometry);
+    layout_node(&state.root, root_rect, options, &mut geometry);
     Ok(geometry)
 }
 
-fn layout_node(node: &WorkbenchNode, rect: Rect, geometry: &mut WorkbenchGeometry) {
+fn layout_node(
+    node: &WorkbenchNode,
+    rect: Rect,
+    options: WorkbenchOptions,
+    geometry: &mut WorkbenchGeometry,
+) {
     match node {
         WorkbenchNode::Split {
             id,
@@ -106,11 +130,15 @@ fn layout_node(node: &WorkbenchNode, rect: Rect, geometry: &mut WorkbenchGeometr
                 max_first_extent: maximum,
                 constraints_satisfied,
             });
-            layout_node(first, first_rect, geometry);
-            layout_node(second, second_rect, geometry);
+            layout_node(first, first_rect, options, geometry);
+            layout_node(second, second_rect, options, geometry);
         }
         WorkbenchNode::Tabs { id, tabs, active } => {
-            let tab_bar_height = TAB_BAR_POINTS.min(rect.height().max(0.0));
+            let tab_bar_height = if options.hide_single_tab_bar && tabs.len() == 1 {
+                0.0
+            } else {
+                TAB_BAR_POINTS.min(rect.height().max(0.0))
+            };
             let tab_bar_rect =
                 Rect::from_min_max(rect.min, pos2(rect.max.x, rect.min.y + tab_bar_height));
             let content_rect = Rect::from_min_max(pos2(rect.min.x, tab_bar_rect.max.y), rect.max);
@@ -204,7 +232,10 @@ mod tests {
 
     use crate::{PaneConstraints, PanelTab, SplitAxis, WorkbenchNode, WorkbenchState};
 
-    use super::{DIVIDER_HIT_POINTS, calculate_workbench_geometry};
+    use super::{
+        DIVIDER_HIT_POINTS, WorkbenchOptions, calculate_workbench_geometry,
+        calculate_workbench_geometry_with_options,
+    };
 
     fn split_state(fraction: f32) -> WorkbenchState {
         WorkbenchState::new(WorkbenchNode::split(
@@ -257,5 +288,37 @@ mod tests {
         let divider = &geometry.dividers[0];
         let fraction = divider.fraction_for_pointer(pos2(5.0, 200.0));
         assert!((fraction - 499.0 / 999.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn default_single_tab_region_keeps_its_tab_strip() {
+        let rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(1000.0, 600.0));
+        let geometry = calculate_workbench_geometry(&split_state(0.5), rect, 1.0).unwrap();
+
+        for region in &geometry.tab_regions {
+            assert_eq!(region.tabs.len(), 1);
+            assert_eq!(region.tab_bar_rect.height(), 30.0);
+            assert_eq!(region.content_rect.min.y, region.rect.min.y + 30.0);
+        }
+    }
+
+    #[test]
+    fn opt_in_single_tab_policy_gives_the_full_rect_to_the_panel() {
+        let rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(1000.0, 600.0));
+        let geometry = calculate_workbench_geometry_with_options(
+            &split_state(0.5),
+            rect,
+            1.0,
+            WorkbenchOptions {
+                hide_single_tab_bar: true,
+            },
+        )
+        .unwrap();
+
+        for region in &geometry.tab_regions {
+            assert_eq!(region.tabs.len(), 1);
+            assert_eq!(region.tab_bar_rect.height(), 0.0);
+            assert_eq!(region.content_rect, region.rect);
+        }
     }
 }

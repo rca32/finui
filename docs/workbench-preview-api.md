@@ -22,6 +22,14 @@ When no panel is focused it falls back to `Global`. `FocusRoute` also includes
 the ordered split ancestors, so an application can route commands or keyboard
 focus without inspecting paint geometry.
 
+With the opt-in `experimental` feature, `WorkbenchOptions` can suppress the tab
+strip for regions containing exactly one panel. This is a caller-owned product
+chrome policy: `show_workbench` and `calculate_workbench_geometry` retain the
+existing visible single-tab strip, while their `_with_options` counterparts
+give the full region rectangle to panel content when
+`hide_single_tab_bar` is enabled. Multi-tab regions always retain their visible,
+clickable tab strip.
+
 ## Split Geometry And Constraints
 
 A `WorkbenchNode` is either a split or a tab region. Horizontal splits place

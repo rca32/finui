@@ -2,6 +2,7 @@ use egui::{
     Align, Align2, CursorIcon, FontId, Layout, Rect, Sense, StrokeKind, Ui, UiBuilder, pos2, vec2,
 };
 
+use crate::geometry::{WorkbenchOptions, calculate_workbench_geometry_with_options};
 use crate::{
     CommandScopeOutput, FocusRoute, LayoutValidationError, PanelId, SplitAxis, WorkbenchAction,
     WorkbenchGeometry, WorkbenchState, calculate_workbench_geometry,
@@ -18,10 +19,28 @@ pub struct WorkbenchOutput {
 pub fn show_workbench(
     ui: &mut Ui,
     state: &WorkbenchState,
+    add_panel: impl FnMut(&mut Ui, &PanelId),
+) -> Result<WorkbenchOutput, LayoutValidationError> {
+    show_workbench_with_options(ui, state, WorkbenchOptions::default(), add_panel)
+}
+
+pub fn show_workbench_with_options(
+    ui: &mut Ui,
+    state: &WorkbenchState,
+    options: WorkbenchOptions,
     mut add_panel: impl FnMut(&mut Ui, &PanelId),
 ) -> Result<WorkbenchOutput, LayoutValidationError> {
     let root_rect = ui.available_rect_before_wrap();
-    let geometry = calculate_workbench_geometry(state, root_rect, ui.ctx().pixels_per_point())?;
+    let geometry = if options == WorkbenchOptions::default() {
+        calculate_workbench_geometry(state, root_rect, ui.ctx().pixels_per_point())?
+    } else {
+        calculate_workbench_geometry_with_options(
+            state,
+            root_rect,
+            ui.ctx().pixels_per_point(),
+            options,
+        )?
+    };
     ui.allocate_rect(root_rect, Sense::hover());
 
     let painter = ui.painter().clone();
@@ -30,7 +49,6 @@ pub fn show_workbench(
 
     for region in &geometry.tab_regions {
         painter.rect_filled(region.rect, 0.0, visuals.extreme_bg_color);
-        painter.rect_filled(region.tab_bar_rect, 0.0, visuals.faint_bg_color);
         painter.rect_stroke(
             region.rect,
             0.0,
@@ -38,50 +56,53 @@ pub fn show_workbench(
             StrokeKind::Inside,
         );
 
-        let tab_width = tab_width(region.tab_bar_rect, region.tabs.len());
-        for (index, tab) in region.tabs.iter().enumerate() {
-            let tab_rect = Rect::from_min_size(
-                pos2(
-                    region.tab_bar_rect.min.x + tab_width * index as f32,
-                    region.tab_bar_rect.min.y,
-                ),
-                vec2(tab_width, region.tab_bar_rect.height()),
-            );
-            let active = tab.id == region.active_panel;
-            if active {
-                painter.rect_filled(tab_rect, 0.0, visuals.selection.bg_fill);
-            }
-            painter.text(
-                tab_rect.center(),
-                Align2::CENTER_CENTER,
-                &tab.title,
-                FontId::proportional(12.0),
+        if region.tab_bar_rect.height() > 0.0 {
+            painter.rect_filled(region.tab_bar_rect, 0.0, visuals.faint_bg_color);
+            let tab_width = tab_width(region.tab_bar_rect, region.tabs.len());
+            for (index, tab) in region.tabs.iter().enumerate() {
+                let tab_rect = Rect::from_min_size(
+                    pos2(
+                        region.tab_bar_rect.min.x + tab_width * index as f32,
+                        region.tab_bar_rect.min.y,
+                    ),
+                    vec2(tab_width, region.tab_bar_rect.height()),
+                );
+                let active = tab.id == region.active_panel;
                 if active {
-                    visuals.selection.stroke.color
-                } else {
-                    visuals.text_color()
-                },
-            );
+                    painter.rect_filled(tab_rect, 0.0, visuals.selection.bg_fill);
+                }
+                painter.text(
+                    tab_rect.center(),
+                    Align2::CENTER_CENTER,
+                    &tab.title,
+                    FontId::proportional(12.0),
+                    if active {
+                        visuals.selection.stroke.color
+                    } else {
+                        visuals.text_color()
+                    },
+                );
 
-            let response = ui.interact(
-                tab_rect,
-                ui.make_persistent_id((
-                    "finui-workbench-tab",
-                    region.region_id.as_str(),
-                    tab.id.as_str(),
-                )),
-                Sense::click(),
-            );
-            if response.clicked() {
-                if !active {
-                    actions.push(WorkbenchAction::ActivateTab {
-                        region_id: region.region_id.clone(),
+                let response = ui.interact(
+                    tab_rect,
+                    ui.make_persistent_id((
+                        "finui-workbench-tab",
+                        region.region_id.as_str(),
+                        tab.id.as_str(),
+                    )),
+                    Sense::click(),
+                );
+                if response.clicked() {
+                    if !active {
+                        actions.push(WorkbenchAction::ActivateTab {
+                            region_id: region.region_id.clone(),
+                            panel_id: tab.id.clone(),
+                        });
+                    }
+                    actions.push(WorkbenchAction::FocusPanel {
                         panel_id: tab.id.clone(),
                     });
                 }
-                actions.push(WorkbenchAction::FocusPanel {
-                    panel_id: tab.id.clone(),
-                });
             }
         }
 
@@ -165,7 +186,9 @@ mod tests {
         WorkbenchState,
     };
 
-    use super::show_workbench;
+    use crate::geometry::WorkbenchOptions;
+
+    use super::{show_workbench, show_workbench_with_options};
 
     #[test]
     fn workbench_renders_each_active_tab_and_reports_command_scope() {
@@ -204,5 +227,53 @@ mod tests {
             rendered.into_inner(),
             vec![PanelId::from("media"), PanelId::from("preview")]
         );
+    }
+
+    #[test]
+    fn opt_in_policy_hides_only_single_tab_regions() {
+        let state = WorkbenchState::new(WorkbenchNode::split(
+            "root",
+            SplitAxis::Horizontal,
+            0.5,
+            PaneConstraints::minimum(100.0),
+            PaneConstraints::minimum(100.0),
+            WorkbenchNode::tabs("left", vec![PanelTab::new("media", "Media")], "media"),
+            WorkbenchNode::tabs(
+                "right",
+                vec![
+                    PanelTab::new("preview", "Preview"),
+                    PanelTab::new("inspector", "Inspector"),
+                ],
+                "preview",
+            ),
+        ));
+
+        egui::__run_test_ui(|ui| {
+            ui.set_min_size(egui::vec2(800.0, 600.0));
+            let output = show_workbench_with_options(
+                ui,
+                &state,
+                WorkbenchOptions {
+                    hide_single_tab_bar: true,
+                },
+                |_, _| {},
+            )
+            .unwrap();
+
+            let single = output
+                .geometry
+                .tab_regions
+                .iter()
+                .find(|region| region.region_id.as_str() == "left")
+                .unwrap();
+            let multiple = output
+                .geometry
+                .tab_regions
+                .iter()
+                .find(|region| region.region_id.as_str() == "right")
+                .unwrap();
+            assert_eq!(single.tab_bar_rect.height(), 0.0);
+            assert_eq!(multiple.tab_bar_rect.height(), 30.0);
+        });
     }
 }

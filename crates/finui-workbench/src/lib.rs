@@ -16,6 +16,8 @@ pub use geometry::{
     DIVIDER_HIT_POINTS, DIVIDER_VISUAL_POINTS, DividerGeometry, TabRegionGeometry,
     WorkbenchGeometry, calculate_workbench_geometry,
 };
+#[cfg(feature = "experimental")]
+pub use geometry::{WorkbenchOptions, calculate_workbench_geometry_with_options};
 #[cfg(feature = "preview")]
 pub use model::{
     CommandScopeOutput, FocusRoute, LayoutValidationError, PaneConstraints, PanelId, PanelTab,
@@ -28,6 +30,8 @@ pub use transport::{
     KeyboardTransportAction, KeyboardTransportOutput, KeyboardTransportReceipt,
     keyboard_transport_actions, keyboard_transport_actions_from_pressed,
 };
+#[cfg(feature = "experimental")]
+pub use widget::show_workbench_with_options;
 #[cfg(feature = "preview")]
 pub use widget::{WorkbenchOutput, show_workbench};
 
@@ -52,6 +56,9 @@ pub const WORKBENCH_PREVIEW_API: &[&str] = &[
 
 /// Public items that require the `experimental` Cargo feature.
 pub const WORKBENCH_EXPERIMENTAL_API: &[&str] = &[
+    "WorkbenchOptions",
+    "calculate_workbench_geometry_with_options",
+    "show_workbench_with_options",
     "WorkbenchState::to_json_pretty",
     "WorkbenchState::from_json",
     "LayoutRestoreError",

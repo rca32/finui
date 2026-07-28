@@ -34,6 +34,9 @@ update this manifest and the generated-documentation gate.
 
 ## Experimental items
 
+- Workbench product chrome: `WorkbenchOptions`,
+  `calculate_workbench_geometry_with_options`, and
+  `show_workbench_with_options`.
 - Workbench persistence: `WorkbenchState::to_json_pretty`,
   `WorkbenchState::from_json`, `LayoutRestoreError`, and
   `WORKBENCH_LAYOUT_SCHEMA_VERSION`.

@@ -55,6 +55,11 @@ The workbench crate currently exposes a Preview API centered on:
 - `FocusRoute` and `CommandScopeOutput`
 - `show_workbench` for renderer-neutral egui application shells
 
+The `experimental` feature additionally exposes `WorkbenchOptions` plus
+`calculate_workbench_geometry_with_options` and `show_workbench_with_options`.
+Callers can opt into hiding a redundant tab strip when a tab region owns exactly
+one panel; the default Preview API keeps the existing visible tab strip.
+
 The state schema and behavior are exercised by `editor_lab`, but can change
 before promotion to the stable surface. See `docs/workbench-preview-api.md`.
 

@@ -22,7 +22,9 @@ try {
             Items = @('WorkbenchNode', 'WorkbenchState', 'WorkbenchAction', 'FocusRoute',
                 'CommandScopeOutput', 'KeyboardTransportAction', 'KeyboardTransportOutput',
                 'KeyboardTransportReceipt', 'keyboard_transport_actions',
-                'keyboard_transport_actions_from_pressed', 'WorkbenchOutput', 'show_workbench', 'LayoutRestoreError',
+                'keyboard_transport_actions_from_pressed', 'WorkbenchOutput', 'show_workbench',
+                'WorkbenchOptions', 'calculate_workbench_geometry_with_options',
+                'show_workbench_with_options', 'LayoutRestoreError',
                 'WORKBENCH_LAYOUT_SCHEMA_VERSION')
         },
         @{
