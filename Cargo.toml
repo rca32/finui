@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/finui-audio-controls",
     "crates/finui-grid",
     "crates/finui-media-surface",
     "crates/finui-primitives",

@@ -14,6 +14,14 @@ pub struct TimelineOutput {
     pub receipt: TimelineUxReceipt,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TimelineClipAccessibility {
+    pub label: String,
+    pub state_description: String,
+    pub selected: bool,
+    pub disabled: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimelineUxReceipt {
     pub primitive: String,
@@ -61,6 +69,45 @@ pub fn show_timeline_with_policy(
     playhead_tick: i64,
     interaction: &TimelineInteractionState,
     snap_policy: TimelineSnapPolicy,
+) -> TimelineOutput {
+    show_timeline_with_policy_and_clip_accessibility(
+        ui,
+        cache,
+        viewport,
+        playhead_tick,
+        interaction,
+        snap_policy,
+        &|_| None,
+    )
+}
+
+pub fn show_timeline_with_clip_accessibility(
+    ui: &mut Ui,
+    cache: &TimelineGeometryCache,
+    viewport: TimelineViewport,
+    playhead_tick: i64,
+    interaction: &TimelineInteractionState,
+    clip_accessibility: &dyn Fn(&str) -> Option<TimelineClipAccessibility>,
+) -> TimelineOutput {
+    show_timeline_with_policy_and_clip_accessibility(
+        ui,
+        cache,
+        viewport,
+        playhead_tick,
+        interaction,
+        TimelineSnapPolicy::default(),
+        clip_accessibility,
+    )
+}
+
+fn show_timeline_with_policy_and_clip_accessibility(
+    ui: &mut Ui,
+    cache: &TimelineGeometryCache,
+    viewport: TimelineViewport,
+    playhead_tick: i64,
+    interaction: &TimelineInteractionState,
+    snap_policy: TimelineSnapPolicy,
+    clip_accessibility: &dyn Fn(&str) -> Option<TimelineClipAccessibility>,
 ) -> TimelineOutput {
     let rect = ui.available_rect_before_wrap();
     let root_response = ui.allocate_rect(rect, Sense::hover());
@@ -135,15 +182,36 @@ pub fn show_timeline_with_policy(
             Color32::WHITE,
         );
 
-        if interaction.drag.is_none() {
-            let response = ui.interact(
-                clip_rect,
-                ui.make_persistent_id(("finui-timeline-clip", clip.clip_id.as_str())),
-                Sense::click_and_drag(),
-            );
+        let response = ui.interact(
+            clip_rect,
+            ui.make_persistent_id(("finui-timeline-clip", clip.clip_id.as_str())),
+            Sense::click_and_drag(),
+        );
+        let accessibility = clip_accessibility(clip.clip_id.as_str());
+        if let Some(accessibility) = &accessibility {
+            response.widget_info(|| {
+                egui::WidgetInfo::selected(
+                    egui::WidgetType::Button,
+                    !accessibility.disabled,
+                    accessibility.selected,
+                    &accessibility.label,
+                )
+            });
+            ui.ctx().accesskit_node_builder(response.id, |node| {
+                node.set_role(egui::accesskit::Role::Button);
+                node.set_description(accessibility.state_description.clone());
+                node.set_selected(accessibility.selected);
+                if accessibility.disabled {
+                    node.set_disabled();
+                }
+            });
+        } else {
             response.widget_info(|| {
                 egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &clip.label)
             });
+        }
+        if interaction.drag.is_none() && accessibility.as_ref().is_none_or(|value| !value.disabled)
+        {
             if response.clicked() {
                 response.request_focus();
                 actions.push(TimelineAction::SelectClip {
@@ -396,5 +464,61 @@ mod tests {
         assert_eq!(preview.min.x, original.min.x + 20.0);
         assert_eq!(geometry.visible_clips[0].rect, original);
         assert_eq!(snapshot.tracks[0].clips[0].start_tick, 100);
+    }
+
+    #[test]
+    fn clip_accessibility_is_attached_to_the_single_actionable_response() {
+        let snapshot = TimelineSnapshot {
+            revision: 1,
+            tracks: vec![TimelineTrack::new(
+                "v1",
+                "V1",
+                vec![TimelineClip::new("clip-a", "Clip A", 10, 80)],
+            )],
+        };
+        let cache = TimelineGeometryCache::build(&snapshot);
+        let context = egui::Context::default();
+        context.enable_accesskit();
+        let output = context.run_ui(
+            egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(400.0, 100.0),
+                )),
+                ..Default::default()
+            },
+            |ui| {
+                let _ = show_timeline_with_clip_accessibility(
+                    ui,
+                    &cache,
+                    TimelineViewport::new(0, 1.0),
+                    0,
+                    &TimelineInteractionState::default(),
+                    &|clip_id| {
+                        (clip_id == "clip-a").then(|| TimelineClipAccessibility {
+                            label: "Clip A selected".to_owned(),
+                            state_description: "Selected".to_owned(),
+                            selected: true,
+                            disabled: true,
+                        })
+                    },
+                );
+            },
+        );
+        let nodes = output
+            .platform_output
+            .accesskit_update
+            .unwrap()
+            .nodes
+            .into_iter()
+            .map(|(_, node)| node)
+            .filter(|node| node.description() == Some("Selected"))
+            .collect::<Vec<_>>();
+        assert_eq!(nodes.len(), 1);
+        let node = &nodes[0];
+        assert_eq!(node.role(), egui::accesskit::Role::Button);
+        assert!(node.supports_action(egui::accesskit::Action::Click));
+        assert_eq!(node.is_selected(), Some(true));
+        assert!(node.is_disabled());
     }
 }
